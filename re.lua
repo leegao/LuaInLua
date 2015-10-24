@@ -26,7 +26,7 @@ function parse_re(str)
   end
   cst = stack[1]
   ast = reduce_groups(cst)
-  ast = reduce_concat(ast)
+  --ast = reduce_concat(ast)
   return ast
 end
 
@@ -83,7 +83,7 @@ function reduce_groups(tree)
   end
 end
 
-function reduce_concat(tree)
+function reduce_concat_total(tree)
   if type(tree) == "string" then
     return tree
   elseif tree[1] == "star" then
@@ -109,5 +109,68 @@ function reduce_concat(tree)
   end
 end
 
+function new_context()
+  return {
+    id = 0,
+    get = function(self)
+      self.id = self.id + 1
+      return self.id
+    end
+  }
+end
+
+function combine(left, right)
+  for i, v in ipairs(right) do
+    table.insert(left, v)
+  end
+  return left
+end
+
+function translate_to_nfa(context, tree)
+  if type(tree) == 'string' then
+    local l = context:get()
+    local r = context:get()
+    return {l, r, {{l, r, tree}}}
+  elseif tree[1] == 'star' then
+    local l = context:get()
+    local r = context:get()
+    local subgraph = translate_to_nfa(context, tree[2])
+    local l_ = subgraph[1]
+    local r_ = subgraph[2]
+    local edges = subgraph[3]
+    table.insert(edges, {l, l_, ''})
+    table.insert(edges, {r_, l_, ''})
+    table.insert(edges, {r_, r, ''})
+    table.insert(edges, {l, r, ''})
+    return {l, r, edges}
+  elseif tree[1] == 'concat' then
+    local subgraph_on_left = translate_to_nfa(context, tree[2])
+    local subgraph_on_right = translate_to_nfa(context, tree[3])
+    local l_1 = subgraph_on_left[1]
+    local r_1 = subgraph_on_left[2]
+    local l_2 = subgraph_on_right[1]
+    local r_2 = subgraph_on_right[2]
+    local edges = combine(subgraph_on_left[3], subgraph_on_right[3])
+    table.insert(edges, {r_1, l_2, ''})
+    return {l_1, r_2, edges}
+  elseif tree[1] == 'or' then
+    local l = context:get()
+    local r = context:get()
+    local subgraph_on_left = translate_to_nfa(context, tree[2])
+    local subgraph_on_right = translate_to_nfa(context, tree[3])
+    local l_1 = subgraph_on_left[1]
+    local r_1 = subgraph_on_left[2]
+    local l_2 = subgraph_on_right[1]
+    local r_2 = subgraph_on_right[2]
+    local edges = combine(subgraph_on_left[3], subgraph_on_right[3])
+    table.insert(edges, {l, l_1, ''})
+    table.insert(edges, {l, l_2, ''})
+    table.insert(edges, {r_1, r, ''})
+    table.insert(edges, {r_2, r, ''})
+    return {l, r, edges}
+  end
+end
+
 x = parse_re("a(b)c|e*")
-print(x)
+y = translate_to_nfa(new_context(), x)
+print(y)
