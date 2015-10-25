@@ -119,6 +119,10 @@ function new_context()
   }
 end
 
+function copy(t) 
+  return {table.unpack(t)} 
+end
+
 function combine(left, right)
   for i, v in ipairs(right) do
     table.insert(left, v)
@@ -171,6 +175,29 @@ function translate_to_nfa(context, tree)
   end
 end
 
+function dot(graph)
+  -- collect all of the vertices
+  --[[
+  digraph {
+    rankdir=LR;
+    size="2,10"
+    node [shape=circle,label=""];
+    1 [label=""];
+    1 -> 2[label="1"];
+  }
+  --]]
+  local str = [[digraph {
+  rankdir=LR;
+  size="3"
+  node[shape=circle,label=""];
+]]
+  for i, edge in ipairs(graph[3]) do
+    local l, r, c = unpack(edge)
+    str = str .. '  ' .. l .. ' -> ' .. r .. '[label="' .. c .. '"];\n'
+  end
+  return str .. '}'
+end
+
 x = parse_re("a(b)c|e*")
 y = translate_to_nfa(new_context(), x)
-print(y)
+print(dot(y))
