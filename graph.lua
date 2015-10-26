@@ -44,7 +44,7 @@ function graph.vertices(self)
   local node, tag = next(self.nodes, nil)
   return function()
     local forward = self.forward[node]
-    local reverse = self.reverse[noode]
+    local reverse = self.reverse[node]
     local value = {node, tag, forward, reverse}
     node, tag = next(self.nodes, node)
     return table.unpack(value)
@@ -70,7 +70,37 @@ function graph.dfs(self, start)
     local node = solution[i]
     local tag = self.nodes[node]
     local forward = self.forward[node]
-    local reverse = self.reverse[noode]
+    local reverse = self.reverse[node]
+    local value = {node, tag, forward, reverse}
+    i = i + 1
+    return table.unpack(value)
+  end
+end
+
+local function reverse_dfs(self, start, seen, solution)
+  if seen[start] then
+    return
+  end
+  table.insert(solution, start)
+  seen[start] = true
+  for child in pairs(self.reverse[start]) do
+    reverse_dfs(self, child, seen, solution)
+  end
+end
+
+function graph.reverse_dfs(self, ...)
+  starts = {...}
+  local solution = {}
+  local seen = {}
+  for _, start in ipairs(starts) do
+    reverse_dfs(self, start, seen, solution)
+  end
+  local i = 1
+  return function()
+    local node = solution[i]
+    local tag = self.nodes[node]
+    local forward = self.forward[node]
+    local reverse = self.reverse[node]
     local value = {node, tag, forward, reverse}
     i = i + 1
     return table.unpack(value)
@@ -83,7 +113,7 @@ g:edge(1, 3)
 g:edge(2, 3)
 g:edge(2, 4)
 g:edge(3, 5)
-for node, tag, forward, reverse in g:dfs(1) do
+for node, tag, forward, reverse in g:reverse_dfs(4, 5) do
   print(node, tag, forward)
 end
 
