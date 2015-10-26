@@ -198,6 +198,67 @@ function dot(graph)
   return str .. '}'
 end
 
-x = parse_re("a(b)c|e*")
-y = translate_to_nfa(new_context(), x)
+function filter(predicate, list)
+  local solution = {}
+  for _, v in ipairs(list) do
+    if predicate(v) then
+      table.insert(solution, v)
+    end
+  end
+  return solution
+end
+
+function map(transform, list)
+  local solution = {}
+  for k, v in pairs(list) do
+    table.insert(solution, transform(v))
+  end
+  return solution
+end
+
+function contains(super, sub)
+  local seen = {}
+  for _, v in ipairs(super) do
+    seen[v] = true
+  end
+  for _, v in ipairs(sub) do
+    if not seen[v] then return false end
+  end
+  return true
+end
+
+function is_epsilon(v)
+  return v[2] == ''
+end
+
+function get_node(v)
+  return v[1]
+end
+
+function closure(start, graph)
+  -- get the closure as well as the possible transitions
+  local worklist = {start}
+  local edge_map = {}
+  for _, edge in ipairs(graph[3]) do
+    local l, r, c = unpack(edge)
+    if not edge_map[l] then edge_map[l] = {} end
+    table.insert(edge_map[l], {r, c})
+  end
+  
+  local partial_closure = {}
+  for _, node in ipairs(worklist) do
+    if not partial_closure[node] then partial_closure[node] = {} end
+    local possible_transitions = map(get_node, filter(is_epsilon, edge_map[node]))
+    -- TODO refactor into least fixed point
+  end
+end
+
+function subset_construction(context, graph)
+  
+end
+
+local x = parse_re("a(b)c|e*")
+local context = new_context()
+local y = translate_to_nfa(context, x)
 print(dot(y))
+closure(y[1], y)
