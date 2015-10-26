@@ -137,17 +137,4 @@ function graph.entrances(self)
   return entrances
 end
 
-local g = graph.create()
-g:edge(1, 2)
-g:edge(1, 3)
-g:edge(2, 3)
-g:edge(2, 4)
-g:edge(3, 5)
-for node, tag, forward, reverse in g:dfs() do
-  print(node, tag, forward, reverse)
-end
-
-print(table.unpack(g:exits()))
-print(table.unpack(g:entrances()))
-
 return graph
