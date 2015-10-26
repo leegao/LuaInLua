@@ -116,153 +116,48 @@ end
 function new_context()
   return {
     id = 0,
+    graph = graph(),
     get = function(self)
       self.id = self.id + 1
+      self.graph:vertex(self.id)
       return self.id
     end
   }
 end
 
-function copy(t) 
-  return {table.unpack(t)} 
-end
-
-function combine(left, right)
-  for i, v in ipairs(right) do
-    table.insert(left, v)
-  end
-  return left
-end
-
 function translate_to_nfa(context, tree)
   if type(tree) == 'string' then
-    local l = context:get()
-    local r = context:get()
-    return {l, r, {{l, r, tree}}}
+    local l, r = context:get(), context:get()
+    context.graph:edge(l, r, tree)
+    return {l, r}
   elseif tree[1] == 'star' then
-    local l = context:get()
-    local r = context:get()
-    local subgraph = translate_to_nfa(context, tree[2])
-    local l_ = subgraph[1]
-    local r_ = subgraph[2]
-    local edges = subgraph[3]
-    table.insert(edges, {l, l_, ''})
-    table.insert(edges, {r_, l_, ''})
-    table.insert(edges, {r_, r, ''})
-    table.insert(edges, {l, r, ''})
-    return {l, r, edges}
+    local l, r = context:get(), context:get()
+    local l_, r_ = unpack(translate_to_nfa(context, tree[2]))
+    context.graph
+        :edge(l, l_, '')
+        :edge(r_, l_, '')
+        :edge(r_, r, '')
+        :edge(l, r, '')
+    return {l, r}
   elseif tree[1] == 'concat' then
-    local subgraph_on_left = translate_to_nfa(context, tree[2])
-    local subgraph_on_right = translate_to_nfa(context, tree[3])
-    local l_1 = subgraph_on_left[1]
-    local r_1 = subgraph_on_left[2]
-    local l_2 = subgraph_on_right[1]
-    local r_2 = subgraph_on_right[2]
-    local edges = combine(subgraph_on_left[3], subgraph_on_right[3])
-    table.insert(edges, {r_1, l_2, ''})
-    return {l_1, r_2, edges}
+    local l_1, r_1 = unpack(translate_to_nfa(context, tree[2]))
+    local l_2, r_2 = unpack(translate_to_nfa(context, tree[3]))
+    context.graph:edge(r_1, l_2, '')
+    return {l_1, r_2}
   elseif tree[1] == 'or' then
-    local l = context:get()
-    local r = context:get()
-    local subgraph_on_left = translate_to_nfa(context, tree[2])
-    local subgraph_on_right = translate_to_nfa(context, tree[3])
-    local l_1 = subgraph_on_left[1]
-    local r_1 = subgraph_on_left[2]
-    local l_2 = subgraph_on_right[1]
-    local r_2 = subgraph_on_right[2]
-    local edges = combine(subgraph_on_left[3], subgraph_on_right[3])
-    table.insert(edges, {l, l_1, ''})
-    table.insert(edges, {l, l_2, ''})
-    table.insert(edges, {r_1, r, ''})
-    table.insert(edges, {r_2, r, ''})
-    return {l, r, edges}
+    local l, r = context:get(), context:get()
+    local l_1, r_1 = unpack(translate_to_nfa(context, tree[2]))
+    local l_2, r_2 = unpack(translate_to_nfa(context, tree[3]))
+    context.graph
+        :edge(l, l_1, '')
+        :edge(l, l_2, '')
+        :edge(r_1, r, '')
+        :edge(r_2, r, '')
+    return {l, r}
   end
-end
-
-function dot(graph)
-  -- collect all of the vertices
-  --[[
-  digraph {
-    rankdir=LR;
-    size="2,10"
-    node [shape=circle,label=""];
-    1 [label=""];
-    1 -> 2[label="1"];
-  }
-  --]]
-  local str = [[digraph {
-  rankdir=LR;
-  size="3"
-  node[shape=circle,label=""];
-]]
-  for i, edge in ipairs(graph[3]) do
-    local l, r, c = unpack(edge)
-    str = str .. '  ' .. l .. ' -> ' .. r .. '[label="' .. c .. '"];\n'
-  end
-  return str .. '}'
-end
-
-function filter(predicate, list)
-  local solution = {}
-  for _, v in ipairs(list) do
-    if predicate(v) then
-      table.insert(solution, v)
-    end
-  end
-  return solution
-end
-
-function map(transform, list)
-  local solution = {}
-  for k, v in pairs(list) do
-    table.insert(solution, transform(v))
-  end
-  return solution
-end
-
-function contains(super, sub)
-  local seen = {}
-  for _, v in ipairs(super) do
-    seen[v] = true
-  end
-  for _, v in ipairs(sub) do
-    if not seen[v] then return false end
-  end
-  return true
-end
-
-function is_epsilon(v)
-  return v[2] == ''
-end
-
-function get_node(v)
-  return v[1]
-end
-
-function closure(start, graph)
-  -- get the closure as well as the possible transitions
-  local worklist = {start}
-  local edge_map = {}
-  for _, edge in ipairs(graph[3]) do
-    local l, r, c = unpack(edge)
-    if not edge_map[l] then edge_map[l] = {} end
-    table.insert(edge_map[l], {r, c})
-  end
-  
-  local partial_closure = {}
-  for _, node in ipairs(worklist) do
-    if not partial_closure[node] then partial_closure[node] = {} end
-    local possible_transitions = map(get_node, filter(is_epsilon, edge_map[node]))
-    -- TODO refactor into least fixed point
-  end
-end
-
-function subset_construction(context, graph)
-  
 end
 
 local x = parse_re("a(b)c|e*")
 local context = new_context()
 local y = translate_to_nfa(context, x)
-print(dot(y))
-closure(y[1], y)
+print(context.graph:dot())

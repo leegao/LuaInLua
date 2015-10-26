@@ -23,4 +23,38 @@ function utils.copy(t)
   return tab
 end
 
+function utils.shallow_copy(t) 
+  return {table.unpack(t)} 
+end
+
+
+function utils.filter(predicate, list)
+  local solution = {}
+  for _, v in ipairs(list) do
+    if predicate(v) then
+      table.insert(solution, v)
+    end
+  end
+  return solution
+end
+
+function utils.map(transform, list)
+  local solution = {}
+  for k, v in pairs(list) do
+    table.insert(solution, transform(v))
+  end
+  return solution
+end
+
+function utils.contains(super, sub)
+  local seen = {}
+  for _, v in ipairs(super) do
+    seen[v] = true
+  end
+  for _, v in ipairs(sub) do
+    if not seen[v] then return false end
+  end
+  return true
+end
+
 return utils
