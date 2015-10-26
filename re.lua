@@ -8,7 +8,63 @@ local graph = require "graph"
 local utils = require "utils"
 local worklist = require "worklist"
 
-function parse_re(str)
+local re = {}
+
+local function pop(stack)
+  return table.remove(stack)
+end
+
+local function push(item, stack)
+  table.insert(stack, item)
+end
+
+local function concat(left, right)
+  if left == '' then return right end
+  if left[1] == 'or' then
+    local l = left[2]
+    local r = left[3]
+    return {'or', l, concat(r, right)}
+  else
+    return {'concat', left, right}
+  end
+end
+
+local function introduce_or(left)
+  return {'or', left, ''}
+end
+
+local function group(item)
+  return {'group', item}
+end
+
+local function star(item)
+  if item[1] == 'or' then
+    local left = item[2]
+    local right = item[3]
+    return {'or', left, star(right)}
+  elseif item[1] == 'concat' then
+    local left = item[2]
+    local right = item[3]
+    return {'concat', left, star(right)}
+  else
+    return {'star', item}
+  end
+end
+
+local function reduce_groups(tree)
+  if type(tree) == "string" then
+    return tree
+  elseif tree[1] == "group" then
+    return reduce_groups(tree[2])
+  elseif tree[1] == "star" then
+    return {"star", reduce_groups(tree[2])}
+  else
+    return {tree[1], reduce_groups(tree[2]), reduce_groups(tree[3])}
+  end
+end
+
+
+local function parse_re(str)
   local stack = {''}
   for i = 1, str:len() do
     local c = string.char(str:byte(i))
@@ -34,60 +90,7 @@ function parse_re(str)
   return ast
 end
 
-function pop(stack)
-  return table.remove(stack)
-end
-
-function push(item, stack)
-  table.insert(stack, item)
-end
-
-function concat(left, right)
-  if left == '' then return right end
-  if left[1] == 'or' then
-    local l = left[2]
-    local r = left[3]
-    return {'or', l, concat(r, right)}
-  else
-    return {'concat', left, right}
-  end
-end
-
-function introduce_or(left)
-  return {'or', left, ''}
-end
-
-function group(item)
-  return {'group', item}
-end
-
-function star(item)
-  if item[1] == 'or' then
-    local left = item[2]
-    local right = item[3]
-    return {'or', left, star(right)}
-  elseif item[1] == 'concat' then
-    local left = item[2]
-    local right = item[3]
-    return {'concat', left, star(right)}
-  else
-    return {'star', item}
-  end
-end
-
-function reduce_groups(tree)
-  if type(tree) == "string" then
-    return tree
-  elseif tree[1] == "group" then
-    return reduce_groups(tree[2])
-  elseif tree[1] == "star" then
-    return {"star", reduce_groups(tree[2])}
-  else
-    return {tree[1], reduce_groups(tree[2]), reduce_groups(tree[3])}
-  end
-end
-
-function reduce_concat_total(tree)
+local function reduce_concat_total(tree)
   if type(tree) == "string" then
     return tree
   elseif tree[1] == "star" then
@@ -113,7 +116,7 @@ function reduce_concat_total(tree)
   end
 end
 
-function new_context()
+local function new_context()
   return {
     id = 0,
     graph = graph(),
@@ -125,7 +128,7 @@ function new_context()
   }
 end
 
-function translate_to_nfa(context, tree)
+local function translate_to_nfa(context, tree)
   if type(tree) == 'string' then
     local l, r = context:get(), context:get()
     context.graph:edge(l, r, tree)
@@ -161,3 +164,5 @@ local x = parse_re("a(b)c|e*")
 local context = new_context()
 local y = translate_to_nfa(context, x)
 print(context.graph:dot())
+
+return re
