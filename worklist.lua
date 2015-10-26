@@ -55,7 +55,10 @@ end
 w = worklist {
   initialize = function(self, node, tag)
     return {node = true}
-  end
+  end,
+  transfer = function(self, node, input, tag, pred)
+    local new = {table.unpack(input)}
+  end,
 }
 
 g = graph()
