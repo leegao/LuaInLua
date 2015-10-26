@@ -9,7 +9,8 @@ function graph.create()
   local g = {
     nodes = {},
     forward = {},
-    reverse = {}
+    reverse = {},
+    accepted = {}
   }
   setmetatable(g, graph)
   return g
@@ -172,6 +173,7 @@ function graph.dot(self)
   digraph {
     rankdir=LR;
     size="2,10"
+    node [shape=doublecircle]; 2;
     node [shape=circle,label=""];
     1 [label=""];
     1 -> 2[label="1"];
@@ -179,9 +181,16 @@ function graph.dot(self)
   --]]
   local str = [[digraph {
   rankdir=LR;
-  size="3"
-  node[shape=circle,label=""];
+  size="8,5"
 ]]
+  if next(self.accepted, nil) ~= nil then
+    str = str .. '  node[shape=doublecircle,label=""];'
+    for node in pairs(self.accepted) do
+      str = str .. ' ' .. node
+    end
+    str = str .. ';\n'
+  end
+  str = str .. '  node[shape=circle,label=""];\n'
   for l, r, c in self:edges() do
     local label = (c ~= true and tostring(c)) or ''
     str = str .. '  ' .. l .. ' -> ' .. r .. '[label="' .. label .. '"];\n'

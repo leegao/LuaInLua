@@ -124,6 +124,11 @@ local function new_context()
       self.id = self.id + 1
       self.graph:vertex(tostring(self.id), tag)
       return tostring(self.id)
+    end,
+    accept = function(self, ...)
+      for _, accepted in ipairs({...}) do
+        self.graph.accepted[accepted] = true
+      end
     end
   }
 end
@@ -241,7 +246,7 @@ local function hash(state)
     return table.concat(keys, ',')
   end
 
-local function subset_construction(first, nfa_context, dfa_context)
+local function subset_construction(first, last, nfa_context, dfa_context)
   local closure = epsilon_closure(nfa_context)
   if not dfa_context then dfa_context = new_context() end
   local hash_to_dfa_node = {}
@@ -251,6 +256,12 @@ local function subset_construction(first, nfa_context, dfa_context)
       return hash_to_dfa_node[h], true
     end
     local id = dfa_context:get(closure)
+    for k in pairs(closure) do
+      if k == last then
+        dfa_context:accept(id)
+        break
+      end
+    end
     hash_to_dfa_node[h] = id
     return id, false
   end
@@ -273,8 +284,7 @@ end
 local regex_tree = parse_re("ab(ce*)*|(d)*c")
 local nfa_context = new_context()
 local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
-local closure = epsilon_closure(nfa_context)
-print(closure:dot())
-local dfa_context = subset_construction(start, nfa_context)
+nfa_context:accept(finish)
+local dfa_context = subset_construction(start, finish, nfa_context)
 print(dfa_context.graph:dot())
 return re

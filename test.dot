@@ -1,6 +1,7 @@
 digraph {
   rankdir=LR;
-  size="3"
+  size="8,5"
+  node[shape=doublecircle,label=""]; 7 6 3 5;
   node[shape=circle,label=""];
   4 -> 5[label="b"];
   1 -> 2[label="d"];

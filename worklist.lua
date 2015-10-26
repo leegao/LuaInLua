@@ -29,12 +29,19 @@ local function new_solution(worklist, graph)
   local solution = {}
   local prefix = [[digraph {
   rankdir=LR;
-  size="3"
-  node[shape=circle,label=""];
+  size="8,5"
 ]]
   local mt = worklist.solution or {}
   function mt.dot()
     local str = prefix
+    if next(graph.accepted, nil) ~= nil then
+      str = str .. '  node[shape=doublecircle,label=""];'
+      for node in pairs(graph.accepted) do
+        str = str .. ' ' .. node
+      end
+      str = str .. ';\n'
+    end
+    str = str .. '  node[shape=circle,label=""];\n'
     for node in graph:vertices() do
       local label = (solution[node] and worklist:tostring(graph, node, solution[node])) or ''
       str = str .. '  ' .. tostring(node) .. '[label="' .. label .. '"];\n'
