@@ -1,9 +1,9 @@
 -- construct the least fixed point of a transfer on some graph
 local graph = require "graph"
 local utils = require "utils"
-local worklist = {}
+local worklist = {solution = {}}
 
-function worklist.transfer(self, node, input, tag, pred)
+function worklist.transfer(self, node, input, graph, pred)
   error "transfer is unimplemented"
 end
 
@@ -25,8 +25,33 @@ function worklist.create(self, instance)
 end
 setmetatable(worklist, {__call = worklist.create})
 
-function worklist.forward(self, graph)
+local function new_solution(worklist, graph)
   local solution = {}
+  local prefix = [[digraph {
+  rankdir=LR;
+  size="3"
+  node[shape=circle,label=""];
+]]
+  local mt = {
+    dot = function()
+      local str = prefix
+      for node in graph:vertices() do
+        local label = (solution[node] and worklist:tostring(graph, node, solution[node])) or ''
+        str = str .. '  ' .. tostring(node) .. '[label="' .. label .. '"];\n'
+      end
+      for l, r, c in graph:edges() do
+        local label = (c ~= true and tostring(c)) or ''
+        str = str .. '    ' .. l .. ' -> ' .. r .. '[label="' .. label .. '"];\n'
+      end
+      return str .. '}'
+    end
+  }
+  setmetatable(solution, {__index = mt})
+  return solution
+end
+
+function worklist.forward(self, graph)
+  local solution = new_solution(self, graph)
   for node, tag in graph:vertices() do
     solution[node] = self:initialize(node, tag)
   end
@@ -41,7 +66,7 @@ function worklist.forward(self, graph)
     local old = solution[x]
     local new = nil
     for pred in pairs(graph.reverse[x]) do
-      local this = self:transfer(x, solution[pred], tag, pred)
+      local this = self:transfer(x, solution[pred], graph, pred)
       new = (new and self:merge(new, this)) or this
     end
     if new and self:changed(old, new) then
@@ -53,40 +78,5 @@ function worklist.forward(self, graph)
   end
   return solution
 end
-
-w = worklist {
-  initialize = function(self, node, tag)
-    return {[node] = true}
-  end,
-  transfer = function(self, node, input, tag, pred)
-    local new = utils.copy(input)
-    new[node] = true
-    return new
-  end,
-  changed = function(self, old, new)
-    -- assuming monotone in the new direction
-    for key in pairs(new) do
-      if not old[key] then
-        return true
-      end
-    end
-    return false
-  end,
-  merge = function(self, left, right)
-    local merged = utils.copy(left)
-    for key in pairs(right) do
-      merged[key] = true
-    end
-    return merged
-  end
-}
-
-g = graph()
-g:edge(1, 2)
-g:edge(2, 3)
-g:edge(1, 3)
-g:edge(1, 4)
-g:edge(4, 3)
-solution = w:forward(g)
 
 return worklist

@@ -165,10 +165,12 @@ local closure_fixedpoint = worklist {
   initialize = function(self, node, tag)
     return {[node] = true}
   end,
-  transfer = function(self, node, input, tag, pred)
-    -- if the incoming is epsilong, then add, otherwise pass
+  transfer = function(self, node, input, graph, pred)
+    -- if the incoming is epsilon, then add, otherwise pass
+    local tag = graph.forward[pred][node]
     if tag == '' then
-      local new = utils.copy(input)
+      -- local new = utils.copy(input)
+      local new = input
       new[node] = true
       return new
     end
@@ -184,23 +186,30 @@ local closure_fixedpoint = worklist {
     return false
   end,
   merge = function(self, left, right)
-    local merged = utils.copy(left)
+    local merged = left --utils.copy(left)
     for key in pairs(right) do
       merged[key] = true
     end
     return merged
+  end,
+  tostring = function(self, graph, node, state)
+    local keys = {}
+    for key in pairs(state) do
+      table.insert(keys, key)
+    end
+    return tostring(node) .. ' {' .. table.concat(keys, ', ') .. '}'
   end
 }
 
 local function epsilon_closure(context)
   local solution = closure_fixedpoint:forward(context.graph)
+  print(solution:dot())
   return solution
 end
 
 local x = parse_re("a(b)c|e*")
 local context = new_context()
 local y = translate_to_nfa(context, x)
-print(context.graph:dot())
 epsilon_closure(context)
 
 return re
