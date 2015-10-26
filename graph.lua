@@ -89,7 +89,10 @@ local function reverse_dfs(self, start, seen, solution)
 end
 
 function graph.reverse_dfs(self, ...)
-  starts = {...}
+  local starts = {...}
+  if next(starts, nil) == nil then
+    starts = self:exits()
+  end
   local solution = {}
   local seen = {}
   for _, start in ipairs(starts) do
@@ -107,14 +110,26 @@ function graph.reverse_dfs(self, ...)
   end
 end
 
+function graph.exits(self)
+  local exits = {}
+  for node, _, forward in self:vertices() do
+    if next(forward) == nil then
+      table.insert(exits, node)
+    end
+  end
+  return exits
+end
+
 local g = graph.create()
 g:edge(1, 2)
 g:edge(1, 3)
 g:edge(2, 3)
 g:edge(2, 4)
 g:edge(3, 5)
-for node, tag, forward, reverse in g:reverse_dfs(4, 5) do
+for node, tag, forward, reverse in g:reverse_dfs() do
   print(node, tag, forward)
 end
+
+print(table.unpack(g:exits()))
 
 return graph
