@@ -138,4 +138,55 @@ function graph.entrances(self)
   return entrances
 end
 
+function graph.edges(self)
+  local first = next(self.forward, nil)
+  local second = first and next(self.forward[first], nil)
+  local function continue()
+    if not first then
+      return
+    end
+    if second then
+      second = next(self.forward[first], second)
+    else
+      first = next(self.forward, first)
+      second = first and next(self.forward[first], nil)
+    end
+  end
+  return function()
+    -- left, right, tag
+    while (first or second) and not (first and second) do
+      continue()
+    end
+    if not first and not second then
+      return
+    end
+    local ret = {first, second, self.forward[first][second]}
+    continue()
+    return unpack(ret)
+  end
+end
+
+function graph.dot(self)
+  -- collect all of the vertices
+  --[[
+  digraph {
+    rankdir=LR;
+    size="2,10"
+    node [shape=circle,label=""];
+    1 [label=""];
+    1 -> 2[label="1"];
+  }
+  --]]
+  local str = [[digraph {
+  rankdir=LR;
+  size="3"
+  node[shape=circle,label=""];
+]]
+  for l, r, c in self:edges() do
+    local label = (c ~= true and tostring(c)) or ''
+    str = str .. '  ' .. l .. ' -> ' .. r .. '[label="' .. label .. '"];\n'
+  end
+  return str .. '}'
+end
+
 return graph

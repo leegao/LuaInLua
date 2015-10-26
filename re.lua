@@ -4,6 +4,10 @@
 -- they are of the form
 --   e = x | e e | (e | e) | e*
 
+local graph = require "graph"
+local utils = require "utils"
+local worklist = require "worklist"
+
 function parse_re(str)
   local stack = {''}
   for i = 1, str:len() do
