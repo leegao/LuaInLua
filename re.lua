@@ -165,7 +165,7 @@ local function translate_to_nfa(context, tree)
   end
 end
 
-local closure_fixedpoint = worklist {
+local epsilon_closure = worklist {
   -- what is the domain? Sets of nodes
   initialize = function(self, node, tag)
     return {[node] = true}
@@ -233,11 +233,12 @@ local closure_fixedpoint = worklist {
   }
 }
 
-local function epsilon_closure(context)
-  return closure_fixedpoint:reverse(context.graph)
-end
-
-local function hash(state)
+local function subset_construction(first, last, nfa_context, dfa_context)
+  local closure = epsilon_closure:reverse(nfa_context.graph)
+  if not dfa_context then dfa_context = new_context() end
+  local hash_to_dfa_node = {}
+  
+  local function hash(state)
     local keys = {}
     for key in pairs(state) do
       table.insert(keys, key)
@@ -245,11 +246,7 @@ local function hash(state)
     table.sort(keys)
     return table.concat(keys, ',')
   end
-
-local function subset_construction(first, last, nfa_context, dfa_context)
-  local closure = epsilon_closure(nfa_context)
-  if not dfa_context then dfa_context = new_context() end
-  local hash_to_dfa_node = {}
+  
   local function new_vertex(closure)
     local h = hash(closure)
     if hash_to_dfa_node[h] then
@@ -265,6 +262,7 @@ local function subset_construction(first, last, nfa_context, dfa_context)
     hash_to_dfa_node[h] = id
     return id, false
   end
+  
   local function dfa_construction(node)
     local states = dfa_context.graph.nodes[node]
     local transitions = closure:transitions(nfa_context, states)
@@ -281,10 +279,13 @@ local function subset_construction(first, last, nfa_context, dfa_context)
   return dfa_context
 end
 
-local regex_tree = parse_re("ab(ce*)*|(d)*c")
-local nfa_context = new_context()
-local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
-nfa_context:accept(finish)
-local dfa_context = subset_construction(start, finish, nfa_context)
-print(dfa_context.graph:dot())
+function re.compile(pattern)
+  local regex_tree = parse_re(pattern)
+  local nfa_context = new_context()
+  local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
+  nfa_context:accept(finish)
+  local dfa_context = subset_construction(start, finish, nfa_context)
+  return dfa_context.graph
+end
+
 return re
