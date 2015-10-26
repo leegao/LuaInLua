@@ -84,8 +84,8 @@ local function parse_re(str)
     end
     push(item, stack)
   end
-  cst = stack[1]
-  ast = reduce_groups(cst)
+  local cst = stack[1]
+  local ast = reduce_groups(cst)
   --ast = reduce_concat(ast)
   return ast
 end
@@ -94,12 +94,12 @@ local function reduce_concat_total(tree)
   if type(tree) == "string" then
     return tree
   elseif tree[1] == "star" then
-    return {"star", reduce_concat(tree[2])}
+    return {"star", reduce_concat_total(tree[2])}
   elseif tree[1] == "or" then
-    return {"or", reduce_concat(tree[2]), reduce_concat(tree[3])}
+    return {"or", reduce_concat_total(tree[2]), reduce_concat_total(tree[3])}
   else
-    local left = reduce_concat(tree[2])
-    local right = reduce_concat(tree[3])
+    local left = reduce_concat_total(tree[2])
+    local right = reduce_concat_total(tree[3])
     -- either c, c -> cc or 
     -- cat(., c), c -> cat(., cc) or 
     -- c, cat(c, .) -> cat(cc, .) or 
@@ -167,7 +167,7 @@ end
 
 local epsilon_closure = worklist {
   -- what is the domain? Sets of nodes
-  initialize = function(self, node, tag)
+  initialize = function(self, node, _)
     return {[node] = true}
   end,
   transfer = function(self, node, input, graph, pred)
@@ -196,7 +196,7 @@ local epsilon_closure = worklist {
     end
     return merged
   end,
-  tostring = function(self, graph, node, state)
+  tostring = function(self, _, node, state)
     local keys = {}
     for key in pairs(state) do
       table.insert(keys, key)
@@ -208,19 +208,19 @@ local epsilon_closure = worklist {
     transitions = function(self, context, nodes)
       local transitions = {}
       for node in pairs(nodes) do
-        for succ, tag in pairs(context.graph.forward[node]) do
-          if tag ~= '' then
-            if not transitions[tag] then transitions[tag] = {} end
-            transitions[tag][succ] = true
+        for succ, symbol in pairs(context.graph.forward[node]) do
+          if symbol ~= '' then
+            if not transitions[symbol] then transitions[symbol] = {} end
+            transitions[symbol][succ] = true
           end
         end
       end
-      for tag, nodes in pairs(transitions) do
-        transitions[tag] = self:closure(context, nodes)
+      for symbol, nodes in pairs(transitions) do
+        transitions[symbol] = self:closure(context, nodes)
       end
       return transitions
     end,
-    closure = function(self, context, nodes)
+    closure = function(self, _, nodes)
       local closure = {}
       for node in pairs(nodes) do
         closure[node] = true
