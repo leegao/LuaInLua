@@ -51,9 +51,39 @@ function graph.vertices(self)
   end
 end
 
+local function dfs(self, start, seen, solution)
+  if seen[start] then
+    return
+  end
+  table.insert(solution, start)
+  seen[start] = true
+  for child in pairs(self.forward[start]) do
+    dfs(self, child, seen, solution)
+  end
+end
+
+function graph.dfs(self, start)
+  local solution = {}
+  dfs(self, start, {}, solution)
+  local i = 1
+  return function()
+    local node = solution[i]
+    local tag = self.nodes[node]
+    local forward = self.forward[node]
+    local reverse = self.reverse[noode]
+    local value = {node, tag, forward, reverse}
+    i = i + 1
+    return table.unpack(value)
+  end
+end
+
 local g = graph.create()
 g:edge(1, 2)
-for node, tag, forward, reverse in g:vertices() do
+g:edge(1, 3)
+g:edge(2, 3)
+g:edge(2, 4)
+g:edge(3, 5)
+for node, tag, forward, reverse in g:dfs(1) do
   print(node, tag, forward)
 end
 
