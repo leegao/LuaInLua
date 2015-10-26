@@ -122,8 +122,8 @@ local function new_context()
     graph = graph(),
     get = function(self)
       self.id = self.id + 1
-      self.graph:vertex(self.id)
-      return self.id
+      self.graph:vertex(tostring(self.id))
+      return tostring(self.id)
     end
   }
 end
@@ -160,9 +160,47 @@ local function translate_to_nfa(context, tree)
   end
 end
 
+local closure_fixedpoint = worklist {
+  -- what is the domain? Sets of nodes
+  initialize = function(self, node, tag)
+    return {[node] = true}
+  end,
+  transfer = function(self, node, input, tag, pred)
+    -- if the incoming is epsilong, then add, otherwise pass
+    if tag == '' then
+      local new = utils.copy(input)
+      new[node] = true
+      return new
+    end
+    return {[node] = true}
+  end,
+  changed = function(self, old, new)
+    -- assuming monotone in the new direction
+    for key in pairs(new) do
+      if not old[key] then
+        return true
+      end
+    end
+    return false
+  end,
+  merge = function(self, left, right)
+    local merged = utils.copy(left)
+    for key in pairs(right) do
+      merged[key] = true
+    end
+    return merged
+  end
+}
+
+local function epsilon_closure(context)
+  local solution = closure_fixedpoint:forward(context.graph)
+  return solution
+end
+
 local x = parse_re("a(b)c|e*")
 local context = new_context()
 local y = translate_to_nfa(context, x)
 print(context.graph:dot())
+epsilon_closure(context)
 
 return re
