@@ -167,10 +167,9 @@ local closure_fixedpoint = worklist {
   end,
   transfer = function(self, node, input, graph, pred)
     -- if the incoming is epsilon, then add, otherwise pass
-    local tag = graph.forward[pred][node]
+    local tag = graph.reverse[pred][node]
     if tag == '' then
-      -- local new = utils.copy(input)
-      local new = input
+      local new = utils.copy(input)
       new[node] = true
       return new
     end
@@ -186,7 +185,7 @@ local closure_fixedpoint = worklist {
     return false
   end,
   merge = function(self, left, right)
-    local merged = left --utils.copy(left)
+    local merged = utils.copy(left)
     for key in pairs(right) do
       merged[key] = true
     end
@@ -202,7 +201,7 @@ local closure_fixedpoint = worklist {
 }
 
 local function epsilon_closure(context)
-  local solution = closure_fixedpoint:forward(context.graph)
+  local solution = closure_fixedpoint:reverse(context.graph)
   print(solution:dot())
   return solution
 end

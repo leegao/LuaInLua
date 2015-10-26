@@ -46,6 +46,7 @@ local function new_solution(worklist, graph)
       return str .. '}'
     end
   }
+  setmetatable(mt, {__index = worklist})
   setmetatable(solution, {__index = mt})
   return solution
 end
@@ -71,6 +72,35 @@ function worklist.forward(self, graph)
     end
     if new and self:changed(old, new) then
       for succ in pairs(graph.forward[x]) do
+        table.insert(worklist, succ)
+      end
+      solution[x] = new
+    end
+  end
+  return solution
+end
+
+function worklist.reverse(self, graph)
+  local solution = new_solution(self, graph)
+  for node, tag in graph:vertices() do
+    solution[node] = self:initialize(node, tag)
+  end
+  local worklist = {}
+  for node in graph:reverse_dfs() do
+    table.insert(worklist, node)
+  end
+  
+  while #worklist ~= 0 do
+    local x = table.remove(worklist, 1)
+    local tag = graph.nodes[x]
+    local old = utils.copy(solution[x])
+    local new = nil
+    for pred in pairs(graph.forward[x]) do
+      local this = self:transfer(x, solution[pred], graph, pred)
+      new = (new and self:merge(new, this)) or this
+    end
+    if new and self:changed(old, new) then
+      for succ in pairs(graph.reverse[x]) do
         table.insert(worklist, succ)
       end
       solution[x] = new
