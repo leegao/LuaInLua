@@ -120,6 +120,16 @@ function graph.exits(self)
   return exits
 end
 
+function graph.entrances(self)
+  local entrances = {}
+  for node, _, _, reverse in self:vertices() do
+    if next(reverse) == nil then
+      table.insert(entrances, node)
+    end
+  end
+  return entrances
+end
+
 local g = graph.create()
 g:edge(1, 2)
 g:edge(1, 3)
@@ -131,5 +141,6 @@ for node, tag, forward, reverse in g:reverse_dfs() do
 end
 
 print(table.unpack(g:exits()))
+print(table.unpack(g:entrances()))
 
 return graph
