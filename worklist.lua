@@ -1,7 +1,7 @@
 -- construct the least fixed point of a transfer on some graph
 local graph = require "graph"
 local utils = require "utils"
-local worklist = {solution = {}}
+local worklist = {}
 
 function worklist.transfer(self, node, input, graph, pred)
   error "transfer is unimplemented"
@@ -32,21 +32,19 @@ local function new_solution(worklist, graph)
   size="3"
   node[shape=circle,label=""];
 ]]
-  local mt = {
-    dot = function()
-      local str = prefix
-      for node in graph:vertices() do
-        local label = (solution[node] and worklist:tostring(graph, node, solution[node])) or ''
-        str = str .. '  ' .. tostring(node) .. '[label="' .. label .. '"];\n'
-      end
-      for l, r, c in graph:edges() do
-        local label = (c ~= true and tostring(c)) or ''
-        str = str .. '    ' .. l .. ' -> ' .. r .. '[label="' .. label .. '"];\n'
-      end
-      return str .. '}'
+  local mt = worklist.solution or {}
+  function mt.dot()
+    local str = prefix
+    for node in graph:vertices() do
+      local label = (solution[node] and worklist:tostring(graph, node, solution[node])) or ''
+      str = str .. '  ' .. tostring(node) .. '[label="' .. label .. '"];\n'
     end
-  }
-  setmetatable(mt, {__index = worklist})
+    for l, r, c in graph:edges() do
+      local label = (c ~= true and tostring(c)) or ''
+      str = str .. '    ' .. l .. ' -> ' .. r .. '[label="' .. label .. '"];\n'
+    end
+    return str .. '}'
+  end
   setmetatable(solution, {__index = mt})
   return solution
 end

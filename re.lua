@@ -197,18 +197,44 @@ local closure_fixedpoint = worklist {
       table.insert(keys, key)
     end
     return tostring(node) .. ' {' .. table.concat(keys, ', ') .. '}'
-  end
+  end,
+  
+  solution = {
+    transitions = function(self, context, nodes)
+      local transitions = {}
+      for node in pairs(nodes) do
+        for succ, tag in pairs(context.graph.forward[node]) do
+          if tag ~= '' then
+            if not transitions[tag] then transitions[tag] = {} end
+            transitions[tag][succ] = true
+          end
+        end
+      end
+      for tag, nodes in pairs(transitions) do
+        transitions[tag] = self:closure(context, nodes)
+      end
+      return transitions
+    end,
+    closure = function(self, context, nodes)
+      local closure = {}
+      for node in pairs(nodes) do
+        closure[node] = true
+        for succ in pairs(self[node]) do
+          closure[succ] = true
+        end
+      end
+      return closure
+    end
+  }
 }
 
 local function epsilon_closure(context)
-  local solution = closure_fixedpoint:reverse(context.graph)
-  print(solution:dot())
-  return solution
+  return closure_fixedpoint:reverse(context.graph)
 end
 
 local x = parse_re("a(b)c|e*")
-local context = new_context()
-local y = translate_to_nfa(context, x)
-epsilon_closure(context)
-
+local nfa_context = new_context()
+local y = translate_to_nfa(nfa_context, x)
+local closure = epsilon_closure(nfa_context)
+local transitions = closure:transitions(nfa_context, closure['1'])
 return re
