@@ -1,12 +1,13 @@
 -- construct the least fixed point of a transfer on some graph
 local graph = require "graph"
+local utils = require "utils"
 local worklist = {}
 
 function worklist.transfer(self, node, input, tag, pred)
   error "transfer is unimplemented"
 end
 
-function worklist.merge(self, state_left, state_right)
+function worklist.merge(self, left, right)
   error "merge is unimplemented"
 end
 
@@ -50,21 +51,42 @@ function worklist.forward(self, graph)
       solution[x] = new
     end
   end
+  return solution
 end
 
 w = worklist {
   initialize = function(self, node, tag)
-    return {node = true}
+    return {[node] = true}
   end,
   transfer = function(self, node, input, tag, pred)
-    local new = {table.unpack(input)}
+    local new = utils.copy(input)
+    new[node] = true
+    return new
   end,
+  changed = function(self, old, new)
+    -- assuming monotone in the new direction
+    for key in pairs(new) do
+      if not old[key] then
+        return true
+      end
+    end
+    return false
+  end,
+  merge = function(self, left, right)
+    local merged = utils.copy(left)
+    for key in pairs(right) do
+      merged[key] = true
+    end
+    return merged
+  end
 }
 
 g = graph()
 g:edge(1, 2)
 g:edge(2, 3)
+g:edge(1, 3)
 g:edge(1, 4)
-w:forward(g)
+g:edge(4, 3)
+solution = w:forward(g)
 
 return worklist
