@@ -62,9 +62,16 @@ local function dfs(self, start, seen, solution)
   end
 end
 
-function graph.dfs(self, start)
+function graph.dfs(self, ...)
+  local starts = {...}
+  if next(starts, nil) == nil then
+    starts = self:entrances()
+  end
   local solution = {}
-  dfs(self, start, {}, solution)
+  local seen = {}
+  for _, start in ipairs(starts) do
+    dfs(self, start, seen, solution)
+  end
   local i = 1
   return function()
     local node = solution[i]
@@ -136,8 +143,8 @@ g:edge(1, 3)
 g:edge(2, 3)
 g:edge(2, 4)
 g:edge(3, 5)
-for node, tag, forward, reverse in g:reverse_dfs() do
-  print(node, tag, forward)
+for node, tag, forward, reverse in g:dfs() do
+  print(node, tag, forward, reverse)
 end
 
 print(table.unpack(g:exits()))
