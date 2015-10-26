@@ -120,9 +120,9 @@ local function new_context()
   return {
     id = 0,
     graph = graph(),
-    get = function(self)
+    get = function(self, tag)
       self.id = self.id + 1
-      self.graph:vertex(tostring(self.id))
+      self.graph:vertex(tostring(self.id), tag)
       return tostring(self.id)
     end
   }
@@ -232,9 +232,49 @@ local function epsilon_closure(context)
   return closure_fixedpoint:reverse(context.graph)
 end
 
-local x = parse_re("a(b)c|e*")
+local function hash(state)
+    local keys = {}
+    for key in pairs(state) do
+      table.insert(keys, key)
+    end
+    table.sort(keys)
+    return table.concat(keys, ',')
+  end
+
+local function subset_construction(first, nfa_context, dfa_context)
+  local closure = epsilon_closure(nfa_context)
+  if not dfa_context then dfa_context = new_context() end
+  local hash_to_dfa_node = {}
+  local function new_vertex(closure)
+    local h = hash(closure)
+    if hash_to_dfa_node[h] then
+      return hash_to_dfa_node[h], true
+    end
+    local id = dfa_context:get(closure)
+    hash_to_dfa_node[h] = id
+    return id, false
+  end
+  local function dfa_construction(node)
+    local states = dfa_context.graph.nodes[node]
+    local transitions = closure:transitions(nfa_context, states)
+    for symbol, nodes in pairs(transitions) do
+      local succ, seen = new_vertex(nodes)
+      dfa_context.graph:edge(node, succ, symbol)
+      if not seen then
+        dfa_construction(succ)
+      end
+    end
+  end
+  local start = new_vertex(closure[first])
+  dfa_construction(start)
+  return dfa_context
+end
+
+local regex_tree = parse_re("ab(ce*)*|(d)*c")
 local nfa_context = new_context()
-local y = translate_to_nfa(nfa_context, x)
+local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
 local closure = epsilon_closure(nfa_context)
-local transitions = closure:transitions(nfa_context, closure['1'])
+print(closure:dot())
+local dfa_context = subset_construction(start, nfa_context)
+print(dfa_context.graph:dot())
 return re
