@@ -14,6 +14,7 @@ function graph.create()
   setmetatable(g, graph)
   return g
 end
+setmetatable(graph, {__call = graph.create})
 
 function graph.vertex(self, node, tag)
   if not self.nodes[node] then
