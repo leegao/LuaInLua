@@ -387,7 +387,7 @@ local function distinct(context)
     local partition = get_closure(p)
     if partition then table.insert(closure, partition) end
   end
-  return distinct, closure
+  return closure
 end
 
 function re.compile(pattern, character_classes)

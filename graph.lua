@@ -25,7 +25,7 @@ function graph.vertex(self, node, tag)
   return self
 end
 
-function graph.edge(self, left, right, tag)
+function graph.edge(self, left, right, tag, use_list)
   if type(left) ~= 'table' then left = {left, true} end
   if type(right) ~= 'table' then right = {right, true} end
   self:vertex(unpack(left))
@@ -37,10 +37,15 @@ function graph.edge(self, left, right, tag)
   if not self.forward_tags[left[1]] then self.forward_tags[left[1]] = {} end
   if tag == nil then tag = true end
   if not self.forward[left[1]][right[1]] then 
-    self.forward[left[1]][right[1]] = tag
+    self.forward[left[1]][right[1]] = (use_list and {tag}) or tag
     if not self.forward_tags[left[1]][tag] then self.forward_tags[left[1]][tag] = {} end
     table.insert(self.forward_tags[left[1]][tag], right[1])
-    self.reverse[right[1]][left[1]] = tag
+    self.reverse[right[1]][left[1]] = (use_list and {tag}) or tag
+  elseif type(self.forward[left[1]][right[1]]) == 'table' and use_list then
+    table.insert(self.forward[left[1]][right[1]], tag)
+    if not self.forward_tags[left[1]][tag] then self.forward_tags[left[1]][tag] = {} end
+    table.insert(self.forward_tags[left[1]][tag], right[1])
+    table.insert(self.reverse[right[1]][left[1]], tag)
   end
   return self
 end
