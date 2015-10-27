@@ -102,34 +102,7 @@ local function parse_re(str, character_classes)
   end
   local cst = stack[1]
   local ast = reduce_groups(cst)
-  --ast = reduce_concat(ast)
   return ast
-end
-
-local function reduce_concat_total(tree)
-  if type(tree) == "string" then
-    return tree
-  elseif tree[1] == "star" then
-    return {"star", reduce_concat_total(tree[2])}
-  elseif tree[1] == "or" then
-    return {"or", reduce_concat_total(tree[2]), reduce_concat_total(tree[3])}
-  else
-    local left = reduce_concat_total(tree[2])
-    local right = reduce_concat_total(tree[3])
-    -- either c, c -> cc or 
-    -- cat(., c), c -> cat(., cc) or 
-    -- c, cat(c, .) -> cat(cc, .) or 
-    -- cat(., c), cat(c, .) -> cat(cat(., cc), .)
-    if type(left) == "string" and type(right) == "string" then
-      return left .. right
-    elseif left[1] == "concat" and type(left[3]) == "string" and type(right) == "string" then
-      return {"concat", left[2], left[3] .. right}
-    elseif right[1] == "concat" and type(right[2]) == "string" and type(left) == "string" then
-      return {"concat", left .. right[2], right[3]}
-    elseif left[1] == "concat" and right[1] == "concat" and type(left[3]) == "string" and type(right[2]) == "string" then
-      return {"concat", {"concat", left[2], left[3] .. right[2]}, right[3]}
-    end
-  end
 end
 
 local function new_context()
@@ -231,7 +204,7 @@ local epsilon_closure = worklist {
           end
         end
       end
-      for symbol, successors in pairs(transitions) do
+      for symbol, _ in pairs(transitions) do
         local classes = re.character_class(symbol, character_classes)
         for _, class in ipairs(classes) do
           if transitions[class] then
@@ -257,7 +230,7 @@ local epsilon_closure = worklist {
   }
 }
 
-local function subset_construction(first, last, nfa_context, dfa_context, character_classes)
+local function subset_construction(first, last, nfa_context, character_classes, dfa_context)
   local closure = epsilon_closure:reverse(nfa_context.graph)
   if not dfa_context then dfa_context = new_context() end
   local hash_to_dfa_node = {}
@@ -396,7 +369,7 @@ function re.compile(pattern, character_classes)
   local nfa_context = new_context()
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
-  local dfa_context = subset_construction(start, finish, nfa_context, dfa_context, character_classes)
+  local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
   local distinct_partition, partitions = distinct(dfa_context)
   print(distinct_partition)
   return dfa_context.graph
