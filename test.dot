@@ -3,6 +3,11 @@ digraph {
   size="8,5"
   node[shape=doublecircle,label=""]; 3 4;
   node[shape=circle,label=""];
+ 4[label=""];
+ 1[label=""];
+ 5[label="4"];
+ 2[label=""];
+ 3[label="43"];
   1 -> 2[label="2"];
   1 -> 5[label="%d"];
   5 -> 3[label="3"];

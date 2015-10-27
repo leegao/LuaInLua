@@ -313,6 +313,30 @@ function re.compile(pattern, character_classes)
   return dfa_context.graph
 end
 
+function re.match(graph, str, character_classes)
+  if not character_classes then character_classes = re.default_classes end
+  local ptr = '1'
+  local history = {ptr}
+  for i = 1, #str do
+    local char = string.char(str:byte(i))
+    local classes = re.character_class(char, character_classes)
+    local local_match = false
+    for _, class in ipairs(classes) do
+      if graph.forward_tags[ptr] and graph.forward_tags[ptr][class] then
+        local_match = true
+        assert(#graph.forward_tags[ptr][class] == 1)
+        ptr = unpack(graph.forward_tags[ptr][class])
+        table.insert(history, ptr)
+        break;
+      end
+    end
+    if not local_match then
+      return graph.accepted[ptr], history
+    end
+  end
+  return graph.accepted[ptr], history
+end
+
 function re.character_class(character, character_classes)
   -- return the trace of its inheritance tree
   -- char < ... < .

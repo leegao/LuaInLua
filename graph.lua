@@ -10,7 +10,8 @@ function graph.create()
     nodes = {},
     forward = {},
     reverse = {},
-    accepted = {}
+    accepted = {},
+    forward_tags = {}
   }
   setmetatable(g, graph)
   return g
@@ -33,9 +34,12 @@ function graph.edge(self, left, right, tag)
   if not self.forward[right[1]] then self.forward[right[1]] = {} end
   if not self.reverse[left[1]] then self.reverse[left[1]] = {} end
   if not self.reverse[right[1]] then self.reverse[right[1]] = {} end
+  if not self.forward_tags[left[1]] then self.forward_tags[left[1]] = {} end
   if tag == nil then tag = true end
   if not self.forward[left[1]][right[1]] then 
     self.forward[left[1]][right[1]] = tag
+    if not self.forward_tags[left[1]][tag] then self.forward_tags[left[1]][tag] = {} end
+    table.insert(self.forward_tags[left[1]][tag], right[1])
     self.reverse[right[1]][left[1]] = tag
   end
   return self
@@ -167,7 +171,8 @@ function graph.edges(self)
   end
 end
 
-function graph.dot(self)
+function graph.dot(self, format)
+  if not format then format = function() return '' end end
   -- collect all of the vertices
   --[[
   digraph {
@@ -191,6 +196,9 @@ function graph.dot(self)
     str = str .. ';\n'
   end
   str = str .. '  node[shape=circle,label=""];\n'
+  for node in pairs(self.nodes) do
+    str = str .. ' ' .. node .. format(self, node) .. ';\n'
+  end
   for l, r, c in self:edges() do
     local label = (c ~= true and tostring(c)) or ''
     str = str .. '  ' .. l .. ' -> ' .. r .. '[label="' .. label .. '"];\n'
