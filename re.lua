@@ -215,6 +215,14 @@ local epsilon_closure = worklist {
           end
         end
       end
+      for symbol, successors in pairs(transitions) do
+        local classes = re.character_class(symbol)
+        for _, class in ipairs(classes) do
+          if transitions[class] then
+            for key in pairs(transitions[class]) do transitions[symbol][key] = true end
+          end
+        end
+      end
       for symbol, nodes in pairs(transitions) do
         transitions[symbol] = self:closure(context, nodes)
       end
@@ -286,6 +294,16 @@ function re.compile(pattern)
   nfa_context:accept(finish)
   local dfa_context = subset_construction(start, finish, nfa_context)
   return dfa_context.graph
+end
+
+function re.character_class(character)
+  -- return the trace of its inheritance tree
+  -- char < ... < .
+  local trace = {}
+  table.insert(trace, character)
+  
+  table.insert(trace, '.')
+  return trace
 end
 
 return re
