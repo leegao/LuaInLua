@@ -311,7 +311,7 @@ local function distinct(context)
   end
   local distinct = {}
   for i = 1, #vertices do
-    for j = 1, i do
+    for j = 1, i - 1 do
       local p, q = vertices[i], vertices[j]
       if not distinct[p] then distinct[p] = {} end
       if not distinct[q] then distinct[q] = {} end
@@ -326,7 +326,7 @@ local function distinct(context)
   while changed do
     changed = false
     for i = 1, #vertices do
-      for j = 1, i do
+      for j = 1, i - 1 do
         local p, q = vertices[i], vertices[j]
         if not distinct[p][q] then
           -- compute the common transitions of both p and q
@@ -355,7 +355,36 @@ local function distinct(context)
       end
     end
   end
-  return distinct
+  -- get states that are mergeable
+  local mergeable = {}
+  for i=1,#vertices do
+    for j=1,i - 1 do
+      local p,q = vertices[i], vertices[j]
+      local symbol = distinct[p][q]
+      if not symbol then
+        if not mergeable[p] then mergeable[p] = {} end
+        if not mergeable[q] then mergeable[q] = {} end
+        table.insert(mergeable[p], q)
+        table.insert(mergeable[q], p)
+      end
+    end
+  end
+  -- get the transitive closure of mergeable
+  local seen = {}
+  local closure = {}
+  local function get_closure(p, cur)
+    if seen[p] then return end
+    if not cur then cur = {} end
+    table.insert(cur, p)
+    seen[p] = true
+    if mergeable[p] then get_closure(mergeable[p], cur) end
+    return cur
+  end
+  for p in pairs(mergeable) do
+    local partition = get_closure(p)
+    if partition then table.insert(closure, partition) end
+  end
+  return distinct, mergeable
 end
 
 function re.compile(pattern, character_classes)
@@ -365,7 +394,7 @@ function re.compile(pattern, character_classes)
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
   local dfa_context = subset_construction(start, finish, nfa_context, dfa_context, character_classes)
-  local distinct_partition = distinct(dfa_context)
+  local distinct_partition, partitions = distinct(dfa_context)
   print(distinct_partition)
   return dfa_context.graph
 end
