@@ -2,4 +2,4 @@ local re = require "re"
 
 print "Hello World"
 
-print(re.compile("a+"):dot())
+print(re.compile("ba+"):dot())

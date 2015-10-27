@@ -52,6 +52,20 @@ local function star(item)
   end
 end
 
+local function plus(item)
+  if item[1] == 'or' then
+    local left = item[2]
+    local right = item[3]
+    return {'or', left, plus(right)}
+  elseif item[1] == 'concat' then
+    local left = item[2]
+    local right = item[3]
+    return {'concat', left, plus(right)}
+  else
+    return concat(item, star(item))
+  end
+end
+
 local function reduce_groups(tree)
   if type(tree) == "string" then
     return tree
@@ -75,7 +89,7 @@ local function parse_re(str)
     elseif c == "*" then
       item = star(item)
     elseif c == "+" then
-      item = concat(item, star(item))
+      item = plus(item)
     elseif c == "(" then
       push(item, stack)
       item = ''

@@ -1,9 +1,10 @@
 digraph {
   rankdir=LR;
   size="8,5"
-  node[shape=doublecircle,label=""]; 2 3;
+  node[shape=doublecircle,label=""]; 3 4;
   node[shape=circle,label=""];
   2 -> 3[label="a"];
-  1 -> 2[label="a"];
-  3 -> 3[label="a"];
+  4 -> 4[label="a"];
+  1 -> 2[label="b"];
+  3 -> 4[label="a"];
 }
