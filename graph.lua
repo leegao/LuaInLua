@@ -197,7 +197,7 @@ function graph.dot(self, format)
   end
   str = str .. '  node[shape=circle,label=""];\n'
   for node in pairs(self.nodes) do
-    str = str .. ' ' .. node .. format(self, node) .. ';\n'
+    str = str .. '  ' .. node .. format(self, node) .. ';\n'
   end
   for l, r, c in self:edges() do
     local label = (c ~= true and tostring(c)) or ''

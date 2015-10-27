@@ -303,6 +303,61 @@ local function subset_construction(first, last, nfa_context, dfa_context, charac
   return dfa_context
 end
 
+-- moar fixed points
+local function distinct(context)
+  local vertices = {}
+  for node in context.graph:vertices() do
+    table.insert(vertices, node)
+  end
+  local distinct = {}
+  for i = 1, #vertices do
+    for j = 1, i do
+      local p, q = vertices[i], vertices[j]
+      if not distinct[p] then distinct[p] = {} end
+      if not distinct[q] then distinct[q] = {} end
+      if (context.graph.accepted[p] and not context.graph.accepted[q]) or
+          (context.graph.accepted[q] and not context.graph.accepted[p]) then
+        distinct[p][q] = ''
+        distinct[q][p] = ''
+      end
+    end
+  end
+  local changed = true
+  while changed do
+    changed = false
+    for i = 1, #vertices do
+      for j = 1, i do
+        local p, q = vertices[i], vertices[j]
+        if not distinct[p][q] then
+          -- compute the common transitions of both p and q
+          local transitions = {}
+          for symbol in pairs(context.graph.forward_tags[p]) do
+            if context.graph.forward_tags[q][symbol] then
+              assert(#context.graph.forward_tags[p][symbol] == 1 and 
+                #context.graph.forward_tags[q][symbol] == 1)
+              transitions[symbol] = {
+                context.graph.forward_tags[p][symbol][1], 
+                context.graph.forward_tags[q][symbol][1],
+              }
+            end
+          end
+          
+          for symbol, succ in pairs(transitions) do
+            local dp, dq = unpack(succ)
+            if distinct[dp][dq] then
+              distinct[p][q] = symbol
+              distinct[q][p] = symbol
+              changed = true
+              break
+            end
+          end
+        end
+      end
+    end
+  end
+  return distinct
+end
+
 function re.compile(pattern, character_classes)
   if not character_classes then character_classes = re.default_classes end
   local regex_tree = parse_re(pattern, character_classes)
@@ -310,6 +365,8 @@ function re.compile(pattern, character_classes)
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
   local dfa_context = subset_construction(start, finish, nfa_context, dfa_context, character_classes)
+  local distinct_partition = distinct(dfa_context)
+  print(distinct_partition)
   return dfa_context.graph
 end
 
