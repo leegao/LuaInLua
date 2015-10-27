@@ -2,7 +2,7 @@
 
 -- Step 1: Parse regular expressions
 -- they are of the form
---   e = x | e e | (e | e) | e* | e+
+--   e = x | e e | (e | e) | e* | e+ | ctrl
 
 
 local graph = require "graph"
@@ -79,10 +79,9 @@ local function reduce_groups(tree)
 end
 
 
-local function parse_re(str)
+local function parse_re(str, character_classes)
   local stack = {''}
-  for i = 1, str:len() do
-    local c = string.char(str:byte(i))
+  for c in character_classes:tokenize(str) do
     local item = pop(stack)
     if c == "|" then
       item = introduce_or(item)
@@ -222,7 +221,7 @@ local epsilon_closure = worklist {
   end,
   
   solution = {
-    transitions = function(self, context, nodes)
+    transitions = function(self, context, nodes, character_classes)
       local transitions = {}
       for node in pairs(nodes) do
         for succ, symbol in pairs(context.graph.forward[node]) do
@@ -233,7 +232,7 @@ local epsilon_closure = worklist {
         end
       end
       for symbol, successors in pairs(transitions) do
-        local classes = re.character_class(symbol)
+        local classes = re.character_class(symbol, character_classes)
         for _, class in ipairs(classes) do
           if transitions[class] then
             for key in pairs(transitions[class]) do transitions[symbol][key] = true end
@@ -258,7 +257,7 @@ local epsilon_closure = worklist {
   }
 }
 
-local function subset_construction(first, last, nfa_context, dfa_context)
+local function subset_construction(first, last, nfa_context, dfa_context, character_classes)
   local closure = epsilon_closure:reverse(nfa_context.graph)
   if not dfa_context then dfa_context = new_context() end
   local hash_to_dfa_node = {}
@@ -290,7 +289,7 @@ local function subset_construction(first, last, nfa_context, dfa_context)
   
   local function dfa_construction(node)
     local states = dfa_context.graph.nodes[node]
-    local transitions = closure:transitions(nfa_context, states)
+    local transitions = closure:transitions(nfa_context, states, character_classes)
     for symbol, nodes in pairs(transitions) do
       local succ, seen = new_vertex(nodes)
       dfa_context.graph:edge(node, succ, symbol)
@@ -304,23 +303,87 @@ local function subset_construction(first, last, nfa_context, dfa_context)
   return dfa_context
 end
 
-function re.compile(pattern)
-  local regex_tree = parse_re(pattern)
+function re.compile(pattern, character_classes)
+  if not character_classes then character_classes = re.default_classes end
+  local regex_tree = parse_re(pattern, character_classes)
   local nfa_context = new_context()
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
-  local dfa_context = subset_construction(start, finish, nfa_context)
+  local dfa_context = subset_construction(start, finish, nfa_context, dfa_context, character_classes)
   return dfa_context.graph
 end
 
-function re.character_class(character)
+function re.character_class(character, character_classes)
   -- return the trace of its inheritance tree
   -- char < ... < .
   local trace = {}
   table.insert(trace, character)
-  
+  for _, class in ipairs(character_classes) do
+    local sigil, equivalence_class = unpack(class)
+    if equivalence_class[character] then
+      table.insert(trace, sigil)
+    end
+  end
   table.insert(trace, '.')
   return trace
 end
+
+local function classify(list)
+  local set = {}
+  for _, key in ipairs(list) do
+    set[key] = true
+  end
+  return set
+end
+
+function re.create_character_class(classes)
+  local mt = {}
+  function mt.tokenize(self, str)
+    return function()
+      if #str == 0 then
+        return
+      end
+      for _, class in pairs(classes) do
+        local sigil = unpack(class)
+        if type(sigil) == "function" then
+          local match = sigil(str)
+          if match then
+            str = str:sub(#match + 1)
+            return match
+          end
+        else
+          -- try to do a full match
+          if str:sub(1, #sigil) == sigil then
+            str = str:sub(#sigil + 1)
+            return sigil
+          end
+        end
+      end
+      local c = str:sub(1,1)
+      str = str:sub(2)
+      return c
+    end
+  end
+  setmetatable(classes, {__index = mt})
+  return classes
+end
+
+re.default_classes = re.create_character_class {
+  {'%d', classify {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+  {'%a', classify {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 
+      'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+      't', 'u', 'v', 'w', 'x', 'y', 'z',
+      "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
+      "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+      "W", "X", "Y", "Z"}},
+  {'%l', classify {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 
+      'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+      't', 'u', 'v', 'w', 'x', 'y', 'z'}},
+  {'%u', classify {
+      "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
+      "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+      "W", "X", "Y", "Z"}},
+  {'%s', classify {' ', '\t', '\n', 'r'}},
+}
 
 return re
