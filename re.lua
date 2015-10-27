@@ -2,7 +2,8 @@
 
 -- Step 1: Parse regular expressions
 -- they are of the form
---   e = x | e e | (e | e) | e*
+--   e = x | e e | (e | e) | e* | e+
+
 
 local graph = require "graph"
 local utils = require "utils"
@@ -73,6 +74,8 @@ local function parse_re(str)
       item = introduce_or(item)
     elseif c == "*" then
       item = star(item)
+    elseif c == "+" then
+      item = concat(item, star(item))
     elseif c == "(" then
       push(item, stack)
       item = ''
