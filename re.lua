@@ -377,14 +377,17 @@ local function distinct(context)
     if not cur then cur = {} end
     table.insert(cur, p)
     seen[p] = true
-    if mergeable[p] then get_closure(mergeable[p], cur) end
+    for _, q in ipairs(mergeable[p]) do
+      table.insert(cur, q)
+      seen[q] = true
+    end
     return cur
   end
   for p in pairs(mergeable) do
     local partition = get_closure(p)
     if partition then table.insert(closure, partition) end
   end
-  return distinct, mergeable
+  return distinct, closure
 end
 
 function re.compile(pattern, character_classes)
