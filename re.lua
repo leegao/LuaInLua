@@ -331,7 +331,7 @@ end
 local function classify(list)
   local set = {}
   for _, key in ipairs(list) do
-    set[key] = true
+    set[tostring(key)] = true
   end
   return set
 end
