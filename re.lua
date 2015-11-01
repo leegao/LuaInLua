@@ -294,6 +294,7 @@ local function distinct(context)
       if not distinct[q] then distinct[q] = {} end
       if (context.graph.accepted[p] and not context.graph.accepted[q]) or
           (context.graph.accepted[q] and not context.graph.accepted[p]) then
+        print(p, q)
         distinct[p][q] = true
         distinct[q][p] = true
       end
@@ -323,6 +324,7 @@ local function distinct(context)
           for symbol, pred in pairs(transitions) do
             local dp, dq = unpack(pred)
             if not distinct[dp][dq] then
+              print(dp, dq)
               distinct[dp][dq] = true
               distinct[dq][dp] = true
               changed = true
@@ -365,7 +367,7 @@ local function distinct(context)
     local partition = get_closure(p)
     if partition then table.insert(closure, partition) end
   end
-  return mergeable, closure
+  return mergeable, closure, distinct
 end
 
 local function minimize(graph, partitions)
@@ -426,8 +428,8 @@ function re.compile(pattern, character_classes)
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
   local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
-  local partitions, closure = distinct(dfa_context)
-  local minimized_context = minimize(dfa_context.graph, partitions)
+--  local partitions, closure, d = distinct(dfa_context)
+--  local minimized_context = minimize(dfa_context.graph, partitions)
   return dfa_context.graph
 end
 
@@ -449,10 +451,10 @@ function re.match(graph, str, character_classes)
       end
     end
     if not local_match then
-      return graph.accepted[ptr], history
+      return graph:trace(history, str)
     end
   end
-  return graph.accepted[ptr], history
+  return graph:trace(history, str)
 end
 
 function re.character_class(character, character_classes)

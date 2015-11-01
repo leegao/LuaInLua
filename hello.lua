@@ -16,4 +16,4 @@ local function visualize(pattern, str)
   end)
 end
 
-print(visualize("(ab|f+k+)*", "abfffkkabab"))
+print(visualize("(ab|.+)*", "abfffkkabab"))

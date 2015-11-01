@@ -217,4 +217,14 @@ function graph.dot(self, format, format_edge)
   return str .. '}'
 end
 
+function graph.trace(self, history, str)
+  for i = #history, 1, -1 do
+    local ptr = history[i]
+    if self.accepted[ptr] then
+      return str:sub(1, i - 1), history
+    end
+  end
+  return nil, history
+end
+
 return graph
