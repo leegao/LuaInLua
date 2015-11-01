@@ -1,26 +1,17 @@
 digraph {
   rankdir=LR;
   size="8,5"
-  node[shape=doublecircle,label=""]; 4 1 5 2 6 3;
+  node[shape=doublecircle,label=""]; 2 4 3 5;
   node[shape=circle,label=""];
-  4[label="4 {abfffkka, abfffkkaba}"];
-  1[label="1 {}"];
-  5[label="5 {abf, abff, abfff, abfffk, abfffkk}"];
-  2[label="2 {a}"];
-  6[label="6 {}"];
-  3[label="3 {ab, abfffkkab, abfffkkabab}"];
-  4 -> 4[label="a"];
-  4 -> 3[label="b"];
-  4 -> 5[label="."];
-  1 -> 2[label="a"];
-  1 -> 6[label="."];
-  5 -> 4[label="a"];
-  5 -> 5[label="."];
-  2 -> 4[label="a"];
-  2 -> 3[label="b"];
-  2 -> 5[label="."];
-  6 -> 4[label="a"];
-  6 -> 5[label="."];
-  3 -> 4[label="a"];
-  3 -> 5[label="."];
+  4;
+  1;
+  5;
+  2;
+  3;
+  4 -> 5[label="%a"];
+  1 -> 2[label="%s"];
+  1 -> 4[label="%a"];
+  5 -> 5[label="%a"];
+  2 -> 3[label="%s"];
+  3 -> 3[label="%s"];
 }
