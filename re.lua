@@ -34,8 +34,8 @@ local function introduce_or(left)
   return {'or', left, ''}
 end
 
-local function group(item)
-  return {'group', item}
+local function group(item, open)
+  return {'group', item, open}
 end
 
 local function star(item)
@@ -69,7 +69,7 @@ end
 local function reduce_groups(tree)
   if type(tree) == "string" then
     return tree
-  elseif tree[1] == "group" then
+  elseif tree[1] == "group" and tree[3] == "(?" then
     return reduce_groups(tree[2])
   elseif tree[1] == "star" then
     return {"star", reduce_groups(tree[2])}
@@ -81,6 +81,7 @@ end
 
 local function parse_re(str, character_classes)
   local stack = {''}
+  local parenthesis = {}
   for c in character_classes:tokenize(str) do
     local item = pop(stack)
     if c == "|" then
@@ -89,11 +90,13 @@ local function parse_re(str, character_classes)
       item = star(item)
     elseif c == "+" then
       item = plus(item)
-    elseif c == "(" then
+    elseif c == "(" or c == "(?" then
       push(item, stack)
+      push(parenthesis, c)
       item = ''
     elseif c == ")" then
-      item = group(item)
+      local open = pop(parenthesis)
+      item = group(item, open)
       item = concat(pop(stack), item)
     else
       item = concat(item, c)
@@ -359,6 +362,10 @@ function re.create_character_class(classes)
       end
       local c = str:sub(1,1)
       str = str:sub(2)
+      if c == '(' and str:sub(1, 1) == '?' then
+        c = '(?'
+        str = str:sub(2)
+      end
       return c
     end
   end
