@@ -4,7 +4,6 @@ local utils = require "utils"
 print "Hello World"
 
 local function format_open(open)
-  print(open)
   return open[1] .. '(' .. open[2] .. ')'
 end
 
@@ -19,8 +18,12 @@ local function visualize(pattern, str)
           table.insert(tab, str:sub(1, i - 1))
         end
       end
+      local closure = {}
+      if (graph.nodes[node][1]) then
+        for k in pairs(graph.nodes[node][1]) do table.insert(closure, k) end
+      end
       local groups = table.concat(utils.map(format_open, graph.nodes[node][2]), ', ')
-      return '[label="' .. node .. ' {' .. table.concat(tab, ', ') .. '} ' .. groups .. '"]'
+      return '[label="' .. node .. ' {' .. table.concat(tab, ', ') .. '} ' .. groups .. ' [' .. table.concat(closure, ', ') .. ']' .. '"]'
     end,
     function(c, l, r, graph)
       local tab = {}
@@ -29,5 +32,7 @@ local function visualize(pattern, str)
     end)
 end
 
+local lex = require "lex"
+
 -- Let's get the tokens to a regex parser
-print(visualize(".+(a).+", "(a|b|cc.+)*"))
+print(visualize("(a)+(b)c", "(a|b|cc.+)*"))
