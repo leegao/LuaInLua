@@ -154,6 +154,11 @@ local function translate_to_nfa(context, tree)
         :edge(r_1, r, '')
         :edge(r_2, r, '')
     return {l, r}
+  elseif tree[1] == 'group' then
+    local l, r = translate_to_nfa(context, tree[2])
+    context.graph.nodes[l] = {'open', tree[3]}
+    context.graph.nodes[l] = {'close', tree[3]}
+    return {l, r}
   end
 end
 
