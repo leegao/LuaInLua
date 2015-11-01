@@ -11,7 +11,8 @@ function graph.create()
     forward = {},
     reverse = {},
     accepted = {},
-    forward_tags = {}
+    forward_tags = {},
+    reverse_tags = {},
   }
   setmetatable(g, graph)
   return g
@@ -35,17 +36,22 @@ function graph.edge(self, left, right, tag, use_list)
   if not self.reverse[left[1]] then self.reverse[left[1]] = {} end
   if not self.reverse[right[1]] then self.reverse[right[1]] = {} end
   if not self.forward_tags[left[1]] then self.forward_tags[left[1]] = {} end
+  if not self.reverse_tags[right[1]] then self.reverse_tags[right[1]] = {} end
   if tag == nil then tag = true end
   if not self.forward[left[1]][right[1]] then 
-    self.forward[left[1]][right[1]] = (use_list and {tag}) or tag
+    self.forward[left[1]][right[1]] = (use_list and {[tag] = true}) or tag
     if not self.forward_tags[left[1]][tag] then self.forward_tags[left[1]][tag] = {} end
+    if not self.reverse_tags[right[1]][tag] then self.reverse_tags[right[1]][tag] = {} end
     table.insert(self.forward_tags[left[1]][tag], right[1])
-    self.reverse[right[1]][left[1]] = (use_list and {tag}) or tag
+    table.insert(self.reverse_tags[right[1]][tag], left[1])
+    self.reverse[right[1]][left[1]] = (use_list and {[tag] = true}) or tag
   elseif type(self.forward[left[1]][right[1]]) == 'table' and use_list then
-    table.insert(self.forward[left[1]][right[1]], tag)
+    self.forward[left[1]][right[1]][tag] = true
     if not self.forward_tags[left[1]][tag] then self.forward_tags[left[1]][tag] = {} end
+    if not self.reverse_tags[right[1]][tag] then self.reverse_tags[right[1]][tag] = {} end
     table.insert(self.forward_tags[left[1]][tag], right[1])
-    table.insert(self.reverse[right[1]][left[1]], tag)
+    table.insert(self.reverse_tags[right[1]][tag], left[1])
+    self.reverse[right[1]][left[1]][tag] = true
   end
   return self
 end
@@ -176,7 +182,7 @@ function graph.edges(self)
   end
 end
 
-function graph.dot(self, format)
+function graph.dot(self, format, format_edge)
   if not format then format = function() return '' end end
   -- collect all of the vertices
   --[[
@@ -202,10 +208,10 @@ function graph.dot(self, format)
   end
   str = str .. '  node[shape=circle,label=""];\n'
   for node in pairs(self.nodes) do
-    str = str .. '  ' .. node .. format(self, node) .. ';\n'
+    str = str .. '  ' .. node .. format(node, self) .. ';\n'
   end
   for l, r, c in self:edges() do
-    local label = (c ~= true and tostring(c)) or ''
+    local label = (format_edge and format_edge(c, l, r, graph)) or (c ~= true and tostring(c)) or ''
     str = str .. '  ' .. l .. ' -> ' .. r .. '[label="' .. label .. '"];\n'
   end
   return str .. '}'

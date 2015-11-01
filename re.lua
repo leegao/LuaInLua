@@ -230,19 +230,20 @@ local epsilon_closure = worklist {
   }
 }
 
+local function hash(state)
+  local keys = {}
+  for key in pairs(state) do
+    table.insert(keys, key)
+  end
+  table.sort(keys)
+  return table.concat(keys, ',')
+end
+
 local function subset_construction(first, last, nfa_context, character_classes, dfa_context)
   local closure = epsilon_closure:reverse(nfa_context.graph)
   if not dfa_context then dfa_context = new_context() end
   local hash_to_dfa_node = {}
   
-  local function hash(state)
-    local keys = {}
-    for key in pairs(state) do
-      table.insert(keys, key)
-    end
-    table.sort(keys)
-    return table.concat(keys, ',')
-  end
   
   local function new_vertex(closure)
     local h = hash(closure)
@@ -277,6 +278,9 @@ local function subset_construction(first, last, nfa_context, character_classes, 
 end
 
 -- moar fixed points
+-- for p,q \in vertices
+--   distinct(p,q) if not acc(p) and q or vice versa
+--   distinct(p,q) if p,q -\sigma-> p',q' and distinct(p',q') 
 local function distinct(context)
   local vertices = {}
   for node in context.graph:vertices() do
@@ -290,36 +294,37 @@ local function distinct(context)
       if not distinct[q] then distinct[q] = {} end
       if (context.graph.accepted[p] and not context.graph.accepted[q]) or
           (context.graph.accepted[q] and not context.graph.accepted[p]) then
-        distinct[p][q] = ''
-        distinct[q][p] = ''
+        distinct[p][q] = true
+        distinct[q][p] = true
       end
     end
   end
   local changed = true
+  local reverse_tags = context.graph.reverse_tags
   while changed do
     changed = false
     for i = 1, #vertices do
       for j = 1, i - 1 do
         local p, q = vertices[i], vertices[j]
-        if not distinct[p][q] then
+        if distinct[p][q] and reverse_tags[p] and reverse_tags[q] then
           -- compute the common transitions of both p and q
           local transitions = {}
-          for symbol in pairs(context.graph.forward_tags[p]) do
-            if context.graph.forward_tags[q][symbol] then
-              assert(#context.graph.forward_tags[p][symbol] == 1 and 
-                #context.graph.forward_tags[q][symbol] == 1)
+          for symbol in pairs(reverse_tags[p]) do
+            if reverse_tags[q][symbol] then
+              assert(#reverse_tags[p][symbol] == 1 and 
+                #reverse_tags[q][symbol] == 1)
               transitions[symbol] = {
-                context.graph.forward_tags[p][symbol][1], 
-                context.graph.forward_tags[q][symbol][1],
+                reverse_tags[p][symbol][1], 
+                reverse_tags[q][symbol][1],
               }
             end
           end
           
-          for symbol, succ in pairs(transitions) do
-            local dp, dq = unpack(succ)
-            if distinct[dp][dq] then
-              distinct[p][q] = symbol
-              distinct[q][p] = symbol
+          for symbol, pred in pairs(transitions) do
+            local dp, dq = unpack(pred)
+            if not distinct[dp][dq] then
+              distinct[dp][dq] = true
+              distinct[dq][dp] = true
               changed = true
               break
             end
@@ -360,7 +365,58 @@ local function distinct(context)
     local partition = get_closure(p)
     if partition then table.insert(closure, partition) end
   end
-  return closure
+  return mergeable, closure
+end
+
+local function minimize(graph, partitions)
+  -- merge the partitions together
+  -- first thing first, hash all the things
+  local map = {}
+  local hashes = {}
+  local context = new_context()
+  local old_to_new = {}
+  local new_to_old = {}
+  for node in graph:vertices() do
+    if partitions[node] then
+      map[node] = utils.copy(partitions[node])
+      table.insert(map[node], node)
+    else
+      map[node] = {node}
+    end
+    local h = hash(map[node])
+    
+    local id = hashes[h]
+    if not id then
+      id = context:get(map[node])
+      hashes[h] = id
+    end
+    
+    if graph.accepted[node] then
+      context:accept(id)
+    end
+    
+    old_to_new[node] = id
+    if not new_to_old[id] then new_to_old[id] = {} end
+    new_to_old[id][node] = true
+  end
+  
+  for left, right, symbol in graph:edges() do
+    local new_left, new_right = old_to_new[left], old_to_new[right]
+    -- add an edge between new_left and new_right
+    context.graph:edge(new_left, new_right, symbol, true)
+  end
+  print(context.graph:dot(
+      function(node, graph) 
+        local symbols = graph.nodes[node] or {}
+        local list = {}
+        for _, symbol in pairs(symbols) do table.insert(list, symbol) end
+        return '[label="' .. node .. ' {' .. table.concat(list, ', ') .. '}"]'
+      end, 
+      function(symbols) 
+        local list = {}
+        for symbol in pairs(symbols) do table.insert(list, symbol) end
+        return table.concat(list, ', ') 
+      end))
 end
 
 function re.compile(pattern, character_classes)
@@ -370,8 +426,8 @@ function re.compile(pattern, character_classes)
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
   local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
-  local distinct_partition, partitions = distinct(dfa_context)
-  print(distinct_partition)
+  local partitions, closure = distinct(dfa_context)
+  local minimized_context = minimize(dfa_context.graph, partitions)
   return dfa_context.graph
 end
 
