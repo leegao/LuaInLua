@@ -17,7 +17,4 @@ local function visualize(pattern, str)
 end
 
 -- Let's get the tokens to a regex parser
-local graph = re.compile("%a+|%s+")
-print(graph:dot())
-
--- print(visualize("(ab|.+)*", "abfffkkabab"))
+print(visualize("(%s+|%(|%)|%%.|%||%+|%*|.+)+", "%s+|%(|%)|%%.|%||%+|%*|.+"))

@@ -533,6 +533,7 @@ re.default_classes = re.create_character_class {
   {'%)', classify {')'}},
   {'%.', classify {'.'}},
   {'%+', classify {'+'}},
+  {'%|', classify {'|'}},
 }
 
 return re
