@@ -319,6 +319,7 @@ function re.compile(pattern, character_classes)
 --      return '[label="' .. node .. ' ' .. c .. '"]'
 --    end))
   local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
+  dfa_context.graph.pattern = pattern
   return dfa_context.graph
 end
 
