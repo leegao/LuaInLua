@@ -41,7 +41,7 @@ end
 function utils.map(transform, list)
   local solution = {}
   for k, v in pairs(list) do
-    table.insert(solution, transform(v))
+    solution[k] = transform(v)
   end
   return solution
 end

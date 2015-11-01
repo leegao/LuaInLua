@@ -98,7 +98,7 @@ local function parse_re(str, character_classes)
         open = group_id
         group_id = group_id + 1
       end
-      push(parenthesis, open)
+      push(open, parenthesis)
       item = ''
     elseif c == ")" then
       local open = pop(parenthesis)
@@ -163,7 +163,7 @@ local function translate_to_nfa(context, tree)
   elseif tree[1] == 'group' then
     local l, r = translate_to_nfa(context, tree[2])
     context.graph.nodes[l] = {'open', tree[3]}
-    context.graph.nodes[l] = {'close', tree[3]}
+    context.graph.nodes[r] = {'close', tree[3]}
     return {l, r}
   end
 end
@@ -258,13 +258,18 @@ local function subset_construction(first, last, nfa_context, character_classes, 
   if not dfa_context then dfa_context = new_context() end
   local hash_to_dfa_node = {}
   
-  
   local function new_vertex(closure)
     local h = hash(closure)
     if hash_to_dfa_node[h] then
       return hash_to_dfa_node[h], true
     end
-    local id = dfa_context:get(closure)
+    local open = {}
+    for node in pairs(closure) do
+      if type(nfa_context.graph.nodes[node]) == 'table' then
+        table.insert(open, nfa_context.graph.nodes[node])
+      end
+    end
+    local id = dfa_context:get({closure, open})
     for k in pairs(closure) do
       if k == last then
         dfa_context:accept(id)
@@ -276,7 +281,7 @@ local function subset_construction(first, last, nfa_context, character_classes, 
   end
   
   local function dfa_construction(node)
-    local states = dfa_context.graph.nodes[node]
+    local states, open = unpack(dfa_context.graph.nodes[node])
     local transitions = closure:transitions(nfa_context, states, character_classes)
     for symbol, nodes in pairs(transitions) do
       local succ, seen = new_vertex(nodes)
