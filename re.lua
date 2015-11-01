@@ -82,6 +82,7 @@ end
 local function parse_re(str, character_classes)
   local stack = {''}
   local parenthesis = {}
+  local group_id = 1
   for c in character_classes:tokenize(str) do
     local item = pop(stack)
     if c == "|" then
@@ -92,7 +93,12 @@ local function parse_re(str, character_classes)
       item = plus(item)
     elseif c == "(" or c == "(?" then
       push(item, stack)
-      push(parenthesis, c)
+      local open = c
+      if open == '(' then
+        open = group_id
+        group_id = group_id + 1
+      end
+      push(parenthesis, open)
       item = ''
     elseif c == ")" then
       local open = pop(parenthesis)
