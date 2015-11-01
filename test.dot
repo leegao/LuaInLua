@@ -3,16 +3,16 @@ digraph {
   size="8,5"
   node[shape=doublecircle,label=""]; 4 8 7 9 6 5;
   node[shape=circle,label=""];
-  4[label="4 {}"];
-  8[label="8 {(a|b, (a|b|, (a|b|c, (a|b|cc, (a|b|cc., (a|b|cc.+, (a|b|cc.+), (a|b|cc.+)*}"];
-  1[label="1 {}"];
-  5[label="5 {}"];
-  9[label="9 {(a|}"];
-  6[label="6 {}"];
-  3[label="3 {(a}"];
-  7[label="7 {}"];
-  2[label="2 {(}"];
-  10[label="10 {}"];
+  4[label="4 {} close(1), open(1)"];
+  8[label="8 {(a|b, (a|b|, (a|b|c, (a|b|cc, (a|b|cc., (a|b|cc.+, (a|b|cc.+), (a|b|cc.+)*} open(1)"];
+  1[label="1 {} "];
+  5[label="5 {} close(1), open(1)"];
+  9[label="9 {(a|} open(1)"];
+  6[label="6 {} open(1)"];
+  3[label="3 {(a} close(1), open(1)"];
+  7[label="7 {} close(1), open(1)"];
+  2[label="2 {(} open(1)"];
+  10[label="10 {} open(1)"];
   4 -> 6[label="."];
   4 -> 5[label="a"];
   8 -> 8[label="."];

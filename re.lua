@@ -69,8 +69,12 @@ end
 local function reduce_groups(tree)
   if type(tree) == "string" then
     return tree
-  elseif tree[1] == "group" and tree[3] == "(?" then
-    return reduce_groups(tree[2])
+  elseif tree[1] == "group" then
+    if tree[3] == "(?" then
+      return reduce_groups(tree[2])
+    else
+      return{tree[1], reduce_groups(tree[2]), tree[3]}
+    end
   elseif tree[1] == "star" then
     return {"star", reduce_groups(tree[2])}
   else
@@ -161,7 +165,7 @@ local function translate_to_nfa(context, tree)
         :edge(r_2, r, '')
     return {l, r}
   elseif tree[1] == 'group' then
-    local l, r = translate_to_nfa(context, tree[2])
+    local l, r = unpack(translate_to_nfa(context, tree[2]))
     context.graph.nodes[l] = {'open', tree[3]}
     context.graph.nodes[r] = {'close', tree[3]}
     return {l, r}
