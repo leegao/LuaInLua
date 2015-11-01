@@ -528,6 +528,11 @@ re.default_classes = re.create_character_class {
       "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
       "W", "X", "Y", "Z"}},
   {'%s', classify {' ', '\t', '\n', 'r'}},
+  {'%%', classify {'%'}},
+  {'%(', classify {'('}},
+  {'%)', classify {')'}},
+  {'%.', classify {'.'}},
+  {'%+', classify {'+'}},
 }
 
 return re
