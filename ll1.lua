@@ -20,16 +20,18 @@ local function get_nonterminal(configuration, variable)
   return
 end
 
-local function get_terminals_from(first_sets)
+local function get_terminals_from(configuration)
   local terminals = {}
-  for variable, first_set in pairs(first_sets) do
-    for terminal in pairs(first_set) do
-      if terminal ~= EPS and terminal ~= EOF then
-        table.insert(terminals, terminal)
+  for variable, productions in pairs(configuration) do
+    for production in utils.loop(productions) do
+      for terminal in utils.loop(production) do
+        if terminal ~= EPS and terminal ~= EOF then
+          terminals[terminal] = true
+        end
       end
     end
   end
-  table.insert(terminals, EOF)
+  terminals[EOF] = true
   return terminals
 end
 
@@ -163,14 +165,47 @@ function ll1.yacc(actions)
     nonterminal:dependency(dependency_graph, configuration)
   end
   local follow_sets = follow_algorithm:forward(dependency_graph)
-  local terminals = get_terminals_from(first_sets)
+  local terminals = get_terminals_from(configuration)
   local transition_table = {}
+  
   for variable in pairs(configuration) do
-    for terminal in utils.loop(terminals) do
+    transition_table[variable] = {}
+    for terminal in pairs(terminals) do
       transition_table[variable][terminal] = ERROR
     end
   end
+  
+  for variable, productions in pairs(configuration) do
+    for production in utils.loop(productions) do
+      local firsts = first(configuration, production)
+      for terminal in pairs(firsts) do
+        if terminal ~= EPS and terminal ~= EOF then
+          if transition_table[variable][terminal] ~= ERROR then 
+            print(variable, terminal, table.concat(transition_table[variable][terminal], ', '))
+          else
+            transition_table[variable][terminal] = production
+          end
+        end
+      end
+      if firsts[EPS] then
+        local follows = follow_sets[variable]
+        for terminal in pairs(firsts) do
+          if terminal ~= EPS and terminal ~= EOF then
+            if transition_table[variable][terminal] ~= ERROR then 
+              print(variable, terminal, table.concat(transition_table[variable][terminal], ', '))
+            else
+              transition_table[variable][terminal] = production
+            end
+          end
+        end
+      end
+    end
+  end
+  
+  return transition_table
 end
+
+local ignore = function(...) return end
 
 -- expr = $consts | identifier | fun $x -> $expr
 -- consts = number | string | true | false
