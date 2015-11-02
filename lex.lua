@@ -76,14 +76,12 @@ function lex.lex(actions)
   -- think of it as a giant alternation that takes ordering into consideration
   local configuration = {}
   for name, action in pairs(actions) do
-    local action_map = {}
     local word_map = {}
     local automaton_map = {}
     local words = {}
     local local_automatons = {}
     for _, bundle in ipairs(action) do
       local sigil, act = unpack(bundle)
-      action_map[sigil] = act
       if type(sigil) == 'string' then
         table.insert(words, sigil)
         word_map[sigil] = act
@@ -94,7 +92,6 @@ function lex.lex(actions)
     end
     table.sort(words, lexicographical)
     local action_node = {
-      action_map = action_map, 
       word_map = word_map, 
       automaton_map = automaton_map, 
       words = words, 

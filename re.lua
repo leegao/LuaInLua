@@ -306,18 +306,6 @@ function re.compile(pattern, character_classes)
   local nfa_context = new_context()
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
---  local function format_open(open)
---    return open[1] .. '(' .. open[2] .. ')'
---  end
---  print(nfa_context.graph:dot(
---    function(node, graph)
---      local t = graph.nodes[node]
---      local c = ''
---      if type(t) == 'table' then
---        c = format_open(t)
---      end
---      return '[label="' .. node .. ' ' .. c .. '"]'
---    end))
   local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
   dfa_context.graph.pattern = pattern
   return dfa_context.graph
