@@ -4,6 +4,7 @@ local ll1 = {}
 
 local utils = require 'utils'
 local graph = require 'graph'
+local worklist = require 'worklist'
 
 local nonterminals = {}
 local configurations = {}
@@ -79,16 +80,57 @@ function configurations:uses(x)
 end
 
 function nonterminals:dependency(graph, configuration)
-  if graph.nodes[self.variable] then
+  if graph.nodes[self.variable:sub(2)] then
     return graph
   end
   local uses = configuration:uses(self.variable)
-  for variable in utils.uloop(uses) do
+  for variable, suffix in utils.uloop(uses) do
     get_nonterminal(configuration, variable):dependency(graph, configuration)
-    graph:edge(self.variable, variable)
+    local first_set = first(configuration, suffix)
+    setmetatable(
+      first_set, 
+      {__tostring = function(self) return table.concat(self, ', ') end})
+    graph:edge(variable:sub(2), self.variable:sub(2), first_set)
   end
   return graph
 end
+
+local follow_algorithm = worklist {
+  -- what is the domain? Sets of tokens
+  initialize = function(self, node, _)
+    if node == 'root' then return {[EOF] = true} end
+    return {}
+  end,
+  transfer = function(self, node, follow_pred, graph, pred)
+    local follow_set = self:initialize(node)
+    follow_set = self:merge(follow_set, graph.forward[pred][node])
+    if follow_set[EPS] then
+      follow_set = self:merge(follow_set, follow_pred)
+    end
+    return follow_set
+  end,
+  changed = function(self, old, new)
+    -- assuming monotone in the new direction
+    for key in pairs(new) do
+      if not old[key] then
+        return true
+      end
+    end
+    return false
+  end,
+  merge = function(self, left, right)
+    local merged = utils.copy(left)
+    for key in pairs(right) do
+      merged[key] = true
+    end
+    return merged
+  end,
+  tostring = function(self, graph, node, input)
+    local list = {}
+    for key in pairs(input) do table.insert(list, key) end
+    return node .. ' ' .. table.concat(list, ',')
+  end
+}
 
 function ll1.yacc(actions)
   -- Associate the correct set of metatables to the nonterminals
@@ -101,13 +143,13 @@ function ll1.yacc(actions)
   setmetatable(configuration, {__index = configurations})
   
   local dependency_graph = graph.create()
+  local first_sets = {}
   for variable, nonterminal in pairs(configuration) do
-    local first_set = {}
-    for token in pairs(nonterminal:first(configuration)) do table.insert(first_set, token) end
-    print(variable, table.concat(first_set, ', '))
+    first_sets[variable:sub(2)] = nonterminal:first(configuration)
     nonterminal:dependency(dependency_graph, configuration)
   end
-  print(dependency_graph:dot())
+  local follow_sets = follow_algorithm:forward(dependency_graph)
+  print(follow_sets:dot())
 end
 
 -- expr = $consts | identifier | fun $x -> $expr
