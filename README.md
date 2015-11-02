@@ -3,11 +3,13 @@ Let's build a compiler from the ground up in Lua. Here, we will be developing ou
 I will be focusing heavier on the parsing aspect of this compiler as that is the low-hanging fruit aspect of compiler construction that I haven't had a chance to explore deeply yet.
 
 Status Report:
+
 1. Regular expressions: completed!
 2. Lexer: backend completed, pending Parser to self-host the frontend as well.
+3. LL(1) Parser, which will use the graph reduction to efficiently compute the fixed point.
 
 TODO:
-3. LL(1) Parser, which will use the graph reduction to efficiently compute the fixed point.
+
 4. LR(0-1) Parser, which will also use a similar mechanism
 5. Self-hosting the Lexer.
 6. Self-hosting the Parser.
