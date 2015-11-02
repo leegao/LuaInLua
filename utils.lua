@@ -70,6 +70,7 @@ function utils.sublist(tab, i, j)
   for k = i, j do
     table.insert(list, tab[i])
   end
+  return list
 end
 
 function utils.loop(tab)
@@ -85,11 +86,18 @@ end
 function utils.uloop(tab)
   local next = ipairs({})
   local state = 0
-  return function()
+  local iter = function()
     local value
     state, value = next(tab, state)
-    return unpack(value)
+    if value then
+      if unpack(value) then
+        return unpack(value)
+      else
+        return iter()
+      end
+    end
   end
+  return iter
 end
 
 return utils

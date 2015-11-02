@@ -3,6 +3,7 @@
 local ll1 = {}
 
 local utils = require 'utils'
+local graph = require 'graph'
 
 local nonterminals = {}
 local configurations = {}
@@ -69,7 +70,7 @@ function configurations:uses(x)
       for i, object in ipairs(production) do
         if object == x then
           local suffix = utils.sublist(production, i + 1)
-          table.insert(uses, {y, suffix})
+          table.insert(uses, {'$' .. y, suffix})
         end
       end
     end
@@ -77,9 +78,16 @@ function configurations:uses(x)
   return uses
 end
 
-function nonterminals:follow(configuration)
+function nonterminals:dependency(graph, configuration)
+  if graph.nodes[self.variable] then
+    return graph
+  end
   local uses = configuration:uses(self.variable)
-  
+  for variable in utils.uloop(uses) do
+    get_nonterminal(configuration, variable):dependency(graph, configuration)
+    graph:edge(self.variable, variable)
+  end
+  return graph
 end
 
 function ll1.yacc(actions)
@@ -92,12 +100,14 @@ function ll1.yacc(actions)
   end
   setmetatable(configuration, {__index = configurations})
   
+  local dependency_graph = graph.create()
   for variable, nonterminal in pairs(configuration) do
     local first_set = {}
     for token in pairs(nonterminal:first(configuration)) do table.insert(first_set, token) end
     print(variable, table.concat(first_set, ', '))
-    nonterminal:follow(configuration)
+    nonterminal:dependency(dependency_graph, configuration)
   end
+  print(dependency_graph:dot())
 end
 
 -- expr = $consts | identifier | fun $x -> $expr
