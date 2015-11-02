@@ -2,10 +2,13 @@
 
 local ll1 = {}
 
+local utils = require 'utils'
+
 local nonterminals = {}
 local configurations = {}
 
 local EPS = ''
+local EOF = 256
 
 local function get_nonterminal(configuration, variable)
   if variable:sub(1, 1) == '$' then
@@ -57,11 +60,33 @@ function nonterminals:first(configuration)
   return first_set
 end
 
+function configurations:uses(x)
+  -- returns set of {variable, suffix_production} such that
+  -- y -> \alpha $x \beta, then return {$y, \beta} or {$y, ''}
+  local uses = {}
+  for y, nonterminal in pairs(self) do
+    for _, production in ipairs(nonterminal) do
+      for i, object in ipairs(production) do
+        if object == x then
+          local suffix = utils.sublist(production, i + 1)
+          table.insert(uses, {y, suffix})
+        end
+      end
+    end
+  end
+  return uses
+end
+
+function nonterminals:follow(configuration)
+  local uses = configuration:uses(self.variable)
+end
+
 function ll1.yacc(actions)
   -- Associate the correct set of metatables to the nonterminals
   local configuration = {}
   for variable, productions in pairs(actions) do
     setmetatable(productions, {__index = nonterminals})
+    productions.variable = '$' .. variable
     configuration[variable] = productions
   end
   setmetatable(configuration, {__index = configurations})
@@ -70,12 +95,16 @@ function ll1.yacc(actions)
     local first_set = {}
     for token in pairs(nonterminal:first(configuration)) do table.insert(first_set, token) end
     print(variable, table.concat(first_set, ', '))
+    nonterminal:follow(configuration)
   end
 end
 
 -- expr = $consts | identifier | fun $x -> $expr
 -- consts = number | string | true | false
 ll1.yacc {
+  root = {
+    {'$expr'},
+  },
   expr = {
     {'$consts', action = ignore},
     {'identifier', action = ignore},

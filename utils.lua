@@ -57,4 +57,19 @@ function utils.contains(super, sub)
   return true
 end
 
+function utils.sublist(tab, i, j)
+  if not j then j = 0 end
+  if j <= 0 then j = #tab + j end
+  if i <= 0 then i = #tab + i end
+  if i <= 0 then i = 1 end
+  if j <= 0 then j = 1 end
+  if i > #tab then i = #tab + 1 end
+  if j > #tab then j = #tab end
+  -- normalize
+  local list = {}
+  for k = i, j do
+    table.insert(list, tab[i])
+  end
+end
+
 return utils
