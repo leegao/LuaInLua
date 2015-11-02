@@ -308,6 +308,7 @@ function re.compile(pattern, character_classes)
   nfa_context:accept(finish)
   local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
   dfa_context.graph.pattern = pattern
+  dfa_context.graph.match = re.match
   return dfa_context.graph
 end
 
