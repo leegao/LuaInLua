@@ -8,39 +8,42 @@ local configurations = {}
 local EPS = ''
 
 local function get_nonterminal(configuration, variable)
-  
-end
-
-local function nullable(configuration, production)
-  local initial = production[1]
-  if initial == EPS then
-    return true
+  if variable:sub(1, 1) == '$' then
+    return configuration[variable:sub(2)]
   end
-  local nonterminal = get_productions(configuration, initial)
-  if nonterminal then
-    return nonterminal:nullable(configuration)
-  end
-  return false
-end
-
-function nonterminals:nullable(configuration)
-  for _, production in ipairs(self) do
-    if nullable(configuration, production) then
-      return true
-    end
-  end
-  return false
+  return
 end
 
 local function first(configuration, production)
-  local initial = production[1]
   local first_set = {}
-  local nonterminal = get_productions(configuration, initial)
-  if nonterminal then
-    return nonterminal:first(configuration)
-  else
-    return {[initial] = true}
+  for _, token in ipairs(production) do
+    -- check if token is a nonterminal or not
+    local nonterminal = get_nonterminal(configuration, token)
+    local is_nullable = false
+    if nonterminal then
+      -- let's get the first set there
+      local local_first_set = nonterminal:first(configuration)
+      if local_first_set[EPS] then
+        is_nullable = true
+        local_first_set[EPS] = nil
+      end
+      for local_token in pairs(local_first_set) do
+        first_set[local_token] = true
+      end
+    else
+      -- let's see if token is nullable
+      if token == EPS then
+        is_nullable = true
+      else
+        first_set[token] = true
+      end
+    end
+    if not is_nullable then
+      return first_set
+    end
   end
+  first_set[EPS] = true
+  return first_set
 end
 
 function nonterminals:first(configuration)
@@ -57,11 +60,17 @@ end
 function ll1.yacc(actions)
   -- Associate the correct set of metatables to the nonterminals
   local configuration = {}
-  for variable, productions = pairs(actions) do
+  for variable, productions in pairs(actions) do
     setmetatable(productions, {__index = nonterminals})
     configuration[variable] = productions
   end
   setmetatable(configuration, {__index = configurations})
+  
+  for variable, nonterminal in pairs(configuration) do
+    local first_set = {}
+    for token in pairs(nonterminal:first(configuration)) do table.insert(first_set, token) end
+    print(variable, table.concat(first_set, ', '))
+  end
 end
 
 -- expr = $consts | identifier | fun $x -> $expr
