@@ -113,20 +113,38 @@ function lex.lex(actions)
   end
 end
 
+local string_stack = {}
+local function id(...) return ... end
+local function ignore(...) return end
+local function pop(stack) return table.remove(stack) end
+local function push(item, stack) table.insert(stack, item) end
 local tokenizer = lex.lex {
   root = {
-    {'if',  function(piece, lexer) print(piece) end},
-    {'else', function(piece, lexer) print(piece) end},
-    {r '%s+', function(piece, lexer) print("'" .. piece .. "'") end},
-    {'"', function(piece, lexer) print(piece); lexer:go 'string' end},
+    {'if',  id},
+    {'else', id},
+    {'then', id},
+    {'(', id},
+    {')', id},
+    {r '%s+', ignore},
+    {r '%a(%a|%d)*', id},
+    {r '%d+', id},
+    {'"', function(piece, lexer) 
+      lexer:go 'string'
+      push(piece, string_stack)
+    end},
   },
   string = {
-    {'"', function(piece, lexer) print(piece); lexer:go 'root' end},
-    {r '%a+', function(piece, lexer) print(piece) end}
+    {'"', function(piece, lexer) 
+      lexer:go 'root'
+      return pop(string_stack) .. piece
+    end},
+    {r '.', function(piece, lexer) 
+      push(pop(string_stack) .. piece, string_stack)
+    end}
   },
 }
 
-for token in tokenizer('if else   "abcd"') do
+for token in tokenizer('if lol32 then func(1) else   "abcd"') do
   print(token)
 end
 
