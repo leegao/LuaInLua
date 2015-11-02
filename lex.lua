@@ -3,22 +3,56 @@
 
 local lex = {}
 local re = require "re"
-r = re.compile
+local alphabetical = re.compile("%a")
+local r = re.compile
 
 local function lexicographical(a, b)
   assert(type(a) == 'string' and type(b) == 'string')
   return #a > #b or a > b
 end
 
+local function boundary(last, first)
+  -- make sure that alpha(last) xor alpha(first)
+  if not last then return false end
+  if not first then return true end
+  local alpha_last = re.match(alphabetical, last)
+  local alpha_first = re.match(alphabetical, first)
+  return (alpha_last and not alpha_first) or (not alpha_last and alpha_first)
+end
+
+local function peek(word, n)
+  if n > #word then
+    return nil
+  end
+  return word:sub(n, n)
+end
+
 local context = {}
 function context:next()
   -- consume off of the current using the current configuration state
   local action_node = self.configuration[self.state]
---  action_map = action_map, 
---  word_map = word_map, 
---  automaton_map = automaton_map, 
---  words = words, 
---  local_automatons = local_automatons
+  local current = self.current
+  if #current == 0 then return end
+
+  -- go through the set of words and see if any of them matches
+  for _, word in ipairs(action_node.words) do
+    if current:sub(1, #word) == word and boundary(word:sub(-1), peek(word, #word + 1)) then
+      -- matched a word, so consume and go on
+      self.current = current:sub(#word + 1)
+      return action_node.word_map[word](word, self)
+    end
+  end
+  
+  -- go through the automatons next
+  for _, automaton in ipairs(action_node.local_automatons) do
+    local word, history = re.match(automaton, current)
+    if word then
+      self.current = current:sub(#word + 1)
+      return action_node.automaton_map[automaton.pattern](word, self)
+    end
+  end
+  
+  error(self.state .. ': ' .. self.current)
 end
 
 function context:go(state)
@@ -54,8 +88,8 @@ function lex.lex(actions)
         table.insert(words, sigil)
         word_map[sigil] = act
       else
-        table.insert(local_automatons, sigil.pattern)
-        automaton_map[sigil.pattern] = sigil
+        table.insert(local_automatons, sigil)
+        automaton_map[sigil.pattern] = act
       end
     end
     table.sort(words, lexicographical)
@@ -70,25 +104,30 @@ function lex.lex(actions)
   return function(str)
     local context = new_context(configuration, str)
     return function()
-      return context:next()
+      local token = context:next()
+      while not token and #context.current ~= 0 do
+        token = context:next()
+      end
+      return token
     end
   end
 end
 
 local tokenizer = lex.lex {
   root = {
-    {'if',  function(piece, lexer) end},
-    {'else', function(piece, lexer) end},
-    {r '%s', function(piece, lexer) end},
-    {'"', function(piece, lexer) lexer:go 'string' end},
+    {'if',  function(piece, lexer) print(piece) end},
+    {'else', function(piece, lexer) print(piece) end},
+    {r '%s+', function(piece, lexer) print("'" .. piece .. "'") end},
+    {'"', function(piece, lexer) print(piece); lexer:go 'string' end},
   },
   string = {
-    {'"', function(piece, lexer) lexer:go 'root' end}
+    {'"', function(piece, lexer) print(piece); lexer:go 'root' end},
+    {r '%a+', function(piece, lexer) print(piece) end}
   },
 }
 
-for token in tokenizer('if else   ""') do
-  
+for token in tokenizer('if else   "abcd"') do
+  print(token)
 end
 
 return lex
