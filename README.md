@@ -4,9 +4,9 @@ I will be focusing heavier on the parsing aspect of this compiler as that is the
 
 Status Report:
 
-1. Regular expressions: completed!
-2. Lexer: backend completed, pending Parser to self-host the frontend as well.
-3. LL(1) Parser, which will use the graph reduction to efficiently compute the fixed point.
+1. Regular expressions recognizer generator: completed!
+2. Lexer generator: backend completed, pending Parser to self-host the frontend as well.
+3. LL(1) Parser generator: completed, which will use the graph reduction to efficiently compute the fixed point.
 
 TODO:
 
