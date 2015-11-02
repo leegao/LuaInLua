@@ -82,4 +82,14 @@ function utils.loop(tab)
   end
 end
 
+function utils.uloop(tab)
+  local next = ipairs({})
+  local state = 0
+  return function()
+    local value
+    state, value = next(tab, state)
+    return unpack(value)
+  end
+end
+
 return utils

@@ -79,6 +79,7 @@ end
 
 function nonterminals:follow(configuration)
   local uses = configuration:uses(self.variable)
+  
 end
 
 function ll1.yacc(actions)
