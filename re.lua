@@ -403,6 +403,13 @@ function re.create_character_class(classes)
   return classes
 end
 
+local function peep(word, n)
+  if n > #word then
+    return nil
+  end
+  return word:sub(n, n)
+end
+
 re.default_classes = re.create_character_class {
   {'%d', classify {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
   {'%a', classify {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 
@@ -426,19 +433,37 @@ re.default_classes = re.create_character_class {
   {'%+', classify {'+'}},
   {'%|', classify {'|'}},
   -- Generate character classes using string keyed functions
-  character_set = function(pattern)
-    -- return if [abc]
+  bracket_set_notation = function(pattern)
+    -- [abc-x] or [^z]
     if pattern:sub(1,1) ~= '[' or #pattern <= 2 then return end
+    local complement, start = false, 2
+    if pattern:sub(2,2) == '^' then complement, start = true, 3 end
     -- find the matching ]
     local characters = {}
-    for i = 2, #pattern do
+    local in_range = false
+    for i = start, #pattern do
       local char = string.char(pattern:byte(i))
       if char == ']' then
         return pattern:sub(1, i), function(s)
-          return characters[s]
+          if not complement then
+            return characters[s]
+          else
+            return not characters[s]
+          end
         end
+      elseif peep(pattern, i + 1) == '-' then
+        in_range = char
       else
-        characters[char] = true
+        if not in_range then
+          characters[char] = true
+        elseif char ~= '-' then
+          -- get all of the characters between in_range and char
+          assert(char >= in_range)
+          for b = in_range:byte(), char:byte() do
+            characters[string.char(b)] = true
+          end
+          in_range = false
+        end
       end
     end
     return

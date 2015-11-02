@@ -30,4 +30,4 @@ local function visualize(pattern, str)
     end)
 end
 -- Let's get the tokens to a regex parser
-print(visualize("[xyz]+a+", "zyxaaab"))
+print(visualize("[^a-z]+a+", "ABCasss"))
