@@ -4,7 +4,6 @@
 local lex = {}
 local re = require "re"
 local alphabetical = re.compile("%a")
-local r = re.compile
 
 local function lexicographical(a, b)
   assert(type(a) == 'string' and type(b) == 'string')
@@ -108,41 +107,6 @@ function lex.lex(actions)
       return token
     end
   end
-end
-
-local string_stack = {}
-local function id(...) return ... end
-local function ignore(...) return end
-local function pop(stack) return table.remove(stack) end
-local function push(item, stack) table.insert(stack, item) end
-local tokenizer = lex.lex {
-  root = {
-    {'if',  id},
-    {'else', id},
-    {'then', id},
-    {'(', id},
-    {')', id},
-    {r '%s+', ignore},
-    {r '%a(%a|%d)*', id},
-    {r '%d+', id},
-    {'"', function(piece, lexer) 
-      lexer:go 'string'
-      push(piece, string_stack)
-    end},
-  },
-  string = {
-    {'"', function(piece, lexer) 
-      lexer:go 'root'
-      return pop(string_stack) .. piece
-    end},
-    {r '.', function(piece, lexer) 
-      push(pop(string_stack) .. piece, string_stack)
-    end}
-  },
-}
-
-for token in tokenizer('if lol32 then func(1) else   "abcd"') do
-  print(token)
 end
 
 return lex
