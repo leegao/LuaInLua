@@ -7,7 +7,7 @@ end
 
 local function visualize(pattern, str)
   local graph = re.compile(pattern)
-  local matched, history = re.match(graph, str)
+  local matched, history = graph:match(str)
   return graph:dot(
     function(node, graph)
       local tab = {}
@@ -30,4 +30,4 @@ local function visualize(pattern, str)
     end)
 end
 -- Let's get the tokens to a regex parser
-print(visualize("(a)+(b)c", "(a|b|cc.+)*"))
+print(visualize("[xyz]+a+", "zyxaaab"))

@@ -87,7 +87,12 @@ local function parse_re(str, character_classes)
   local stack = {''}
   local parenthesis = {}
   local group_id = 1
+  local classes = utils.copy(character_classes)
   for c in character_classes:tokenize(str) do
+    if type(c) == 'table' then
+      table.insert(classes, c)
+      c = c[1]
+    end
     local item = pop(stack)
     if c == "|" then
       item = introduce_or(item)
@@ -115,7 +120,7 @@ local function parse_re(str, character_classes)
   end
   local cst = stack[1]
   local ast = reduce_groups(cst)
-  return ast
+  return ast, classes
 end
 
 local function new_context()
@@ -302,13 +307,13 @@ end
 
 function re.compile(pattern, character_classes)
   if not character_classes then character_classes = re.default_classes end
-  local regex_tree = parse_re(pattern, character_classes)
+  local regex_tree, character_classes = parse_re(pattern, character_classes)
   local nfa_context = new_context()
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
   local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
   dfa_context.graph.pattern = pattern
-  dfa_context.graph.match = re.match
+  function dfa_context.graph:match(str) return re.match(self, str, character_classes) end
   return dfa_context.graph
 end
 
@@ -343,7 +348,9 @@ function re.character_class(character, character_classes)
   table.insert(trace, character)
   for _, class in ipairs(character_classes) do
     local sigil, equivalence_class = unpack(class)
-    if equivalence_class[character] then
+    if type(equivalence_class) == 'table' and equivalence_class[character] then
+      table.insert(trace, sigil)
+    elseif type(equivalence_class) == 'function' and equivalence_class(character) then
       table.insert(trace, sigil)
     end
   end
@@ -366,19 +373,20 @@ function re.create_character_class(classes)
       if #str == 0 then
         return
       end
-      for _, class in pairs(classes) do
+      for _, class in ipairs(classes) do
         local sigil = unpack(class)
-        if type(sigil) == "function" then
-          local match = sigil(str)
+        -- try to do a full match
+        if str:sub(1, #sigil) == sigil then
+          str = str:sub(#sigil + 1)
+          return sigil
+        end
+      end
+      for _, class in pairs(classes) do
+        if type(class) == "function" then
+          local match, action = class(str)
           if match then
             str = str:sub(#match + 1)
-            return match
-          end
-        else
-          -- try to do a full match
-          if str:sub(1, #sigil) == sigil then
-            str = str:sub(#sigil + 1)
-            return sigil
+            return {match, action}
           end
         end
       end
@@ -417,6 +425,24 @@ re.default_classes = re.create_character_class {
   {'%.', classify {'.'}},
   {'%+', classify {'+'}},
   {'%|', classify {'|'}},
+  -- Generate character classes using string keyed functions
+  character_set = function(pattern)
+    -- return if [abc]
+    if pattern:sub(1,1) ~= '[' or #pattern <= 2 then return end
+    -- find the matching ]
+    local characters = {}
+    for i = 2, #pattern do
+      local char = string.char(pattern:byte(i))
+      if char == ']' then
+        return pattern:sub(1, i), function(s)
+          return characters[s]
+        end
+      else
+        characters[char] = true
+      end
+    end
+    return
+  end,
 }
 
 return re
