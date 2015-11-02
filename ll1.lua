@@ -167,6 +167,7 @@ function ll1.yacc(actions)
     nonterminal:dependency(dependency_graph, configuration)
   end
   local follow_sets = follow_algorithm:forward(dependency_graph)
+  print(follow_sets:dot())
   local terminals = get_terminals_from(configuration)
   local transition_table = {}
   
@@ -181,9 +182,9 @@ function ll1.yacc(actions)
     for production in utils.loop(productions) do
       local firsts = first(configuration, production)
       for terminal in pairs(firsts) do
-        if terminal ~= EPS and terminal ~= EOF then
+        if terminal ~= EPS then
           if transition_table[variable][terminal] ~= ERROR then 
-            print(variable, terminal, table.concat(transition_table[variable][terminal], ', '))
+            print('ERROR', variable, terminal, table.concat(transition_table[variable][terminal], ', '))
           else
             transition_table[variable][terminal] = production
           end
@@ -191,10 +192,10 @@ function ll1.yacc(actions)
       end
       if firsts[EPS] then
         local follows = follow_sets[variable]
-        for terminal in pairs(firsts) do
-          if terminal ~= EPS and terminal ~= EOF then
+        for terminal in pairs(follows) do
+          if terminal ~= EPS then
             if transition_table[variable][terminal] ~= ERROR then 
-              print(variable, terminal, table.concat(transition_table[variable][terminal], ', '))
+              print('ERROR', variable, terminal, table.concat(transition_table[variable][terminal], ', '))
             else
               transition_table[variable][terminal] = production
             end
@@ -219,37 +220,59 @@ local function enqueue(tokens, item)
   table.insert(tokens, 1, item)
 end
 
-function yacc:parse(tokens, state)
+function yacc:parse(tokens, state, trace)
   if not state then state = 'root' end
+  if not trace then trace = {} end
   local token = peek(tokens)
+  if not token then token = EOF end
   local production = self[state][token]
+  local local_trace = {state, token, utils.copy(tokens), production}
+  table.insert(trace, local_trace)
+  if production == ERROR then
+    print("ERROR")
+    return ERROR, production
+  end
   local args = {}
   for node in utils.loop(production) do
     if node:sub(1, 1) == '$' then
-      local ret = self:parse(tokens, node:sub(2))
+      local ret = self:parse(tokens, node:sub(2), trace)
       table.insert(args, ret)
-    else
+    elseif token ~= EOF then
       local token = consume(tokens)
-      assert(node == token)
+      assert(node == token, tostring(node) .. ' ~= ' .. tostring(token))
       table.insert(args, token)
+    else
+      assert(not consume(tokens))
     end
   end
-  return production.action(unpack(args))
+  table.insert(local_trace, args)
+  return production.action(unpack(args)), trace
 end
 
 local ignore = function(...) return end
-local id = function(...) return {...} end
+local id = function(...) 
+  return setmetatable({...}, {__tostring = function(self)
+    return '{' .. table.concat(utils.map(tostring, self), ', ') .. '}' 
+  end})
+end
 
--- expr = $consts | identifier | fun $x -> $expr
+-- expr = $consts rexpr' | identifier rexpr' | fun $x -> $expr | ($expr) $rexpr
+-- rexpr' = EPS | $expr | + $expr
 -- consts = number | string | true | false
 local parser = ll1.yacc {
   root = {
     {'$expr', action = id},
   },
+  rexpr = {
+    {'', action = id},
+    {'$expr', action = id},
+    {'+', '$expr', action = id},
+  },
   expr = {
-    {'$consts', action = id},
-    {'identifier', action = id},
+    {'$consts', '$rexpr', action = id},
+    {'identifier', '$rexpr', action = id},
     {'fun', 'identifier', '->', '$expr', action = id},
+    {'(', '$expr', ')', '$rexpr', action = id},
   },
   consts = {
     {'number', action = id},
@@ -259,6 +282,13 @@ local parser = ll1.yacc {
   }
 }
 
-local tree = parser:parse{"fun", "identifier", "->", "fun", "identifier", "->", "identifier"}
+local tree, trace = parser:parse{"fun", "identifier", "->", "fun", "identifier", "->", "identifier", "+", "number"}
+
+for state, token, tokens, production, args in utils.uloop(trace) do
+  local args_str = args and table.concat(utils.map(tostring, args), ', ') or 'ERROR'
+  local prod = (production ~= ERROR and table.concat(production, ' ')) or 'ERROR'
+  print(state, table.concat(tokens, ' '))
+  print('  Prod', prod, '{'..args_str..'}')
+end
 
 return ll1

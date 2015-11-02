@@ -3,9 +3,14 @@ digraph {
   size="8,5"
   node[shape=circle,label=""];
   root[label="root 256"];
-  consts[label="consts ,256"];
-  expr[label="expr ,256"];
+  rexpr[label="rexpr ,false,fun,+,identifier,string,true,256,number"];
+  consts[label="consts ,false,fun,+,identifier,string,true,256,number"];
+  expr1[label="expr1 ,false,fun,+,identifier,string,true,256,number"];
+  expr[label="expr ,false,fun,+,identifier,string,true,256,number"];
     root -> expr[label=""];
-    expr -> consts[label=""];
-    expr -> expr[label=""];
+    rexpr -> expr[label=""];
+    expr1 -> consts[label=""];
+    expr1 -> expr[label=""];
+    expr -> rexpr[label=""];
+    expr -> expr1[label=""];
 }
