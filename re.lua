@@ -305,19 +305,7 @@ local function subset_construction(first, last, nfa_context, character_classes, 
   return dfa_context
 end
 
-function re.compile(pattern, character_classes)
-  if not character_classes then character_classes = re.default_classes end
-  local regex_tree, character_classes = parse_re(pattern, character_classes)
-  local nfa_context = new_context()
-  local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
-  nfa_context:accept(finish)
-  local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
-  dfa_context.graph.pattern = pattern
-  function dfa_context.graph:match(str) return re.match(self, str, character_classes) end
-  return dfa_context.graph
-end
-
-function re.match(graph, str, character_classes)
+local function re_match(graph, str, character_classes)
   if not character_classes then character_classes = re.default_classes end
   local ptr = '1'
   local history = {ptr}
@@ -339,6 +327,18 @@ function re.match(graph, str, character_classes)
     end
   end
   return graph:trace(history, str)
+end
+
+function re.compile(pattern, character_classes)
+  if not character_classes then character_classes = re.default_classes end
+  local regex_tree, character_classes = parse_re(pattern, character_classes)
+  local nfa_context = new_context()
+  local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
+  nfa_context:accept(finish)
+  local dfa_context = subset_construction(start, finish, nfa_context, character_classes)
+  dfa_context.graph.pattern = pattern
+  function dfa_context.graph:match(str) return re_match(self, str, character_classes) end
+  return dfa_context.graph
 end
 
 function re.character_class(character, character_classes)

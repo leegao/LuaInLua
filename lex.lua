@@ -44,7 +44,7 @@ function context:next()
   
   -- go through the automatons next
   for _, automaton in ipairs(action_node.local_automatons) do
-    local word, history = re.match(automaton, current)
+    local word, history = automaton:match(current)
     if word then
       self.current = current:sub(#word + 1)
       return action_node.automaton_map[automaton.pattern](word, self)
