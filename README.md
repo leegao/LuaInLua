@@ -1,12 +1,16 @@
-Let's make an end-to-end parser and lexer generator in Lua. Document the process in http://luatut.com/
+Let's build a compiler from the ground up in Lua. Here, we will be developing our own tools from scratch along the way, which is great because Lua doesn't come with much in terms of its standard library so we get to do a lot platforming work as well :)
 
-Stretch goals:
+I will be focusing heavier on the parsing aspect of this compiler as that is the low-hanging fruit aspect of compiler construction that I haven't had a chance to explore deeply yet.
 
-  1. add in a toy language interpretor or compiler as well into the mix
-  2. add in fancy-pants semiring parsing
-  3. explore both LL(1) and L(AL)R(1)
-  4. explore LL(*) and LR(*)
-  5. write my own regular expression
-  6. self-host everything within toy language
+Status Report:
+1. Regular expressions: completed!
+2. Lexer: backend completed, pending Parser to self-host the frontend as well.
 
- Happy Hacking! :D
+TODO:
+3. LL(1) Parser, which will use the graph reduction to efficiently compute the fixed point.
+4. LR(0-1) Parser, which will also use a similar mechanism
+5. Self-hosting the Lexer.
+6. Self-hosting the Parser.
+7. Type-induction.
+8. Type inferencing.
+9. Interpreter.
