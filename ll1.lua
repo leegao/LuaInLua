@@ -11,12 +11,26 @@ local configurations = {}
 
 local EPS = ''
 local EOF = 256
+local ERROR = -1
 
 local function get_nonterminal(configuration, variable)
   if variable:sub(1, 1) == '$' then
     return configuration[variable:sub(2)]
   end
   return
+end
+
+local function get_terminals_from(first_sets)
+  local terminals = {}
+  for variable, first_set in pairs(first_sets) do
+    for terminal in pairs(first_set) do
+      if terminal ~= EPS and terminal ~= EOF then
+        table.insert(terminals, terminal)
+      end
+    end
+  end
+  table.insert(terminals, EOF)
+  return terminals
 end
 
 local function first(configuration, production)
@@ -149,7 +163,13 @@ function ll1.yacc(actions)
     nonterminal:dependency(dependency_graph, configuration)
   end
   local follow_sets = follow_algorithm:forward(dependency_graph)
-  print(follow_sets:dot())
+  local terminals = get_terminals_from(first_sets)
+  local transition_table = {}
+  for variable in pairs(configuration) do
+    for terminal in utils.loop(terminals) do
+      transition_table[variable][terminal] = ERROR
+    end
+  end
 end
 
 -- expr = $consts | identifier | fun $x -> $expr
