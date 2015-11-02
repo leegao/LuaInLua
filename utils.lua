@@ -72,4 +72,14 @@ function utils.sublist(tab, i, j)
   end
 end
 
+function utils.loop(tab)
+  local next = ipairs({})
+  local state = 0
+  return function()
+    local value
+    state, value = next(tab, state)
+    return value
+  end
+end
+
 return utils
