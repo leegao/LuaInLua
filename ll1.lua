@@ -148,6 +148,8 @@ local follow_algorithm = worklist {
   end
 }
 
+local yacc = {}
+
 function ll1.yacc(actions)
   -- Associate the correct set of metatables to the nonterminals
   local configuration = {}
@@ -202,28 +204,61 @@ function ll1.yacc(actions)
     end
   end
   
+  setmetatable(transition_table, {__index = yacc})
+  
   return transition_table
 end
 
+local function consume(tokens)
+  return table.remove(tokens, 1)
+end
+local function peek(tokens)
+  return tokens[1]
+end
+local function enqueue(tokens, item)
+  table.insert(tokens, 1, item)
+end
+
+function yacc:parse(tokens, state)
+  if not state then state = 'root' end
+  local token = peek(tokens)
+  local production = self[state][token]
+  local args = {}
+  for node in utils.loop(production) do
+    if node:sub(1, 1) == '$' then
+      local ret = self:parse(tokens, node:sub(2))
+      table.insert(args, ret)
+    else
+      local token = consume(tokens)
+      assert(node == token)
+      table.insert(args, token)
+    end
+  end
+  return production.action(unpack(args))
+end
+
 local ignore = function(...) return end
+local id = function(...) return {...} end
 
 -- expr = $consts | identifier | fun $x -> $expr
 -- consts = number | string | true | false
-ll1.yacc {
+local parser = ll1.yacc {
   root = {
-    {'$expr'},
+    {'$expr', action = id},
   },
   expr = {
-    {'$consts', action = ignore},
-    {'identifier', action = ignore},
-    {'fun', 'identifier', '->', '$expr', action = ignore},
+    {'$consts', action = id},
+    {'identifier', action = id},
+    {'fun', 'identifier', '->', '$expr', action = id},
   },
   consts = {
-    {'number', action = ignore},
-    {'string', action = ignore},
-    {'true', action = ignore},
-    {'false', action = ignore},
+    {'number', action = id},
+    {'string', action = id},
+    {'true', action = id},
+    {'false', action = id},
   }
 }
+
+local tree = parser:parse{"fun", "identifier", "->", "fun", "identifier", "->", "identifier"}
 
 return ll1
