@@ -10,6 +10,7 @@ Status Report:
 
 TODO:
 
+4. Create left-recursion folding mechanism
 4. LR(0-1) Parser, which will also use a similar mechanism
 5. Self-hosting the Lexer.
 6. Self-hosting the Parser.
