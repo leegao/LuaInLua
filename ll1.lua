@@ -250,38 +250,10 @@ function yacc:parse(tokens, state, trace)
   return production.action(unpack(args)), trace
 end
 
-local function escape(object)
-  return ('\\%03d'):rep(#object):format(object:byte(1, #object))
-end
-
-local function dump(object, ignore)
-  if ignore == nil then ignore = true end
-  if type(object) == 'string' then
-    return '\'' .. escape(object) .. '\''
-  elseif type(object) == 'number' then
-    return tostring(object)
-  elseif type(object) == 'function' then
-    if not ignore then
-      error 'Cannot serialize a function'
-    end
-    return 'nil'
-  elseif type(object) == 'boolean' then
-    return tostring(object)
-  elseif object == nil then
-    return 'nil'
-  end
-  assert(type(object) == 'table')
-  local strings = {}
-  for key, value in pairs(object) do
-    table.insert(strings, '[' .. dump(key, ignore) .. '] = ' .. dump(value, ignore))
-  end
-  return '{' .. table.concat(strings, ', ') .. '}'
-end
-
 function yacc:save(file)
   -- dump out the table
   -- if io.open(file, "r") then return end
-  local serialized_dump = dump {self, self.configuration}
+  local serialized_dump = utils.dump {self, self.configuration}
   local stream = assert(io.open(file, "w"))
   stream:write('return ' .. serialized_dump)
   assert(stream:close())
