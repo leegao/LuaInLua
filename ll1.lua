@@ -179,14 +179,14 @@ function ll1.yacc(actions)
   end
   
   for variable, productions in pairs(configuration) do
-    for production in utils.loop(productions) do
+    for i, production in ipairs(productions) do
       local firsts = first(configuration, production)
       for terminal in pairs(firsts) do
         if terminal ~= EPS then
           if transition_table[variable][terminal] ~= ERROR then 
             print('ERROR', variable, terminal, table.concat(transition_table[variable][terminal], ', '))
           else
-            transition_table[variable][terminal] = production
+            transition_table[variable][terminal] = i
           end
         end
       end
@@ -197,7 +197,7 @@ function ll1.yacc(actions)
             if transition_table[variable][terminal] ~= ERROR then 
               print('ERROR', variable, terminal, table.concat(transition_table[variable][terminal], ', '))
             else
-              transition_table[variable][terminal] = production
+              transition_table[variable][terminal] = i
             end
           end
         end
@@ -205,7 +205,9 @@ function ll1.yacc(actions)
     end
   end
   
-  setmetatable(transition_table, {__index = yacc})
+  local y = utils.copy(yacc)
+  y.configuration = configuration
+  setmetatable(transition_table, {__index = y})
   
   return transition_table
 end
@@ -225,11 +227,11 @@ function yacc:parse(tokens, state, trace)
   if not trace then trace = {} end
   local token = peek(tokens)
   if not token then token = EOF end
-  local production = self[state][token]
+  local production_index = self[state][token]
+  local production = self.configuration[state][production_index]
   local local_trace = {state, token, utils.copy(tokens), production}
   table.insert(trace, local_trace)
   if production == ERROR then
-    print("ERROR")
     return ERROR, production
   end
   local args = {}
@@ -247,6 +249,39 @@ function yacc:parse(tokens, state, trace)
   end
   table.insert(local_trace, args)
   return production.action(unpack(args)), trace
+end
+
+local function escape(object)
+  return ('\\%03d'):rep(#object):format(object:byte(1, #object))
+end
+
+local function dump(object)
+  if type(object) == 'string' then
+    return '\'' .. escape(object) .. '\''
+  elseif type(object) == 'number' then
+    return tostring(object)
+  elseif type(object) == 'function' then
+    error 'Cannot serialize a function'
+  elseif type(object) == 'boolean' then
+    return tostring(object)
+  elseif object == nil then
+    return 'nil'
+  end
+  assert(type(object) == 'table')
+  local strings = {}
+  for key, value in pairs(object) do
+    table.insert(strings, '[' .. dump(key) .. '] = ' .. dump(value))
+  end
+  return '{' .. table.concat(strings, ', ') .. '}'
+end
+
+function yacc:save(file)
+  -- dump out the table
+  -- if io.open(file, "r") then return end
+  print(dump(assert(loadstring('return ' .. dump(self)))()))
+  local stream = assert(io.open(file, "wb"))
+  
+  assert(stream:close())
 end
 
 local ignore = function(...) return end
@@ -281,7 +316,7 @@ local parser = ll1.yacc {
     {'false', action = id},
   }
 }
-
+parser:save("test.table")
 local tree, trace = parser:parse{"fun", "identifier", "->", "fun", "identifier", "->", "identifier", "+", "number"}
 
 for state, token, tokens, production, args in utils.uloop(trace) do
