@@ -167,7 +167,6 @@ function ll1.yacc(actions)
     nonterminal:dependency(dependency_graph, configuration)
   end
   local follow_sets = follow_algorithm:forward(dependency_graph)
-  print(follow_sets:dot())
   local terminals = get_terminals_from(configuration)
   local transition_table = {}
   
@@ -255,13 +254,17 @@ local function escape(object)
   return ('\\%03d'):rep(#object):format(object:byte(1, #object))
 end
 
-local function dump(object)
+local function dump(object, ignore)
+  if ignore == nil then ignore = true end
   if type(object) == 'string' then
     return '\'' .. escape(object) .. '\''
   elseif type(object) == 'number' then
     return tostring(object)
   elseif type(object) == 'function' then
-    error 'Cannot serialize a function'
+    if not ignore then
+      error 'Cannot serialize a function'
+    end
+    return 'nil'
   elseif type(object) == 'boolean' then
     return tostring(object)
   elseif object == nil then
@@ -270,7 +273,7 @@ local function dump(object)
   assert(type(object) == 'table')
   local strings = {}
   for key, value in pairs(object) do
-    table.insert(strings, '[' .. dump(key) .. '] = ' .. dump(value))
+    table.insert(strings, '[' .. dump(key, ignore) .. '] = ' .. dump(value, ignore))
   end
   return '{' .. table.concat(strings, ', ') .. '}'
 end
@@ -278,10 +281,59 @@ end
 function yacc:save(file)
   -- dump out the table
   -- if io.open(file, "r") then return end
-  print(dump(assert(loadstring('return ' .. dump(self)))()))
-  local stream = assert(io.open(file, "wb"))
-  
+  local serialized_dump = dump {self, self.configuration}
+  local stream = assert(io.open(file, "w"))
+  stream:write('return ' .. serialized_dump)
   assert(stream:close())
+  return self
+end
+
+function ll1.create(actions)
+  actions = utils.copy(actions)
+  local file = table.remove(actions)
+  
+  if not file then
+    return ll1.yacc(actions)
+  end
+  
+  local deserialize = loadfile(file)
+  if not deserialize then
+    local transitions = ll1.yacc(actions)
+    return ll1.yacc(actions):save(file)
+  end
+  
+  local status, bundle = pcall(deserialize)
+  if not status then
+    return ll1.yacc(actions):save(file)
+  end
+  
+  local transitions, configuration = unpack(bundle)
+  setmetatable(configuration, {__index = configurations})
+  local y = utils.copy(yacc)
+  y.configuration = configuration
+  setmetatable(transitions, {__index = y})
+  local sane = true
+  for variable, productions in pairs(configuration) do
+    for index, production in ipairs(productions) do
+      if not actions[variable] or not actions[variable][index] then
+        sane = false
+        break
+      end
+      local action = actions[variable][index]
+      production.action = action.action
+      for j, object in ipairs(production) do
+        if object ~= action[j] then
+          sane = false
+          break
+        end
+      end
+    end
+  end
+  if sane then
+    return transitions
+  else
+    return ll1.yacc(actions):save(file)
+  end
 end
 
 local ignore = function(...) return end
@@ -294,7 +346,8 @@ end
 -- expr = $consts rexpr' | identifier rexpr' | fun $x -> $expr | ($expr) $rexpr
 -- rexpr' = EPS | $expr | + $expr
 -- consts = number | string | true | false
-local parser = ll1.yacc {
+local parser = ll1.create {
+  '/Users/leegao/sideproject/ParserSiProMo/testing/test_parser.lua',
   root = {
     {'$expr', action = id},
   },
@@ -316,7 +369,6 @@ local parser = ll1.yacc {
     {'false', action = id},
   }
 }
-parser:save("test.table")
 local tree, trace = parser:parse{"fun", "identifier", "->", "fun", "identifier", "->", "identifier", "+", "number"}
 
 for state, token, tokens, production, args in utils.uloop(trace) do
