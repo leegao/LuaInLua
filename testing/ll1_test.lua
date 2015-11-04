@@ -11,7 +11,7 @@ end
 -- expr = $consts rexpr' | identifier rexpr' | fun $x -> $expr | ($expr) $rexpr
 -- rexpr' = EPS | $expr | + $expr
 -- consts = number | string | true | false
-local parser = ll1.create {
+local parser = ll1 {
   '/Users/leegao/sideproject/ParserSiProMo/testing/test_parser.lua',
   root = {
     {'$expr', action = id},

@@ -308,4 +308,4 @@ function ll1.create(actions)
   end
 end
 
-return ll1
+return setmetatable(ll1, {__call = function(self, ...) return self.create(...) end})
