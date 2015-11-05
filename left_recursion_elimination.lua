@@ -5,7 +5,7 @@ local left_recursion_elimination = {}
 local ll1 = require 'll1'
 local utils = require 'utils'
 
-local function hash_function(production)
+local function hash(production)
   return utils.dump {unpack(production)}
 end
 
@@ -14,7 +14,31 @@ local function eliminate_nullables(configuration)
   for variable, nonterminal in pairs(configuration) do
     local first_set = nonterminal:first(configuration)
     if first_set[''] then
-      nullables[variable:sub(2)] = true
+      nullables['$' .. variable] = true
+    end
+  end
+  
+  for variable, nonterminal in pairs(configuration) do
+    -- let's construct a hashset of the original productions
+    local seen_productions = {}
+    for production in utils.loop(nonterminal) do
+      seen_productions[hash(production)] = true
+    end
+    
+    -- let's compute the null-eliminated expansion
+    for production in utils.loop(nonterminal) do
+      local action = production.action
+      local nullable_indices = {}
+      for i, object in ipairs(production) do
+        if nullables[object] then
+          table.insert(nullable_indices, i)
+        end
+      end
+      -- compute the combinatorial transfer to naturals
+      print(variable, table.concat(production, ' '))
+      for i=0,2^#nullable_indices - 2 do
+        print(i)
+      end
     end
   end
 end
