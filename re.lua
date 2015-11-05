@@ -4,7 +4,6 @@
 -- they are of the form
 --   e = x | e e | (e | e) | e* | e+ | ctrl
 
-
 local graph = require "graph"
 local utils = require "utils"
 local worklist = require "worklist"
@@ -470,4 +469,4 @@ re.default_classes = re.create_character_class {
   end,
 }
 
-return re
+return setmetatable(re, {__call = function(self, pattern, class) return self.compile(pattern, class) end})

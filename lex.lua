@@ -7,7 +7,7 @@ local alphabetical = re.compile("%a")
 
 local function lexicographical(a, b)
   assert(type(a) == 'string' and type(b) == 'string')
-  return #a > #b or a > b
+  return a > b
 end
 
 local function boundary(last, first)
