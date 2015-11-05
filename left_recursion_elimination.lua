@@ -4,6 +4,7 @@ local left_recursion_elimination = {}
 
 local ll1 = require 'll1'
 local utils = require 'utils'
+local graph = require 'graph'
 
 local function hash(production)
   return table.concat({unpack(production)}, '^^^')
@@ -90,8 +91,21 @@ local function eliminate_nullables(configuration)
   return ll1.configure(new_actions)
 end
 
+local function build_single_variable_graph(configuration)
+  -- find all forms of X -> Y
+  local g = graph()
+  for variable, nonterminal in pairs(configuration) do
+    for production in utils.loop(nonterminal) do
+      if #production == 1 and production[1]:sub(1,1) == '$' then
+        g:edge(variable, production[1]:sub(2))
+      end
+    end
+  end
+  print(g:dot(function(node) return ("[label=\"%s\"]"):format(node) end))
+end
+
 local function eliminate_cycles(configuration)
-  
+  local use_graph = build_single_variable_graph(configuration)
 end
 
 -- testing
@@ -100,21 +114,18 @@ local configuration = ll1.configure {
     {'$S'},
   },
   S = {
-    {'$X', '$X'},
-    {'$Y'},
+    {'$X'},
+    {'$X', 'b'},
+    {'$Y', 'a'},
   },
   X = {
-    {'a', '$X', 'b'},
-    {''},
+    {'b'},
+    {'$Y'},
   },
   Y = {
-    {'a', '$Y', 'b'},
-    {'$Z'},
+    {'a'},
+    {'$X'},
   },
-  Z = {
-    {'b', '$Z', 'a'},
-    {''},
-  }
 }
 
 local new_configuration = eliminate_nullables(configuration)

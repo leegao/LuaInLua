@@ -2,15 +2,13 @@ digraph {
   rankdir=LR;
   size="8,5"
   node[shape=circle,label=""];
-  root[label="root 256"];
-  rexpr[label="rexpr ,false,fun,+,identifier,string,true,256,number"];
-  consts[label="consts ,false,fun,+,identifier,string,true,256,number"];
-  expr1[label="expr1 ,false,fun,+,identifier,string,true,256,number"];
-  expr[label="expr ,false,fun,+,identifier,string,true,256,number"];
-    root -> expr[label=""];
-    rexpr -> expr[label=""];
-    expr1 -> consts[label=""];
-    expr1 -> expr[label=""];
-    expr -> rexpr[label=""];
-    expr -> expr1[label=""];
+  root[label="root"];
+  X[label="X"];
+  S[label="S"];
+  Y[label="Y"];
+  Z[label="Z"];
+  root -> S[label=""];
+  S -> Y[label=""];
+  S -> X[label=""];
+  Y -> Z[label=""];
 }
