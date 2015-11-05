@@ -20,6 +20,7 @@ end
 setmetatable(graph, {__call = graph.create})
 
 function graph.vertex(self, node, tag)
+  if not tag then tag = true end
   if not self.nodes[node] then
     self.nodes[node] = tag
   end

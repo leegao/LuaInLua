@@ -129,14 +129,33 @@ function configurations:get_dependency_graph()
     for _, nonterminal in pairs(self) do
       nonterminal:dependency(dependency_graph, self)
     end
+    dependency_graph:set_root('root')
     getmetatable(self)['__index']['graph'] = dependency_graph
   end
   return self.graph
 end
 
+local function full_dependency_graph(configuration)
+  -- find all forms of X -> Y
+  local g = graph()
+  g.configuration = configuration
+  for variable, nonterminal in pairs(configuration) do
+    for production in utils.loop(nonterminal) do
+      for object in utils.loop(production) do
+        if object:sub(1,1) == '$' then
+          g:edge(object:sub(2), variable)
+          g:edge(variable, object:sub(2))
+        end
+      end
+    end
+  end
+  g:set_root('root')
+  return g
+end
+
 function configurations:firsts()
   if not self.cached_firsts then
-    getmetatable(self)['__index']['cached_firsts'] = first_algorithm:forward(self:get_dependency_graph())
+    getmetatable(self)['__index']['cached_firsts'] = first_algorithm:forward(full_dependency_graph(self))
   end
   return utils.copy(self.cached_firsts)
 end
@@ -217,6 +236,7 @@ function nonterminals:dependency(graph, configuration)
   if graph.nodes[self.variable:sub(2)] then
     return graph
   end
+  graph:vertex(self.variable:sub(2))
   local uses = configuration:uses(self.variable)
   for variable, suffix in utils.uloop(uses) do
     get_nonterminal(configuration, variable):dependency(graph, configuration)
