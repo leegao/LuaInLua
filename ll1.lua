@@ -13,21 +13,29 @@ local EPS = ''
 local EOF = 256
 local ERROR = -1
 
-
+-- computes the first sets of nonterminals
 local first_algorithm = worklist {
   -- what is the domain? Sets of tokens
   initialize = function(self, node, _)
-    if node == 'root' then return {[EOF] = true} end
     return {}
   end,
-  transfer = function(self, node, follow_pred, graph, pred)
-    local follow_set = self:initialize(node)
-    local configuration, suffix = unpack(graph.forward[pred][node])
-    follow_set = self:merge(follow_set, ll1.first(configuration, suffix))
-    if follow_set[EPS] then
-      follow_set = self:merge(follow_set, follow_pred)
+  transfer = function(self, node, _, graph, pred)
+    local first_set = self:initialize(node)
+    local configuration = unpack(graph.forward[pred][node])
+    local nonterminals = configuration[node]
+    for production in utils.loop(nonterminals) do
+      for object in utils.loop(production) do
+        if object:sub(1, 1) == '$' then
+          local partial_first_set = self.partial_solution[object:sub(2)]
+          first_set = self:merge(first_set, partial_first_set)
+          if not partial_first_set[EPS] then break end
+        else
+          first_set[object] = true
+          if object ~= EPS then break end
+        end
+      end
     end
-    return follow_set
+    return first_set
   end,
   changed = function(self, old, new)
     -- assuming monotone in the new direction
