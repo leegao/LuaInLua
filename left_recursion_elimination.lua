@@ -5,9 +5,10 @@ local left_recursion_elimination = {}
 local ll1 = require 'll1'
 local utils = require 'utils'
 local graph = require 'graph'
+local worklist = require 'worklist'
 
 local function hash(production)
-  return table.concat({unpack(production)}, '^^^')
+  return table.concat({unpack(production)}, '`')
 end
 
 local function normalize(production)
@@ -91,21 +92,78 @@ local function eliminate_nullables(configuration)
   return ll1.configure(new_actions)
 end
 
-local function build_single_variable_graph(configuration)
+local function full_dependency_graph(configuration)
   -- find all forms of X -> Y
   local g = graph()
+  g.configuration = configuration
   for variable, nonterminal in pairs(configuration) do
     for production in utils.loop(nonterminal) do
-      if #production == 1 and production[1]:sub(1,1) == '$' then
-        g:edge(variable, production[1]:sub(2))
+      for object in utils.loop(production) do
+        if object:sub(1,1) == '$' then
+          g:edge(object:sub(2), variable)
+          g:edge(variable, object:sub(2))
+        end
       end
     end
   end
   print(g:dot(function(node) return ("[label=\"%s\"]"):format(node) end))
+  g:set_root('root')
+  return g
 end
 
+-- computes the set of productions that A =*> goes to
+local transitive_algorithm = worklist {
+  -- what is the domain? Sets of productions
+  initialize = function(self, _, _)
+    return {}
+  end,
+  transfer = function(self, node, _, graph, pred)
+    local transitive_set = self:initialize(node)
+    local nonterminal = graph.configuration[node]
+    local single_set = {}
+    for production in utils.loop(nonterminal) do
+      transitive_set[hash(production)] = production
+      if #production == 1 and production[1]:sub(1, 1) == '$' then
+        transitive_set = self:merge(
+            transitive_set, 
+            self.partial_solution[production[1]:sub(2)])
+      end
+    end
+    return transitive_set
+  end,
+  changed = function(self, old, new)
+    -- assuming monotone in the new direction
+    for key in pairs(new) do
+      if not old[key] then
+        return true
+      end
+    end
+    return false
+  end,
+  merge = function(self, left, right)
+    local merged = utils.copy(left)
+    for key in pairs(right) do
+      merged[key] = right[key]
+    end
+    return merged
+  end,
+  tostring = function(self, _, node, input)
+    local list = {}
+    for key in pairs(input) do table.insert(list, key) end
+    return node .. ' -> ' .. table.concat(list, ' | ')
+  end
+}
+
 local function eliminate_cycles(configuration)
-  local use_graph = build_single_variable_graph(configuration)
+  local use_graph = full_dependency_graph(configuration)
+  local transitive_set = transitive_algorithm:forward(use_graph)
+  local cycle_set = {}
+  for variable, transitionable in pairs(transitive_set) do
+    if transitionable['$' .. variable] then
+      cycle_set[variable] = true
+    end
+  end
+  print(transitive_set:dot())
 end
 
 -- testing

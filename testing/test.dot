@@ -2,12 +2,13 @@ digraph {
   rankdir=LR;
   size="8,5"
   node[shape=circle,label=""];
-  root[label="root"];
-  X[label="X"];
-  S[label="S"];
-  Y[label="Y"];
-  root -> S[label=""];
-  X -> Y[label=""];
-  S -> X[label=""];
-  Y -> X[label=""];
+  root[label="root -> "];
+  X[label="X -> b | $Y | a | $X"];
+  S[label="S -> $Y`a | $X | $X`b"];
+  Y[label="Y -> b | $X | a | $Y"];
+    root -> S[label="table: 0x0013d688"];
+    X -> Y[label="table: 0x00145928"];
+    S -> Y[label="table: 0x00145c48"];
+    S -> X[label="table: 0x0014d430"];
+    Y -> X[label="table: 0x001406a8"];
 }

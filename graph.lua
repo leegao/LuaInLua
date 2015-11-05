@@ -145,6 +145,10 @@ function graph.exits(self)
 end
 
 function graph.entrances(self)
+  if self.root then
+    return {self.root}
+  end
+  
   local entrances = {}
   for node, _, _, reverse in self:vertices() do
     if next(reverse) == nil then
@@ -152,6 +156,10 @@ function graph.entrances(self)
     end
   end
   return entrances
+end
+
+function graph.set_root(self, root)
+  self.root = root
 end
 
 function graph.edges(self)

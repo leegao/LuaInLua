@@ -122,7 +122,7 @@ local function get_terminals_from(configuration)
   return terminals
 end
 
-function configurations:firsts()
+function configurations:get_dependency_graph()
   if not self.graph then
     local dependency_graph = graph.create()
     dependency_graph.configuration = self
@@ -131,23 +131,19 @@ function configurations:firsts()
     end
     getmetatable(self)['__index']['graph'] = dependency_graph
   end
+  return self.graph
+end
+
+function configurations:firsts()
   if not self.cached_firsts then
-    getmetatable(self)['__index']['cached_firsts'] = first_algorithm:forward(self.graph)
+    getmetatable(self)['__index']['cached_firsts'] = first_algorithm:forward(self:get_dependency_graph())
   end
   return utils.copy(self.cached_firsts)
 end
 
 function configurations:follows()
-  if not self.graph then
-    local dependency_graph = graph.create()
-    dependency_graph.configuration = self
-    for _, nonterminal in pairs(self) do
-      nonterminal:dependency(dependency_graph, self)
-    end
-    getmetatable(self)['__index']['graph'] = dependency_graph
-  end
   if not self.cached_follows then
-    getmetatable(self)['__index']['cached_follows'] = follow_algorithm:forward(self.graph)
+    getmetatable(self)['__index']['cached_follows'] = follow_algorithm:forward(self:get_dependency_graph())
   end
   return utils.copy(self.cached_follows)
 end
