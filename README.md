@@ -7,10 +7,10 @@ Status Report:
 1. Regular expressions recognizer generator: completed!
 2. Lexer generator: backend completed, pending Parser to self-host the frontend as well.
 3. LL(1) Parser generator: completed, which will use the graph reduction to efficiently compute the fixed point.
+4. Add nullable elimination transformation - (grammar cannot have inherent nullables anymore)
 
 In progress:
 
-1. Add nullable elimination transformation - (grammar cannot have inherent nullables anymore)
 2. Eliminate production cycles (A ⩲> A)
 3. Eliminte immediate left recursion
 
