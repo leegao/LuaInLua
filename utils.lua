@@ -27,6 +27,15 @@ function utils.shallow_copy(t)
   return {table.unpack(t)} 
 end
 
+function utils.kfilter(predicate, list)
+  local solution = {}
+  for k, v in pairs(list) do
+    if predicate(k, v) then
+      solution[k] = v
+    end
+  end
+  return solution
+end
 
 function utils.filter(predicate, list)
   local solution = {}

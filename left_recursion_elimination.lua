@@ -106,7 +106,6 @@ local function full_dependency_graph(configuration)
       end
     end
   end
-  print(g:dot(function(node) return ("[label=\"%s\"]"):format(node) end))
   g:set_root('root')
   return g
 end
@@ -163,31 +162,69 @@ local function eliminate_cycles(configuration)
       cycle_set[variable] = true
     end
   end
+  local noncyclic_set = {}
+  for key, map in pairs(transitive_set) do
+    noncyclic_set[key] = utils.kfilter(function(k, v) return not cycle_set[k:sub(2)] end, map)
+  end
+  
+  local new_actions = {}
+  for variable, nonterminal in pairs(configuration) do
+    if variable ~= 'root' then
+      -- look for productions that are exactly $Cyclic
+      local productions_map = {}
+      for production in utils.loop(nonterminal) do
+        if #production == 1 and production[1]:sub(1, 1) == '$' then
+          local other = production[1]:sub(2)
+          if cycle_set[other] then
+            for h, other_production in pairs(noncyclic_set[other]) do
+              productions_map[h] = other_production
+            end
+          else
+            productions_map[hash(production)] = production
+          end
+        else
+          productions_map[hash(production)] = production
+        end
+      end
+      new_actions[variable] = {}
+      for _, production in pairs(productions_map) do
+        table.insert(new_actions[variable], production)
+      end
+    else
+      new_actions[variable] = nonterminal
+    end
+  end
   print(transitive_set:dot())
+  return ll1.configure(new_actions)
 end
 
 -- testing
 local configuration = ll1.configure {
   root = {
-    {'$S'},
+    {'$expr', action = id},
   },
-  S = {
-    {'$X'},
-    {'$X', 'b'},
-    {'$Y', 'a'},
+  rexpr = {
+    {'', action = id},
+    {'$expr', action = id},
+    {'+', '$expr', action = id},
   },
-  X = {
-    {'b'},
-    {'$Y'},
+  expr = {
+    {'$consts', '$rexpr', action = id},
+    {'identifier', '$rexpr', action = id},
+    {'fun', 'identifier', '->', '$expr', action = id},
+    {'(', '$expr', ')', '$rexpr', action = id},
   },
-  Y = {
-    {'a'},
-    {'$X'},
-  },
+  consts = {
+    {'number', action = id},
+    {'string', action = id},
+    {'true', action = id},
+    {'false', action = id},
+  }
 }
 
 local new_configuration = eliminate_nullables(configuration)
 print(new_configuration:pretty())
 new_configuration = eliminate_cycles(new_configuration)
+print(new_configuration:pretty())
 
 return left_recursion_elimination
