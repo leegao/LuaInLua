@@ -58,6 +58,7 @@ end
 
 function worklist.forward(self, graph)
   local solution = new_solution(self, graph)
+  self.partial_solution = solution
   for node, tag in graph:vertices() do
     solution[node] = self:initialize(node, tag)
   end
@@ -82,6 +83,7 @@ function worklist.forward(self, graph)
       solution[x] = new
     end
   end
+  self.partial_solution = nil
   return solution
 end
 

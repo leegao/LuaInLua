@@ -13,6 +13,46 @@ local EPS = ''
 local EOF = 256
 local ERROR = -1
 
+
+local first_algorithm = worklist {
+  -- what is the domain? Sets of tokens
+  initialize = function(self, node, _)
+    if node == 'root' then return {[EOF] = true} end
+    return {}
+  end,
+  transfer = function(self, node, follow_pred, graph, pred)
+    local follow_set = self:initialize(node)
+    local configuration, suffix = unpack(graph.forward[pred][node])
+    follow_set = self:merge(follow_set, ll1.first(configuration, suffix))
+    if follow_set[EPS] then
+      follow_set = self:merge(follow_set, follow_pred)
+    end
+    return follow_set
+  end,
+  changed = function(self, old, new)
+    -- assuming monotone in the new direction
+    for key in pairs(new) do
+      if not old[key] then
+        return true
+      end
+    end
+    return false
+  end,
+  merge = function(self, left, right)
+    local merged = utils.copy(left)
+    for key in pairs(right) do
+      merged[key] = true
+    end
+    return merged
+  end,
+  tostring = function(self, graph, node, input)
+    local list = {}
+    for key in pairs(input) do table.insert(list, key) end
+    return node .. ' ' .. table.concat(list, ',')
+  end
+}
+
+
 local function get_nonterminal(configuration, variable)
   if variable:sub(1, 1) == '$' then
     return configuration[variable:sub(2)]
