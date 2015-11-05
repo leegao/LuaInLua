@@ -6,9 +6,8 @@ digraph {
   X[label="X"];
   S[label="S"];
   Y[label="Y"];
-  Z[label="Z"];
   root -> S[label=""];
-  S -> Y[label=""];
+  X -> Y[label=""];
   S -> X[label=""];
-  Y -> Z[label=""];
+  Y -> X[label=""];
 }

@@ -50,7 +50,7 @@ end
 local function eliminate_nullables(configuration)
   local nullables = {}
   for variable, nonterminal in pairs(configuration) do
-    local first_set = nonterminal:first(configuration)
+    local first_set = configuration:first(variable)
     if first_set[''] then
       nullables['$' .. variable] = true
     end
