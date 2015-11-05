@@ -114,5 +114,6 @@ local configuration = ll1.configure {
 }
 
 local new_configuration = eliminate_nullables(configuration)
+print(new_configuration:pretty())
 
 return left_recursion_elimination

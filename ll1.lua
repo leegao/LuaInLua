@@ -78,6 +78,18 @@ function nonterminals:first(configuration)
   return first_set
 end
 
+function configurations:pretty()
+  local str = ''
+  for variable, nonterminals in pairs(self) do
+    local productions = {}
+    for production in utils.loop(nonterminals) do
+      table.insert(productions, table.concat(production, ' '))
+    end
+    str = str .. variable .. '\t' .. '->    ' .. table.concat(productions, ' | ') .. '\n'
+  end
+  return str
+end
+
 function configurations:uses(x)
   -- returns set of {variable, suffix_production} such that
   -- y -> \alpha $x \beta, then return {$y, \beta} or {$y, ''}
