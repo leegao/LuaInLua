@@ -203,16 +203,13 @@ local configuration = ll1.configure {
   root = {
     {'$expr', action = id},
   },
-  rexpr = {
-    {'', action = id},
-    {'$expr', action = id},
-    {'+', '$expr', action = id},
-  },
   expr = {
-    {'$consts', '$rexpr', action = id},
-    {'identifier', '$rexpr', action = id},
+    {'$consts', action = id},
+    {'identifier', action = id},
     {'fun', 'identifier', '->', '$expr', action = id},
-    {'(', '$expr', ')', '$rexpr', action = id},
+    {'(', '$expr', ')', action = id},
+    {'$expr', '$expr'},
+    {'$expr', '+', '$expr'},
   },
   consts = {
     {'number', action = id},
@@ -226,5 +223,7 @@ local new_configuration = eliminate_nullables(configuration)
 print(new_configuration:pretty())
 new_configuration = eliminate_cycles(new_configuration)
 print(new_configuration:pretty())
+
+ll1(new_configuration)
 
 return left_recursion_elimination

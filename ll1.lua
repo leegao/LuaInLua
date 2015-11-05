@@ -263,8 +263,9 @@ function ll1.yacc(actions)
       local firsts = ll1.first(configuration, production)
       for terminal in pairs(firsts) do
         if terminal ~= EPS then
-          if transition_table[variable][terminal] ~= ERROR then 
-            print('ERROR', variable, terminal, table.concat(transition_table[variable][terminal], ', '))
+          if transition_table[variable][terminal] ~= ERROR then
+            print('ERROR', variable, terminal, table.concat(configuration[variable][transition_table[variable][terminal]], ', '))
+            print('', '', '<>', table.concat(production, ', '))
           else
             transition_table[variable][terminal] = i
           end
@@ -275,7 +276,8 @@ function ll1.yacc(actions)
         for terminal in pairs(follows) do
           if terminal ~= EPS then
             if transition_table[variable][terminal] ~= ERROR then 
-              print('ERROR', variable, terminal, table.concat(transition_table[variable][terminal], ', '))
+              print('ERROR', variable, terminal, table.concat(configuration[variable][transition_table[variable][terminal]], ', '))
+              print('', '', '<>', table.concat(production, ', '))
             else
               transition_table[variable][terminal] = i
             end
