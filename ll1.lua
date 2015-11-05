@@ -16,7 +16,7 @@ local ERROR = -1
 -- computes the first sets of nonterminals
 local first_algorithm = worklist {
   -- what is the domain? Sets of tokens
-  initialize = function(self, node, _)
+  initialize = function(self, _, _)
     return {}
   end,
   transfer = function(self, node, _, graph, pred)
@@ -53,13 +53,50 @@ local first_algorithm = worklist {
     end
     return merged
   end,
-  tostring = function(self, graph, node, input)
+  tostring = function(self, _, node, input)
     local list = {}
     for key in pairs(input) do table.insert(list, key) end
     return node .. ' ' .. table.concat(list, ',')
   end
 }
 
+local follow_algorithm = worklist {
+  -- what is the domain? Sets of tokens
+  initialize = function(self, node, _)
+    if node == 'root' then return {[EOF] = true} end
+    return {}
+  end,
+  transfer = function(self, node, follow_pred, graph, pred)
+    local follow_set = self:initialize(node)
+    local configuration, suffix = unpack(graph.forward[pred][node])
+    follow_set = self:merge(follow_set, ll1.first(configuration, suffix))
+    if follow_set[EPS] then
+      follow_set = self:merge(follow_set, follow_pred)
+    end
+    return follow_set
+  end,
+  changed = function(self, old, new)
+    -- assuming monotone in the new direction
+    for key in pairs(new) do
+      if not old[key] then
+        return true
+      end
+    end
+    return false
+  end,
+  merge = function(self, left, right)
+    local merged = utils.copy(left)
+    for key in pairs(right) do
+      merged[key] = true
+    end
+    return merged
+  end,
+  tostring = function(self, _, node, input)
+    local list = {}
+    for key in pairs(input) do table.insert(list, key) end
+    return node .. ' ' .. table.concat(list, ',')
+  end
+}
 
 local function get_nonterminal(configuration, variable)
   if variable:sub(1, 1) == '$' then
@@ -70,7 +107,7 @@ end
 
 local function get_terminals_from(configuration)
   local terminals = {}
-  for variable, productions in pairs(configuration) do
+  for _, productions in pairs(configuration) do
     for production in utils.loop(productions) do
       for terminal in utils.loop(production) do
         if terminal ~= EPS and terminal ~= EOF then
@@ -83,32 +120,60 @@ local function get_terminals_from(configuration)
   return terminals
 end
 
+function configurations:firsts()
+  if not self.graph then
+    local dependency_graph = graph.create()
+    for _, nonterminal in pairs(self) do
+      nonterminal:dependency(dependency_graph, self)
+    end
+    getmetatable(self)['__index']['graph'] = dependency_graph
+  end
+  if not self.cached_firsts then
+    getmetatable(self)['__index']['cached_firsts'] = first_algorithm:forward(self.graph)
+  end
+  return utils.copy(self.cached_firsts)
+end
+
+function configurations:follows()
+  if not self.graph then
+    local dependency_graph = graph.create()
+    for _, nonterminal in pairs(self) do
+      nonterminal:dependency(dependency_graph, self)
+    end
+    getmetatable(self)['__index']['graph'] = dependency_graph
+  end
+  if not self.cached_follows then
+    getmetatable(self)['__index']['cached_follows'] = follow_algorithm:forward(self.graph)
+  end
+  return utils.copy(self.cached_follows)
+end
+
+function configurations:first(variable)
+  return self:firsts()[variable]
+end
+
+function configurations:follow(variable)
+  return self:follows()[variable]
+end
+
+local function merge(left, right)
+  local merged = utils.copy(left)
+    for key in pairs(right) do
+      merged[key] = true
+    end
+    return merged
+end
+
 function ll1.first(configuration, production)
   local first_set = {}
-  for _, token in ipairs(production) do
-    -- check if token is a nonterminal or not
-    local nonterminal = get_nonterminal(configuration, token)
-    local is_nullable = false
-    if nonterminal then
-      -- let's get the first set there
-      local local_first_set = nonterminal:first(configuration)
-      if local_first_set[EPS] then
-        is_nullable = true
-        local_first_set[EPS] = nil
-      end
-      for local_token in pairs(local_first_set) do
-        first_set[local_token] = true
-      end
+  for object in utils.loop(production) do
+    if object:sub(1, 1) == '$' then
+      local partial_first_set = configuration:first(object:sub(2))
+      first_set = merge(first_set, partial_first_set)
+      if not partial_first_set[EPS] then return first_set end
     else
-      -- let's see if token is nullable
-      if token == EPS then
-        is_nullable = true
-      else
-        first_set[token] = true
-      end
-    end
-    if not is_nullable then
-      return first_set
+      first_set[object] = true
+      if object ~= EPS then return first_set end
     end
   end
   first_set[EPS] = true
@@ -116,14 +181,7 @@ function ll1.first(configuration, production)
 end
 
 function nonterminals:first(configuration)
-  local first_set = {}
-  for _, production in ipairs(self) do
-    local local_first_set = ll1.first(configuration, production)
-    for token in pairs(local_first_set) do
-      first_set[token] = true
-    end
-  end
-  return first_set
+  configuration:first(self.variable:sub(2))
 end
 
 function configurations:pretty()
@@ -170,43 +228,6 @@ function nonterminals:dependency(graph, configuration)
   return graph
 end
 
-local follow_algorithm = worklist {
-  -- what is the domain? Sets of tokens
-  initialize = function(self, node, _)
-    if node == 'root' then return {[EOF] = true} end
-    return {}
-  end,
-  transfer = function(self, node, follow_pred, graph, pred)
-    local follow_set = self:initialize(node)
-    local configuration, suffix = unpack(graph.forward[pred][node])
-    follow_set = self:merge(follow_set, ll1.first(configuration, suffix))
-    if follow_set[EPS] then
-      follow_set = self:merge(follow_set, follow_pred)
-    end
-    return follow_set
-  end,
-  changed = function(self, old, new)
-    -- assuming monotone in the new direction
-    for key in pairs(new) do
-      if not old[key] then
-        return true
-      end
-    end
-    return false
-  end,
-  merge = function(self, left, right)
-    local merged = utils.copy(left)
-    for key in pairs(right) do
-      merged[key] = true
-    end
-    return merged
-  end,
-  tostring = function(self, graph, node, input)
-    local list = {}
-    for key in pairs(input) do table.insert(list, key) end
-    return node .. ' ' .. table.concat(list, ',')
-  end
-}
 
 local yacc = {}
 
@@ -218,20 +239,15 @@ function ll1.configure(actions)
     productions.variable = '$' .. variable
     configuration[variable] = productions
   end
-  return setmetatable(configuration, {__index = configurations})
+  return setmetatable(configuration, {__index = utils.copy(configurations)})
 end
 
 function ll1.yacc(actions)
   -- Associate the correct set of metatables to the nonterminals
   local configuration = ll1.configure(actions)
   
-  local dependency_graph = graph.create()
-  local first_sets = {}
-  for variable, nonterminal in pairs(configuration) do
-    first_sets[variable:sub(2)] = nonterminal:first(configuration)
-    nonterminal:dependency(dependency_graph, configuration)
-  end
-  local follow_sets = follow_algorithm:forward(dependency_graph)
+  local first_sets = configuration:firsts()
+  local follow_sets = configuration:follows()
   local terminals = get_terminals_from(configuration)
   local transition_table = {}
   
@@ -336,7 +352,7 @@ function ll1.create(actions)
   local deserialize = loadfile(file)
   if not deserialize then
     local transitions = ll1.yacc(actions)
-    return ll1.yacc(actions):save(file)
+    return transitions:save(file)
   end
   
   local status, bundle = pcall(deserialize)
