@@ -90,6 +90,10 @@ local function eliminate_nullables(configuration)
   return ll1.configure(new_actions)
 end
 
+local function eliminate_cycles(configuration)
+  
+end
+
 -- testing
 local configuration = ll1.configure {
   root = {
@@ -115,5 +119,6 @@ local configuration = ll1.configure {
 
 local new_configuration = eliminate_nullables(configuration)
 print(new_configuration:pretty())
+new_configuration = eliminate_cycles(new_configuration)
 
 return left_recursion_elimination
