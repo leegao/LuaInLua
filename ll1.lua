@@ -35,7 +35,7 @@ local function get_terminals_from(configuration)
   return terminals
 end
 
-local function first(configuration, production)
+function ll1.first(configuration, production)
   local first_set = {}
   for _, token in ipairs(production) do
     -- check if token is a nonterminal or not
@@ -70,7 +70,7 @@ end
 function nonterminals:first(configuration)
   local first_set = {}
   for _, production in ipairs(self) do
-    local local_first_set = first(configuration, production)
+    local local_first_set = ll1.first(configuration, production)
     for token in pairs(local_first_set) do
       first_set[token] = true
     end
@@ -102,7 +102,7 @@ function nonterminals:dependency(graph, configuration)
   local uses = configuration:uses(self.variable)
   for variable, suffix in utils.uloop(uses) do
     get_nonterminal(configuration, variable):dependency(graph, configuration)
-    local first_set = first(configuration, suffix)
+    local first_set = ll1.first(configuration, suffix)
     setmetatable(
       first_set, 
       {__tostring = function(self) return table.concat(self, ', ') end})
@@ -150,7 +150,7 @@ local follow_algorithm = worklist {
 
 local yacc = {}
 
-function ll1.yacc(actions)
+function ll1.configure(actions)
   -- Associate the correct set of metatables to the nonterminals
   local configuration = {}
   for variable, productions in pairs(actions) do
@@ -158,7 +158,12 @@ function ll1.yacc(actions)
     productions.variable = '$' .. variable
     configuration[variable] = productions
   end
-  setmetatable(configuration, {__index = configurations})
+  return setmetatable(configuration, {__index = configurations})
+end
+
+function ll1.yacc(actions)
+  -- Associate the correct set of metatables to the nonterminals
+  local configuration = ll1.configure(actions)
   
   local dependency_graph = graph.create()
   local first_sets = {}
@@ -179,7 +184,7 @@ function ll1.yacc(actions)
   
   for variable, productions in pairs(configuration) do
     for i, production in ipairs(productions) do
-      local firsts = first(configuration, production)
+      local firsts = ll1.first(configuration, production)
       for terminal in pairs(firsts) do
         if terminal ~= EPS then
           if transition_table[variable][terminal] ~= ERROR then 
