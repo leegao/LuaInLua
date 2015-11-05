@@ -21,7 +21,7 @@ local first_algorithm = worklist {
   end,
   transfer = function(self, node, _, graph, pred)
     local first_set = self:initialize(node)
-    local configuration = unpack(graph.forward[pred][node])
+    local configuration = graph.configuration
     local nonterminals = configuration[node]
     for production in utils.loop(nonterminals) do
       for object in utils.loop(production) do
@@ -68,8 +68,10 @@ local follow_algorithm = worklist {
   end,
   transfer = function(self, node, follow_pred, graph, pred)
     local follow_set = self:initialize(node)
-    local configuration, suffix = unpack(graph.forward[pred][node])
-    follow_set = self:merge(follow_set, ll1.first(configuration, suffix))
+    local configuration = graph.configuration
+    for suffix in pairs(graph.forward[pred][node]) do
+      follow_set = self:merge(follow_set, ll1.first(configuration, suffix))
+    end
     if follow_set[EPS] then
       follow_set = self:merge(follow_set, follow_pred)
     end
@@ -123,6 +125,7 @@ end
 function configurations:firsts()
   if not self.graph then
     local dependency_graph = graph.create()
+    dependency_graph.configuration = self
     for _, nonterminal in pairs(self) do
       nonterminal:dependency(dependency_graph, self)
     end
@@ -137,6 +140,7 @@ end
 function configurations:follows()
   if not self.graph then
     local dependency_graph = graph.create()
+    dependency_graph.configuration = self
     for _, nonterminal in pairs(self) do
       nonterminal:dependency(dependency_graph, self)
     end
@@ -223,7 +227,7 @@ function nonterminals:dependency(graph, configuration)
     setmetatable(
       suffix, 
       {__tostring = function(self) return table.concat(ll1.first(configuration, suffix), ', ') end})
-    graph:edge(variable:sub(2), self.variable:sub(2), {configuration, suffix})
+    graph:edge(variable:sub(2), self.variable:sub(2), suffix, true)
   end
   return graph
 end
@@ -361,7 +365,7 @@ function ll1.create(actions)
   end
   
   local transitions, configuration = unpack(bundle)
-  setmetatable(configuration, {__index = configurations})
+  setmetatable(configuration, {__index = utils.copy(configurations)})
   local y = utils.copy(yacc)
   y.configuration = configuration
   setmetatable(transitions, {__index = y})
