@@ -114,11 +114,10 @@ function nonterminals:dependency(graph, configuration)
   local uses = configuration:uses(self.variable)
   for variable, suffix in utils.uloop(uses) do
     get_nonterminal(configuration, variable):dependency(graph, configuration)
-    local first_set = ll1.first(configuration, suffix)
     setmetatable(
-      first_set, 
-      {__tostring = function(self) return table.concat(self, ', ') end})
-    graph:edge(variable:sub(2), self.variable:sub(2), first_set)
+      suffix, 
+      {__tostring = function(self) return table.concat(ll1.first(configuration, suffix), ', ') end})
+    graph:edge(variable:sub(2), self.variable:sub(2), {configuration, suffix})
   end
   return graph
 end
@@ -131,7 +130,8 @@ local follow_algorithm = worklist {
   end,
   transfer = function(self, node, follow_pred, graph, pred)
     local follow_set = self:initialize(node)
-    follow_set = self:merge(follow_set, graph.forward[pred][node])
+    local configuration, suffix = unpack(graph.forward[pred][node])
+    follow_set = self:merge(follow_set, ll1.first(configuration, suffix))
     if follow_set[EPS] then
       follow_set = self:merge(follow_set, follow_pred)
     end
