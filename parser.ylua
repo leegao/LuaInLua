@@ -1,8 +1,10 @@
 // Parser frontend grammar (written in the parser for the same parser)
+%file "/Users/leegao/sideproject/ParserSiProMo/experimental"
+
+%require "ll1_tokenizer"
 
 %convert {: :}
 
-%production hello "what's up?"
+%production hello
 
-root := LOL $hello
-{: :}
+root := LOL $hello;

@@ -14,7 +14,12 @@ return lex.lex {
   root = {
     {'%convert', id 'CONVERT'},
     {'%prologue', id 'PROLOGUE'},
+    {'%epilogue', id 'EPILOGUE'},
+    {'%default', id 'DEFAULT'},
     {'%production', id 'PRODUCTION'},
+    {'%file', id 'FILE'},
+    {'%require', id 'REQUIRE'},
+    {';', id 'SEMICOLON'},
     {':=', id 'GETS'},
     {'|', id 'OR'},
     {re '$(%a|_)(%a|%d|_|\')*', id 'VARIABLE'},
