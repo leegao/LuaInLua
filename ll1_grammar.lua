@@ -72,7 +72,7 @@ local function convert(token)
 end
 
 local token_stream = {}
-for token in tokenizer(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read()) do
+for token in tokenizer(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all")) do
   print(unpack(token))
   table.insert(token_stream, setmetatable(token, {__tostring = function(self) return convert(self) end}))
 end

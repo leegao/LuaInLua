@@ -51,7 +51,7 @@ function context:next()
     end
   end
   
-  error(self.state .. ': ' .. self.current)
+  error('Not tokenizable in ' .. self.state .. ': ' .. self.current)
 end
 
 function context:go(state)

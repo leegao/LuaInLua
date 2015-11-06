@@ -338,20 +338,37 @@ function yacc:parse(tokens, state, trace)
   local local_trace = {state, converted_token, utils.copy(tokens), production}
   table.insert(trace, local_trace)
   if production_index == ERROR then
-    print("Error", state, token, table.concat(utils.map(tostring, tokens), ' '))
+    print("Error", state, tostring(token), "Candidates are:")
+    for production in utils.loop(self.configuration[state]) do
+      print('', '', table.concat(utils.map(function(x) return (x == '' and 'eps') or tostring(x) end, production), ' '))
+    end
     return ERROR, trace
   end
   local args = {}
   for node in utils.loop(production) do
     if node:sub(1, 1) == '$' then
       local ret = self:parse(tokens, node:sub(2), trace)
+      if ret == ERROR then
+        print("  From", state, token, table.concat(utils.map(tostring, production), ' '))
+        return ERROR, trace
+      end
       table.insert(args, ret)
-    elseif converted_token ~= EOF then
+    elseif current_token ~= EOF and node ~= EPS then
       local token = consume(tokens)
-      assert(node == tostring(token), tostring(node) .. ' ~= ' .. tostring(token))
+      if not token then token = EOF end
+      if node ~= tostring(token) then
+        print("ERROR", state, tostring(token), "Expected: " .. tostring(node))
+        return ERROR, trace
+      end
       table.insert(args, token)
+    elseif current_token ~= EOF and node == EPS then
+      -- don't do anything
     else
-      assert(not consume(tokens))
+      local token = consume(tokens)
+      if token then
+        print("ERROR", state, tostring(token), "Expected: " .. EOF)
+        return ERROR, trace
+      end
     end
   end
   table.insert(local_trace, args)
