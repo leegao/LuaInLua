@@ -1,14 +1,31 @@
 digraph {
   rankdir=LR;
   size="8,5"
+  node[shape=doublecircle,label=""]; 8;
   node[shape=circle,label=""];
-  root[label="root -> "];
-  X[label="X -> b | $Y | a | $X"];
-  S[label="S -> $Y`a | $X | $X`b"];
-  Y[label="Y -> b | $X | a | $Y"];
-    root -> S[label="table: 0x0013d688"];
-    X -> Y[label="table: 0x00145928"];
-    S -> Y[label="table: 0x00145c48"];
-    S -> X[label="table: 0x0014d430"];
-    Y -> X[label="table: 0x001406a8"];
+  4[label="4 {}  [7, 6]"];
+  8[label="8 {}  [11, 12, 10, 16, 13]"];
+  1[label="1 {}  [1]"];
+  5[label="5 {}  [11, 8, 10, 9, 13]"];
+  2[label="2 {}  [2, 3]"];
+  6[label="6 {}  [11, 12, 10, 15, 13, 14]"];
+  7[label="7 {}  [11, 12, 13, 10]"];
+  3[label="3 {}  [4, 5]"];
+  4 -> 5[label="."];
+  8 -> 7[label="."];
+  8 -> 6[label="
+"];
+  1 -> 2[label="'"];
+  5 -> 7[label="."];
+  5 -> 6[label="
+"];
+  2 -> 3[label="/"];
+  6 -> 6[label="
+"];
+  6 -> 8[label="'"];
+  6 -> 7[label="."];
+  7 -> 7[label="."];
+  7 -> 6[label="
+"];
+  3 -> 4[label="/"];
 }

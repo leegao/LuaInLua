@@ -431,6 +431,7 @@ re.default_classes = re.create_character_class {
   {'%.', classify {'.'}},
   {'%+', classify {'+'}},
   {'%|', classify {'|'}},
+  {'%*', classify {'*'}},
   -- Generate character classes using string keyed functions
   bracket_set_notation = function(pattern)
     -- [abc-x] or [^z]

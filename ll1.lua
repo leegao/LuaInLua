@@ -10,7 +10,7 @@ local nonterminals = {}
 local configurations = {}
 
 local EPS = ''
-local EOF = 256
+local EOF = '$$EOF$$'
 local ERROR = -1
 
 -- computes the first sets of nonterminals
@@ -323,27 +323,32 @@ end
 local function enqueue(tokens, item)
   table.insert(tokens, 1, item)
 end
+local function id(...)
+  return ...
+end
 
 function yacc:parse(tokens, state, trace)
   if not state then state = 'root' end
   if not trace then trace = {} end
   local token = peek(tokens)
   if not token then token = EOF end
-  local production_index = self[state][token]
+  local converted_token = tostring(token)
+  local production_index = self[state][converted_token]
   local production = self.configuration[state][production_index]
-  local local_trace = {state, token, utils.copy(tokens), production}
+  local local_trace = {state, converted_token, utils.copy(tokens), production}
   table.insert(trace, local_trace)
-  if production == ERROR then
-    return ERROR, production
+  if production_index == ERROR then
+    print("Error", state, token, table.concat(utils.map(tostring, tokens), ' '))
+    return ERROR, trace
   end
   local args = {}
   for node in utils.loop(production) do
     if node:sub(1, 1) == '$' then
       local ret = self:parse(tokens, node:sub(2), trace)
       table.insert(args, ret)
-    elseif token ~= EOF then
+    elseif converted_token ~= EOF then
       local token = consume(tokens)
-      assert(node == token, tostring(node) .. ' ~= ' .. tostring(token))
+      assert(node == tostring(token), tostring(node) .. ' ~= ' .. tostring(token))
       table.insert(args, token)
     else
       assert(not consume(tokens))

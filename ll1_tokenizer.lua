@@ -25,7 +25,7 @@ return lex.lex {
     
     {re '%s+', ignore},
     {re '/%*', function(piece, lexer) lexer:go 'comment' end},
-    {re '//.*[\r\n]+', ignore},
+    {re '//[^\n]+', ignore},
     
   },
   code = {
