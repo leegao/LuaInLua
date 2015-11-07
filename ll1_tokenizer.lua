@@ -14,6 +14,7 @@ local function push(item, stack) table.insert(stack, item) end
 
 return lex.lex {
   root = {
+    {'%eps', id 'EPS'},
     {'%code', id 'TOP_LEVEL'},
     {'%convert', id 'CONVERT'},
     {'%prologue', id 'PROLOGUE'},

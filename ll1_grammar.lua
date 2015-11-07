@@ -10,7 +10,7 @@ production := PRODUCTION IDENTIFIER $production'
 production' := STRING | eps
 production_list := $production $production_list'
 production_list' := eps | $production_list
-valid_rhs := IDENTIFIER | VARIABLE
+valid_rhs := IDENTIFIER | VARIABLE | EPS
 rhs_list := $valid_rhs $rhs_list'
 rhs_list' := eps | $rhs_list
 top := $top_opts $top_no_convert | $top_no_convert
@@ -148,7 +148,7 @@ local grammar = ll1 {
     {'', action = function() return {} end},
     {'$production_list', action = function(list) return list end},
   },
-  valid_rhs = {{'IDENTIFIER', action = id}, {'VARIABLE', action = id}},
+  valid_rhs = {{'IDENTIFIER', action = id}, {'VARIABLE', action = id}, {'EPS', action = function() return {'EPS', ''} end}},
   rhs_list = {
     {'$valid_rhs', "$rhs_list'", 
       action = function(object, production)
@@ -244,7 +244,8 @@ local function convert(token)
 end
 
 local function epilogue(result)
-  print(utils.dump(result[2], id))
+  local configuration, actions = unpack(result)
+  ll1(actions)
   return result
 end
 

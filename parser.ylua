@@ -1,14 +1,15 @@
 // Parser frontend grammar (written in the parser for the same parser)
-%file "/Users/leegao/sideproject/ParserSiProMo/experimental"
+/*
+root   = expr
+rexpr  = %eps | $expr | PLUS $expr
+expr   = $consts $rexpr | ID $rexpr | FUN ID -> $expr | LPAREN $expr RPAREN $rexpr
+consts = NUMBER | STRING | TRUE | FALSE
+*/
+%file "/Users/leegao/sideproject/ParserSiProMo/experimental_parser.lua"
 
 %require "ll1_tokenizer"
 
-%convert {: :}
-
-%production hello
-
-root := LOL $hello [a] | woow $root x y z {:
-  function(woow, root, _, _, _)
-    print(woow)
-  end
-:}
+root   := $expr;
+rexpr  := %eps | $expr | PLUS $expr;
+expr   := $consts $rexpr | ID $rexpr | FUN ID ARROW $expr | LPAREN $expr RPAREN $rexpr;
+consts := NUMBER | STRING | TRUE | FALSE;

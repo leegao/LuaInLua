@@ -23,6 +23,9 @@ local first_algorithm = worklist {
     local first_set = self:initialize(node)
     local configuration = graph.configuration
     local nonterminals = configuration[node]
+    if not nonterminals then
+      error(("Variable $%s does not exist."):format(node))
+    end
     for production in utils.loop(nonterminals) do
       for object in utils.loop(production) do
         if object:sub(1, 1) == '$' then
