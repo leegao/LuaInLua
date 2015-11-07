@@ -334,6 +334,10 @@ function yacc:parse(tokens, state, trace)
   if not token then token = EOF end
   local converted_token = tostring(token)
   local production_index = self[state][converted_token]
+  if not production_index then
+    print("Error", state, token, "Unknown token")
+    return ERROR, trace
+  end
   local production = self.configuration[state][production_index]
   local local_trace = {state, converted_token, utils.copy(tokens), production}
   table.insert(trace, local_trace)

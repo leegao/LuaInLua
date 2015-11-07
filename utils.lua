@@ -110,12 +110,13 @@ function utils.uloop(tab)
 end
 
 
-local function escape(object)
+local function normal_escape(object)
   return ('\\%03d'):rep(#object):format(object:byte(1, #object))
 end
 
-function utils.dump(object, ignore)
+function utils.dump(object, escape, ignore)
   if ignore == nil then ignore = true end
+  if escape == nil then escape = normal_escape end
   if type(object) == 'string' then
     return '\'' .. escape(object) .. '\''
   elseif type(object) == 'number' then
@@ -133,7 +134,7 @@ function utils.dump(object, ignore)
   assert(type(object) == 'table')
   local strings = {}
   for key, value in pairs(object) do
-    table.insert(strings, '[' .. utils.dump(key, ignore) .. '] = ' .. utils.dump(value, ignore))
+    table.insert(strings, '[' .. utils.dump(key, escape, ignore) .. '] = ' .. utils.dump(value, escape, ignore))
   end
   return '{' .. table.concat(strings, ', ') .. '}'
 end
