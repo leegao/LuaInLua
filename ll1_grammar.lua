@@ -69,7 +69,7 @@ end
 end
 
 local grammar = ll1 {
---  '/Users/leegao/sideproject/ParserSiProMo/ll1_parsing.table',
+  '/Users/leegao/sideproject/ParserSiProMo/ll1_parsing.table',
   root = {{'$top', action = id}},
   conf = {
     {'CONVERT', 'CODE', '$configuration_', 
@@ -258,10 +258,11 @@ local function epilogue(result)
   local configuration, actions = unpack(result)
   local name = configuration.default
   local functions = {}
+  local code = ''
   for namespace in utils.loop(configuration.requires) do
-    print(('require \'%s\''):format(namespace))
+    code = code .. ('local %s = require \'%s\'\n'):format(namespace, namespace)
   end
-  print(('local %s = {}'):format(configuration.default))
+  code = code .. ('local %s = {}\n'):format(configuration.default)
   
   for variable, nonterminal in pairs(actions) do
     functions[variable] = {}
@@ -272,25 +273,25 @@ local function epilogue(result)
   end
   local grammar = ll1(actions) -- to validate
   
-  print(configuration.default .. '.grammar = ' .. utils.dump(actions, id))
+  code = code .. configuration.default .. '.grammar = ' .. utils.dump(actions, id) .. '\n'
   if configuration.file then
-    print(('%s.grammar[1] = \'%s.table\''):format(configuration.default, configuration.file))
+    code = code .. ('%s.grammar[1] = \'%s.table\'\n'):format(configuration.default, configuration.file)
   end
   if configuration.toplevel ~= '' then
-    print(configuration.toplevel)
+    code = code .. trim(configuration.toplevel) .. '\n'
   end
   
   for key in utils.loop {'convert', 'prologue', 'epilogue', 'default_action'} do
-    print(('%s.%s = %s'):format(configuration.default, key, trim(configuration[key])))
+    code = code .. ('%s.%s = %s\n'):format(configuration.default, key, trim(configuration[key]))
   end
   
   for variable, nonterminal in pairs(actions) do
     for i in ipairs(nonterminal) do
-      print(('%s.grammar.%s[%s].action = %s'):format(configuration.default, variable, i, functions[variable][i]))
+      code = code .. ('%s.grammar.%s[%s].action = %s\n'):format(configuration.default, variable, i, functions[variable][i])
     end
   end
-  print(('%s.ll1 = ll1(%s.grammar)'):format(name, name))
-  local parse_string = trim([[
+  code = code .. ('%s.ll1 = ll1(%s.grammar)\n'):format(name, name)
+  code = code .. trim([[
 return function(str)
   local tokens = {}
   for _, token in ipairs(%s.prologue(str)) do
@@ -304,8 +305,7 @@ return function(str)
   return %s.epilogue(result)
 end
 ]]):format(name, name, name, name)
-  print(parse_string)
-  return result
+  return code, configuration
 end
 
 local function parse(str)
@@ -321,4 +321,6 @@ local function parse(str)
   return epilogue(result)
 end
 
-parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
+local code = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
+print(code)
+print(pcall(loadstring(code)))
