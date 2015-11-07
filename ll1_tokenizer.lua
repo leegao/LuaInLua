@@ -23,6 +23,7 @@ return lex.lex {
     {'%production', id 'PRODUCTION'},
     {'%file', id 'FILE'},
     {'%require', id 'REQUIRE'},
+    {'%default_action', id 'DEFAULT_ACTION'},
     {';', id 'SEMICOLON'},
     {':=', id 'GETS'},
     {'|', id 'OR'},

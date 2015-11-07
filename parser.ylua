@@ -5,7 +5,7 @@ rexpr  = %eps | $expr | PLUS $expr
 expr   = $consts $rexpr | ID $rexpr | FUN ID -> $expr | LPAREN $expr RPAREN $rexpr
 consts = NUMBER | STRING | TRUE | FALSE
 */
-%file "/Users/leegao/sideproject/ParserSiProMo/experimental_parser.lua"
+%file "/Users/leegao/sideproject/ParserSiProMo/experimental_parser"
 
 %require "ll1_tokenizer"
 

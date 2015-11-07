@@ -59,8 +59,11 @@ end
   if not self.file then
     print("Warning", "Are you sure you want to disable caching of this grammar? Specify %FILE otherwise.")
   end
-  if not self.require then
-    self.require = {}
+  if not self.requires then
+    self.requires = {'ll1'}
+  end
+  if not self.default_action then
+    self.default_action = 'function(...) return {...} end'
   end
   return self
 end
@@ -68,7 +71,6 @@ end
 local grammar = ll1 {
 --  '/Users/leegao/sideproject/ParserSiProMo/ll1_parsing.table',
   root = {{'$top', action = id}},
-  
   conf = {
     {'CONVERT', 'CODE', '$configuration_', 
       action = function(_, code, last)
@@ -108,8 +110,10 @@ local grammar = ll1 {
       end},
     {'REQUIRE', 'STRING', '$configuration_', 
       action = function(_, namespace, last)
-        if not last.requires then last.requires = {} end
-        table.insert(last.requires, 1, namespace[2])
+        if not last.requires then last.requires = {'ll1'} end
+        if namespace[2] ~= 'll1' then
+          table.insert(last.requires, 1, namespace[2])
+        end
         return last
       end},
   },
@@ -148,7 +152,11 @@ local grammar = ll1 {
     {'', action = function() return {} end},
     {'$production_list', action = function(list) return list end},
   },
-  valid_rhs = {{'IDENTIFIER', action = id}, {'VARIABLE', action = id}, {'EPS', action = function() return {'EPS', ''} end}},
+  valid_rhs = {
+    {'IDENTIFIER', action = id}, 
+    {'VARIABLE', action = id}, 
+    {'EPS', action = function() return {'EPS', ''} end}
+  },
   rhs_list = {
     {'$valid_rhs', "$rhs_list'", 
       action = function(object, production)
@@ -164,7 +172,6 @@ local grammar = ll1 {
     {'$conf', '$top_no_convert', 
       action = function(configuration, rules)
         configuration:finalize()
---        print(utils.dump(configuration, function(...) return ... end))
         return {configuration, rules}
       end},
     {'$top_no_convert', 
@@ -243,9 +250,61 @@ local function convert(token)
   return token[1]
 end
 
+local function trim(s)
+  return s:match "^%s*(.-)%s*$"
+end
+
 local function epilogue(result)
   local configuration, actions = unpack(result)
-  ll1(actions)
+  local name = configuration.default
+  local functions = {}
+  for namespace in utils.loop(configuration.requires) do
+    print(('require \'%s\''):format(namespace))
+  end
+  print(('local %s = {}'):format(configuration.default))
+  
+  for variable, nonterminal in pairs(actions) do
+    functions[variable] = {}
+    for production in utils.loop(nonterminal) do
+      table.insert(functions[variable], trim(production.action or ('%s.default_action'):format(configuration.default)))
+      production.action = nil
+    end
+  end
+  local grammar = ll1(actions) -- to validate
+  
+  print(configuration.default .. '.grammar = ' .. utils.dump(actions, id))
+  if configuration.file then
+    print(('%s.grammar[1] = \'%s.table\''):format(configuration.default, configuration.file))
+  end
+  if configuration.toplevel ~= '' then
+    print(configuration.toplevel)
+  end
+  
+  for key in utils.loop {'convert', 'prologue', 'epilogue', 'default_action'} do
+    print(('%s.%s = %s'):format(configuration.default, key, trim(configuration[key])))
+  end
+  
+  for variable, nonterminal in pairs(actions) do
+    for i in ipairs(nonterminal) do
+      print(('%s.grammar.%s[%s].action = %s'):format(configuration.default, variable, i, functions[variable][i]))
+    end
+  end
+  print(('%s.ll1 = ll1(%s.grammar)'):format(name, name))
+  local parse_string = trim([[
+return function(str)
+  local tokens = {}
+  for _, token in ipairs(%s.prologue(str)) do
+    table.insert(
+      tokens, 
+      setmetatable(
+        token, 
+        {__tostring = function(self) return %s.convert(self) end}))
+  end
+  local result = %s.ll1:parse(tokens)
+  return %s.epilogue(result)
+end
+]]):format(name, name, name, name)
+  print(parse_string)
   return result
 end
 
