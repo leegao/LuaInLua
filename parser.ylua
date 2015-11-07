@@ -7,4 +7,8 @@
 
 %production hello
 
-root := LOL $hello;
+root := LOL $hello [a] | woow $root x y z {:
+  function(woow, root, _, _, _)
+    print(woow)
+  end
+:}

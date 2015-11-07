@@ -205,7 +205,7 @@ local grammar = ll1 {
       end},
   },
   ["nonterminal''"] = {
-    {'', action = {}},
+    {'', action = function() return {} end},
     {'OR', '$nonterminal', 
       action = function(_, nonterminal)
         return nonterminal
@@ -244,14 +244,13 @@ local function convert(token)
 end
 
 local function epilogue(result)
-  print(utils.dump(result, id))
+  print(utils.dump(result[2], id))
   return result
 end
 
 local function parse(str)
   local tokens = {}
   for token in utils.loop(prologue(str, grammar)) do
-    print(token[2])
     table.insert(
       tokens, 
       setmetatable(
