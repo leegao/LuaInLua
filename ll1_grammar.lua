@@ -272,8 +272,20 @@ local function epilogue(result)
     end
   end
   local grammar = ll1(actions) -- to validate
+  local function escape(id)
+    return table.concat(
+      utils.map(
+        function(char) 
+          if char == ("'"):byte() then 
+            return "\\'" 
+          else 
+            return string.char(char) 
+          end 
+        end, 
+        {id:byte(1, #id)}))
+  end
   
-  code = code .. configuration.default .. '.grammar = ' .. utils.dump(actions, id) .. '\n'
+  code = code .. configuration.default .. '.grammar = ' .. utils.dump(actions, escape) .. '\n'
   if configuration.file then
     code = code .. ('%s.grammar[1] = \'%s.table\'\n'):format(configuration.default, configuration.file)
   end
@@ -287,7 +299,7 @@ local function epilogue(result)
   
   for variable, nonterminal in pairs(actions) do
     for i in ipairs(nonterminal) do
-      code = code .. ('%s.grammar.%s[%s].action = %s\n'):format(configuration.default, variable, i, functions[variable][i])
+      code = code .. ('%s.grammar["%s"][%s].action = %s\n'):format(configuration.default, variable, i, functions[variable][i])
     end
   end
   code = code .. ('%s.ll1 = ll1(%s.grammar)\n'):format(name, name)
