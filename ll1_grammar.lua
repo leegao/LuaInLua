@@ -33,7 +33,7 @@ local ignore = function() return {} end
 local conf = {}
 function conf:finalize()
   if not self.convert then
-    self.convert = "function(...) return ... end"
+    self.convert = "function(token) return token[1] end"
   end
   if not self.default then
     self.default = "__GRAMMAR__"
@@ -44,7 +44,7 @@ function conf:finalize()
 function(str)
   local tokens = {}
   for token in str:gmatch("%S+") do
-    table.insert(tokens, token)
+    table.insert(tokens, {token})
   end
   return tokens
 end
@@ -53,8 +53,8 @@ end
   if not self.epilogue then
     self.epilogue = 'function(...) return ... end'
   end
-  if not self.toplevel then
-    self.toplevel = ''
+  if not self.top_level then
+    self.top_level = ''
   end
   if not self.file then
     print("Warning", "Are you sure you want to disable caching of this grammar? Specify %FILE otherwise.")
@@ -66,6 +66,10 @@ end
     self.default_action = 'function(...) return {...} end'
   end
   return self
+end
+
+local function trim(s)
+  return s:match "^%s*(.-)%s*$"
 end
 
 local grammar = ll1 {
@@ -99,7 +103,13 @@ local grammar = ll1 {
     {'TOP_LEVEL', 'CODE', '$configuration_', 
       action = function(_, code, last)
         if not last.top_level then last.top_level = '' end
-        last.top_level = code[2] .. '\n' .. last.top_level
+        last.top_level = trim(code[2]) .. '\n' .. last.top_level
+        return last
+      end},
+    {'DEFAULT_ACTION', 'CODE', '$configuration_', 
+      action = function(_, code, last)
+        assert(not last.default_action, 'You\'ve already specified another default action.')
+        last.default_action = code[2]
         return last
       end},
     {'FILE', 'STRING', '$configuration_', 
@@ -188,7 +198,21 @@ local grammar = ll1 {
     {'$rhs_list', "$nonterminal'", 
       action = function(production, pair)
         local action, nonterminal = unpack(pair)
-        production.action = action
+        if action and action[1] == 'CODE' then
+          production.action = action[2]
+        elseif action and action[1] == 'REFERENCE' then
+          -- function(_1, _2, ...) 
+          --   local all = {_1, _2, ...}
+          local n = #production
+          local all = {}
+          for i = 1,n do table.insert(all, '_' .. i) end
+          all = table.concat(all, ', ')
+          production.action = trim([[
+  function(%s)
+    return %s
+  end
+]]):format(all, action[2]:gsub("*all", all))
+        end
         table.insert(nonterminal, 1, production)
         return nonterminal
       end},
@@ -196,11 +220,11 @@ local grammar = ll1 {
   ["nonterminal'"] = {
     {'CODE', "$nonterminal''", 
       action = function(code, nonterminal)
-        return {code[2], nonterminal}
+        return {code, nonterminal}
       end},
     {'REFERENCE', "$nonterminal''",
       action = function(ref, nonterminal)
-        return {ref[2], nonterminal}
+        return {ref, nonterminal}
       end},
     {'OR', '$nonterminal', 
       action = function(_, nonterminal)
@@ -250,10 +274,6 @@ local function convert(token)
   return token[1]
 end
 
-local function trim(s)
-  return s:match "^%s*(.-)%s*$"
-end
-
 local function epilogue(result)
   local configuration, actions = unpack(result)
   local name = configuration.default
@@ -271,7 +291,6 @@ local function epilogue(result)
       production.action = nil
     end
   end
-  local grammar = ll1(actions) -- to validate
   local function escape(id)
     return table.concat(
       utils.map(
@@ -289,8 +308,8 @@ local function epilogue(result)
   if configuration.file then
     code = code .. ('%s.grammar[1] = \'%s.table\'\n'):format(configuration.default, configuration.file)
   end
-  if configuration.toplevel ~= '' then
-    code = code .. trim(configuration.toplevel) .. '\n'
+  if configuration.top_level ~= '' then
+    code = code .. trim(configuration.top_level) .. '\n'
   end
   
   for key in utils.loop {'convert', 'prologue', 'epilogue', 'default_action'} do
@@ -333,6 +352,19 @@ local function parse(str)
   return epilogue(result)
 end
 
-local code = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
+local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
 print(code)
-print(pcall(loadstring(code)))
+os.remove(configuration.file .. '.table')
+local func, status = loadstring(code)
+if not func then
+  error("ERROR: " .. status)
+end
+local succ, other_parser = pcall(func) -- lets just try it out and "warm the cache"
+if not succ then
+  error("ERROR: " .. other_parser)
+end
+if configuration.file then
+  local file = io.open(configuration.file .. '.lua', 'w')
+  file:write(code)
+  file:close()
+end

@@ -1,15 +1,93 @@
 // Parser frontend grammar (written in the parser for the same parser)
+%file "/Users/leegao/sideproject/ParserSiProMo/testing/experimental_parser"
+%require "lex"
+%require "re"
+
 /*
 root   = expr
 rexpr  = %eps | $expr | PLUS $expr
 expr   = $consts $rexpr | ID $rexpr | FUN ID -> $expr | LPAREN $expr RPAREN $rexpr
 consts = NUMBER | STRING | TRUE | FALSE
 */
-%file "/Users/leegao/sideproject/ParserSiProMo/experimental_parser"
 
-%require "ll1_tokenizer"
+%code {:
+local string_stack = {}
+local function id(token) return function(...) return {token, ...} end end
+local function ignore(...) return end
+local function pop(stack) return table.remove(stack) end
+local function push(item, stack) table.insert(stack, item) end
+local tokenizer = lex.lex {
+  root = {
+    {'+', id 'PLUS'},
+    {'fun', id 'FUN'},
+    {'->', id 'ARROW'},
+    {'(', id 'LPAREN'},
+    {')', id 'RPAREN'},
+    {re '%s+', ignore},
+    {re '%d+', id 'NUMBER'},
+    {re '%d+%.%d+', id 'NUMBER'},
+    {re '(%a|_)(%a|%d|_|\')*', id 'ID'},
+    {'"', function(piece, lexer) lexer:go 'string'; push('', string_stack) end},
+  },
+  string = {
+    {'"', function(piece, lexer) 
+      lexer:go 'root'
+      return {'STRING', pop(string_stack)}
+    end},
+    {re '.', function(piece, lexer) 
+      push(pop(string_stack) .. piece, string_stack)
+    end}
+  },
+}
+:}
 
-root   := $expr;
-rexpr  := %eps | $expr | PLUS $expr;
-expr   := $consts $rexpr | ID $rexpr | FUN ID ARROW $expr | LPAREN $expr RPAREN $rexpr;
-consts := NUMBER | STRING | TRUE | FALSE;
+%default.action {:
+  function(item)
+    return item
+  end
+:}
+
+%prologue {:
+  function(stream)
+    local tokens = {}
+    for token in tokenizer(stream) do
+      table.insert(tokens, token)
+    end
+    return tokens
+  end
+:}
+
+%convert {:
+  function(token)
+    return token[1]
+  end
+:}
+
+%epilogue {:
+  function(result)
+    return result
+  end
+:}
+
+%code {:
+  local take2 = function(token) return {kind = 'tok', unpack(token, 1, 2)} end
+  local last = function(...) return select(select('#', ...), ...) end
+  local function rexpr(left, pair)
+    local kind, right = unpack(pair)
+    if not kind then return left end
+    return {kind = kind, left, right}
+  end
+:}
+
+root   := $expr [:_1:]
+expr   := $consts $rexpr [: rexpr(_1, _2) :]
+        | ID $rexpr [: rexpr(take2(_1), _2) :]
+        | FUN ID ARROW $expr [: {kind = 'fun', take2(_2), _4} :]
+        | LPAREN $expr RPAREN $rexpr [: rexpr(_2, _4) :]
+rexpr  := %eps [: {} :] 
+        | $expr [: {'app', _1} :] 
+        | PLUS $expr [: {'plus', _2} :]
+consts := NUMBER [: take2(_1) :] 
+        | STRING [: take2(_1) :] 
+        | TRUE [: take2(_1) :] 
+        | FALSE [: take2(_1) :]

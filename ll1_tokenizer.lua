@@ -23,7 +23,7 @@ return lex.lex {
     {'%production', id 'PRODUCTION'},
     {'%file', id 'FILE'},
     {'%require', id 'REQUIRE'},
-    {'%default_action', id 'DEFAULT_ACTION'},
+    {'%default.action', id 'DEFAULT_ACTION'},
     {';', id 'SEMICOLON'},
     {':=', id 'GETS'},
     {'|', id 'OR'},
@@ -32,7 +32,7 @@ return lex.lex {
     
     {'{:', function(piece, lexer) lexer:go 'code'; push('', code_stack) end},
     {'"', function(piece, lexer) lexer:go 'string'; push('', string_stack) end},
-    {'[', function(piece, lexer) lexer:go 'reference'; push('', reference_stack) end},
+    {'[:', function(piece, lexer) lexer:go 'reference'; push('', reference_stack) end},
     
     {re '%s+', ignore},
     {re '/%*', function(piece, lexer) lexer:go 'comment' end},
@@ -58,7 +58,7 @@ return lex.lex {
     end}
   },
   reference = {
-    {']', function(piece, lexer) 
+    {':]', function(piece, lexer) 
       lexer:go 'root'
       return {'REFERENCE', pop(reference_stack)}
     end},
