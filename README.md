@@ -9,14 +9,14 @@ Status Report:
 3. LL(1) Parser generator: completed, which will use the graph reduction to efficiently compute the fixed point.
 4. Add nullable elimination transformation - (grammar cannot have inherent nullables anymore)
 2. Eliminate production cycles (A ⩲> A)
+3. Eliminte immediate left recursion
 
 In progress:
 
-3. Eliminte immediate left recursion
+4. Create left-recursion folding mechanism
 
 TODO:
 
-4. Create left-recursion folding mechanism
 4. LR(0-1) Parser, which will also use a similar mechanism
 5. Self-hosting the Lexer.
 6. Self-hosting the Parser.
