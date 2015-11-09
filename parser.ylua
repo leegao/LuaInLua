@@ -10,6 +10,8 @@ expr   = $consts $rexpr | ID $rexpr | FUN ID -> $expr | LPAREN $expr RPAREN $rex
 consts = NUMBER | STRING | TRUE | FALSE
 */
 
+%quote '+' PLUS
+
 %code {:
 local string_stack = {}
 local function id(token) return function(...) return {token, ...} end end
@@ -86,7 +88,7 @@ expr   := $consts $rexpr [: rexpr(_1, _2) :]
         | LPAREN $expr RPAREN $rexpr [: rexpr(_2, _4) :]
 rexpr  := %eps [: {} :] 
         | $expr [: {'app', _1} :] 
-        | PLUS $expr [: {'plus', _2} :]
+        | '+' $expr [: {'plus', _2} :]
 consts := NUMBER [: take2(_1) :] 
         | STRING [: take2(_1) :] 
         | TRUE [: take2(_1) :] 

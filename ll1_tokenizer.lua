@@ -6,6 +6,7 @@ local re = require 're'
 local code_stack = {}
 local string_stack = {}
 local reference_stack = {}
+local quote_stack = {}
 
 local function id(token) return function(...) return {token, ...} end end
 local function ignore(...) return end
@@ -24,6 +25,7 @@ return lex.lex {
     {'%file', id 'FILE'},
     {'%require', id 'REQUIRE'},
     {'%default.action', id 'DEFAULT_ACTION'},
+    {'%quote', id 'QUOTE'},
     {';', id 'SEMICOLON'},
     {':=', id 'GETS'},
     {'|', id 'OR'},
@@ -32,6 +34,7 @@ return lex.lex {
     
     {'{:', function(piece, lexer) lexer:go 'code'; push('', code_stack) end},
     {'"', function(piece, lexer) lexer:go 'string'; push('', string_stack) end},
+    {'\'', function(piece, lexer) lexer:go 'quote'; push('', quote_stack) end},
     {'[:', function(piece, lexer) lexer:go 'reference'; push('', reference_stack) end},
     
     {re '%s+', ignore},
@@ -55,6 +58,15 @@ return lex.lex {
     end},
     {re '.', function(piece, lexer) 
       push(pop(string_stack) .. piece, string_stack)
+    end}
+  },
+  quote = {
+    {'\'', function(piece, lexer) 
+      lexer:go 'root'
+      return {'QUOTED', pop(quote_stack)}
+    end},
+    {re '.', function(piece, lexer) 
+      push(pop(quote_stack) .. piece, quote_stack)
     end}
   },
   reference = {

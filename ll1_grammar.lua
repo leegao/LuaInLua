@@ -4,13 +4,13 @@ Here's the grammar we're looking for
 
 root := $top
 
-top_opts := CONVERT CODE top_opt' | DEFAULT CODE top_opt' | PROLOGUE CODE top_opt' | EPILOGUE CODE top_opt' | TOP_LEVEL CODE top_opt'
+top_opts := CONVERT CODE top_opt' | DEFAULT CODE top_opt' | PROLOGUE CODE top_opt' | EPILOGUE CODE top_opt' | TOP_LEVEL CODE top_opt' | QUOTE QUOTED $valid_rhs
 top_opts' := $top_opts | eps
 production := PRODUCTION IDENTIFIER $production'
 production' := STRING | eps
 production_list := $production $production_list'
 production_list' := eps | $production_list
-valid_rhs := IDENTIFIER | VARIABLE | EPS
+valid_rhs := IDENTIFIER | VARIABLE | EPS | QUOTED
 rhs_list := $valid_rhs $rhs_list'
 rhs_list' := eps | $rhs_list
 top := $top_opts $top_no_convert | $top_no_convert
@@ -65,11 +65,31 @@ end
   if not self.default_action then
     self.default_action = 'function(...) return {...} end'
   end
+  if not self.quotes then
+    self.quotes = {}
+  end
   return self
 end
 
 local function trim(s)
   return s:match "^%s*(.-)%s*$"
+end
+
+local function flatten_rules(configuration, rules)
+  for key, rule in pairs(rules) do
+    for production in utils.loop(rule) do
+      for i, object in ipairs(production) do
+        if object.kind == 'token' then
+          if object[1] == 'QUOTED' and configuration.quotes[object[2]] then
+            production[i] = configuration.quotes[object[2]]
+          else
+            production[i] = object[2]
+          end
+        end
+      end
+    end
+  end
+  return rules
 end
 
 local grammar = ll1 {
@@ -126,6 +146,12 @@ local grammar = ll1 {
         end
         return last
       end},
+    {'QUOTE', 'QUOTED', 'IDENTIFIER', '$configuration_', 
+      action = function(_, quote, id, last)
+        if not last.quotes then last.quotes = {} end
+        last.quotes[quote] = id
+        return last
+      end},
   },
   configuration_ = {
     {'', 
@@ -165,12 +191,14 @@ local grammar = ll1 {
   valid_rhs = {
     {'IDENTIFIER', action = id}, 
     {'VARIABLE', action = id}, 
-    {'EPS', action = function() return {'EPS', ''} end}
+    {'EPS', action = function() return {'EPS', ''} end},
+    {'QUOTED', action = function(quoted) return quoted end},
   },
   rhs_list = {
     {'$valid_rhs', "$rhs_list'", 
       action = function(object, production)
-        table.insert(production, 1, object[2])
+        object.kind = 'token'
+        table.insert(production, 1, object)
         return production
       end}
   },
@@ -182,11 +210,14 @@ local grammar = ll1 {
     {'$conf', '$top_no_convert', 
       action = function(configuration, rules)
         configuration:finalize()
-        return {configuration, rules}
+        -- convert productions over 
+        return {configuration, flatten_rules(configuration, rules)}
       end},
     {'$top_no_convert', 
       action = function(rules)
-        return {setmetatable({}, conf), rules}
+        local configuration = setmetatable({}, conf)
+        configuration:finalize()
+        return {configuration, flatten_rules(configuration, rules)}
       end},
   },
   top_no_convert = {
@@ -283,7 +314,7 @@ local function epilogue(result)
     code = code .. ('local %s = require \'%s\'\n'):format(namespace, namespace)
   end
   code = code .. ('local %s = {}\n'):format(configuration.default)
-  
+
   for variable, nonterminal in pairs(actions) do
     functions[variable] = {}
     for production in utils.loop(nonterminal) do
@@ -352,7 +383,7 @@ local function parse(str)
   return epilogue(result)
 end
 
-local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
+local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/lua/grammar.ylua'):read("*all"))
 print(code)
 os.remove(configuration.file .. '.table')
 local func, status = loadstring(code)
