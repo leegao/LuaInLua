@@ -194,8 +194,30 @@ local function eliminate_cycles(configuration)
       new_actions[variable] = nonterminal
     end
   end
-  print(transitive_set:dot())
   return ll1.configure(new_actions)
+end
+
+local function immediate_elimination(nonterminal)
+  local variable = nonterminal.variable
+  local new_variable = variable .. "'new"
+  local recursive = setmetatable({''}, getmetatable(nonterminal))
+  local other setmetatable({variable = new_variable}, getmetatable(nonterminal))
+  for production in utils.loop(nonterminal) do
+    local local_production = utils.copy(production)
+    if local_production[1] == variable then
+      assert(variable == table.remove(local_production, 1))
+      table.insert(local_production, new_variable)
+      table.insert(recursive, local_production)
+    else
+      table.insert(local_production, new_variable)
+      table.insert(other, local_production)
+    end
+  end
+  if #recursive == 1 then
+    return nil
+  else
+    return other, recursive
+  end
 end
 
 -- testing
@@ -219,12 +241,12 @@ local configuration = ll1.configure {
   }
 }
 
---local new_configuration = eliminate_nullables(configuration)
---print(new_configuration:pretty())
---new_configuration = eliminate_cycles(new_configuration)
---print(new_configuration:pretty())
+local new_configuration = eliminate_nullables(configuration)
+print(new_configuration:pretty())
+new_configuration = eliminate_cycles(new_configuration)
+print(new_configuration:pretty())
 
---ll1(new_configuration)
+ll1(new_configuration)
 
 left_recursion_elimination.eliminate_nullables = eliminate_nullables
 return left_recursion_elimination
