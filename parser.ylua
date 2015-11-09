@@ -80,7 +80,7 @@ local tokenizer = lex.lex {
     return {kind = kind, left, right}
   end
 :}
-
+/*
 root   := $expr [:_1:]
 expr   := $consts $rexpr [: rexpr(_1, _2) :]
         | ID $rexpr [: rexpr(take2(_1), _2) :]
@@ -92,4 +92,8 @@ rexpr  := %eps [: {} :]
 consts := NUMBER [: take2(_1) :] 
         | STRING [: take2(_1) :] 
         | TRUE [: take2(_1) :] 
-        | FALSE [: take2(_1) :]
+        | FALSE [: take2(_1) :]*/
+        
+expr		:=    'consts' $expr'new | 'fun' 'identifier' '->' $expr $expr'new | '(' $expr ')' $expr'new;
+root		:=    $expr;
+expr'new		:=    '' | '+' $expr $expr'new;

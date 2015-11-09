@@ -383,7 +383,7 @@ local function parse(str)
   return epilogue(result)
 end
 
-local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/lua/experimental.ylua'):read("*all"))
+local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
 print(code)
 os.remove(configuration.file .. '.table')
 local func, status = loadstring(code)

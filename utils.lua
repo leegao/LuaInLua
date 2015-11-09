@@ -83,11 +83,11 @@ function utils.sublist(tab, i, j)
 end
 
 function utils.loop(tab)
-  local next = ipairs({})
-  local state = 0
+  local n = #tab
+  local state = 1
   return function()
-    local value
-    state, value = next(tab, state)
+    local value = tab[state]
+    state = state + 1
     return value
   end
 end

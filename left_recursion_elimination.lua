@@ -200,8 +200,8 @@ end
 local function immediate_elimination(nonterminal)
   local variable = nonterminal.variable
   local new_variable = variable .. "'new"
-  local recursive = setmetatable({''}, getmetatable(nonterminal))
-  local other setmetatable({variable = new_variable}, getmetatable(nonterminal))
+  local recursive = {{''}, variable = new_variable}
+  local other = {variable = variable}
   for production in utils.loop(nonterminal) do
     local local_production = utils.copy(production)
     if local_production[1] == variable then
@@ -220,24 +220,65 @@ local function immediate_elimination(nonterminal)
   end
 end
 
+local function indirect_elimination(configuration)
+  local actions = utils.copy(configuration)
+  local variables = {}
+  for key in pairs(configuration) do table.insert(variables, key) end
+  for i = 1,#variables do
+    local old_left = actions[variables[i]]
+    local new_left = utils.copy(old_left)
+    local to_remove = {}
+    for j = 1, i-1 do
+      local old_right = actions[variables[j]]
+      -- find some production of the form A_i := A_j \gamma
+      for k, production in ipairs(old_left) do
+        if production[1] == variables[j] then
+          -- expand A_j out
+          for production_j in utils.loop(old_right) do
+            local new_i_k = utils.copy(production_j)
+            for l = 2, #production do
+              table.insert(new_i_k, production[l])
+            end
+            table.insert(new_left, new_i_k)
+            to_remove[j] = true
+          end
+        end
+      end
+    end
+    local needs_removing = {}
+    for k in pairs(to_remove) do table.insert(needs_removing, k) end
+    table.sort(needs_removing, function(a,b) return b > a end)
+    for j in utils.loop(needs_removing) do
+      table.remove(new_left, j)
+    end
+    -- rewrite A[i] 
+    local normal, recursive = immediate_elimination(new_left)
+    if normal then
+      actions[variables[i]] = normal
+      actions[recursive.variable:sub(2)] = recursive
+    else
+      actions[variables[i]] = new_left
+    end
+  end
+  return ll1.configure(actions)
+end
+
 -- testing
 local configuration = ll1.configure {
   root = {
     {'$expr', action = id},
   },
-  expr = {
-    {'$consts', action = id},
-    {'identifier', action = id},
+  base = {
+    {'consts', action = id},
     {'fun', 'identifier', '->', '$expr', action = id},
     {'(', '$expr', ')', action = id},
-    {'$expr', '$expr'},
-    {'$expr', '+', '$expr'},
   },
-  consts = {
-    {'number', action = id},
-    {'string', action = id},
-    {'true', action = id},
-    {'false', action = id},
+  expr = {
+    {'$base', '$plus_expr'},
+  },
+  plus_expr = {
+    {''},
+    {'+', '$expr'},
   }
 }
 
@@ -245,8 +286,12 @@ local new_configuration = eliminate_nullables(configuration)
 print(new_configuration:pretty())
 new_configuration = eliminate_cycles(new_configuration)
 print(new_configuration:pretty())
+new_configuration = indirect_elimination(new_configuration)
+print(new_configuration:pretty())
 
 ll1(new_configuration)
+print(new_configuration:firsts():dot())
+print(new_configuration:follows():dot())
 
 left_recursion_elimination.eliminate_nullables = eliminate_nullables
 return left_recursion_elimination

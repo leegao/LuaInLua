@@ -2,8 +2,8 @@ local lex = require 'lex'
 local re = require 're'
 local ll1 = require 'll1'
 local __GRAMMAR__ = {}
-__GRAMMAR__.grammar = {['rexpr'] = {[1] = {[1] = ''}, [2] = {[1] = '$expr'}, [3] = {[1] = '+', [2] = '$expr'}}, ['root'] = {[1] = {[1] = '$expr'}}, ['consts'] = {[1] = {[1] = 'NUMBER'}, [2] = {[1] = 'STRING'}, [3] = {[1] = 'TRUE'}, [4] = {[1] = 'FALSE'}}, ['expr'] = {[1] = {[1] = '$consts', [2] = '$rexpr'}, [2] = {[1] = 'ID', [2] = '$rexpr'}, [3] = {[1] = 'FUN', [2] = 'ID', [3] = 'ARROW', [4] = '$expr'}, [4] = {[1] = 'LPAREN', [2] = '$expr', [3] = 'RPAREN', [4] = '$rexpr'}}}
-__GRAMMAR__.grammar[1] = '/Users/leegao/sideproject/ParserSiProMo/testing/experimental_parser.table'
+__GRAMMAR__.grammar = {['root'] = {[1] = {[1] = '$expr'}}, ['expr'] = {[1] = {[1] = 'consts', [2] = '$expr\'new'}, [2] = {[1] = 'fun', [2] = 'identifier', [3] = '->', [4] = '$expr', [5] = '$expr\'new'}, [3] = {[1] = '(', [2] = '$expr', [3] = ')', [4] = '$expr\'new'}}, ['expr\'new'] = {[1] = {[1] = ''}, [2] = {[1] = '+', [2] = '$expr', [3] = '$expr\'new'}}}
+-- __GRAMMAR__.grammar[1] = '/Users/leegao/sideproject/ParserSiProMo/testing/experimental_parser.table'
 local string_stack = {}
 local function id(token) return function(...) return {token, ...} end end
 local function ignore(...) return end
@@ -55,43 +55,17 @@ __GRAMMAR__.epilogue = function(result)
 __GRAMMAR__.default_action = function(item)
     return item
   end
-__GRAMMAR__.grammar["rexpr"][1].action = function(_1)
-    return  {} 
-  end
-__GRAMMAR__.grammar["rexpr"][2].action = function(_1)
-    return  {'app', _1} 
-  end
-__GRAMMAR__.grammar["rexpr"][3].action = function(_1, _2)
-    return  {'plus', _2} 
-  end
-__GRAMMAR__.grammar["root"][1].action = function(_1)
-    return _1
-  end
-__GRAMMAR__.grammar["consts"][1].action = function(_1)
-    return  take2(_1) 
-  end
-__GRAMMAR__.grammar["consts"][2].action = function(_1)
-    return  take2(_1) 
-  end
-__GRAMMAR__.grammar["consts"][3].action = function(_1)
-    return  take2(_1) 
-  end
-__GRAMMAR__.grammar["consts"][4].action = function(_1)
-    return  take2(_1) 
-  end
-__GRAMMAR__.grammar["expr"][1].action = function(_1, _2)
-    return  rexpr(_1, _2) 
-  end
-__GRAMMAR__.grammar["expr"][2].action = function(_1, _2)
-    return  rexpr(take2(_1), _2) 
-  end
-__GRAMMAR__.grammar["expr"][3].action = function(_1, _2, _3, _4)
-    return  {kind = 'fun', take2(_2), _4} 
-  end
-__GRAMMAR__.grammar["expr"][4].action = function(_1, _2, _3, _4)
-    return  rexpr(_2, _4) 
-  end
+__GRAMMAR__.grammar["root"][1].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr"][1].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr"][2].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr"][3].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr'new"][1].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr'new"][2].action = __GRAMMAR__.default_action
 __GRAMMAR__.ll1 = ll1(__GRAMMAR__.grammar)
+
+print(ll1.configure(__GRAMMAR__.grammar):firsts():dot())
+print(ll1.configure(__GRAMMAR__.grammar):follows():dot())
+
 return function(str)
   local tokens = {}
   for _, token in ipairs(__GRAMMAR__.prologue(str)) do

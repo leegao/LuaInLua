@@ -10,10 +10,11 @@ Status Report:
 4. Add nullable elimination transformation - (grammar cannot have inherent nullables anymore)
 2. Eliminate production cycles (A ⩲> A)
 3. Eliminte immediate left recursion
+4. Create left-recursion folding mechanism
 
 In progress:
 
-4. Create left-recursion folding mechanism
+5. Create left-factor elimination
 
 TODO:
 
