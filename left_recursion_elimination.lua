@@ -263,6 +263,59 @@ local function indirect_elimination(configuration)
   return ll1.configure(actions)
 end
 
+local function direct_factor_elimination(nonterminal)
+  -- eliminate A -> a \gamma_1 | a \gamma_2 | ... a \gamma_n into
+  -- A -> a $A'factored | \gamma_{n+1}
+  -- A'factor#1 -> \gamma_1 | \gamma_2 | ... | \gamma_n
+  -- we need to keep doing this until we hit a fixed point
+  local action = {variable = nonterminal.variable}
+  local new_variables = {}
+  local variable = nonterminal.variable
+  -- step 1: compute frequency table of common prefixes
+  local prefix_freq = {}
+  for i, production in ipairs(nonterminal) do
+    if not prefix_freq[production[1]] then prefix_freq[production[1]] = {} end
+    table.insert(prefix_freq[production[1]], i)
+  end
+  -- step 2: compute replacement table
+  local replacement_id = 1
+  for prefix, frequencies in pairs(prefix_freq) do
+    if #frequencies == 1 then
+      table.insert(action, nonterminal[frequencies[1]])
+    else
+      -- create a new variable
+      local new_variable = variable .. '\'factor#' .. replacement_id
+      local new_nonterminal = {variable = new_variable}
+      replacement_id = replacement_id + 1
+      for id in utils.loop(frequencies) do
+        local new_production = utils.sublist(nonterminal[id], 2)
+        if #new_production == 0 then new_production[1] = '' end
+        table.insert(new_nonterminal, new_production)
+      end
+      table.insert(new_variables, new_nonterminal)
+      table.insert(action, {prefix, new_variable})
+    end
+  end
+  return action, new_variables
+end
+
+local function left_factor_elimination(configuration)
+  local has_changes = false
+  local actions = utils.copy(configuration)
+  for variable, nonterminal in pairs(configuration) do
+    local action, new_variables = direct_factor_elimination(nonterminal)
+    if #new_variables ~= 0 then
+      has_changes = true
+      actions[action.variable:sub(2)] = action
+      for new in utils.loop(new_variables) do
+        actions[new.variable:sub(2)] = new
+      end
+    end
+  end
+  return ll1.configure(actions)
+end
+
+--[[--
 -- testing
 local configuration = ll1.configure {
   root = {
@@ -270,16 +323,14 @@ local configuration = ll1.configure {
   },
   base = {
     {'consts', action = id},
-    {'fun', 'identifier', '->', '$expr', action = id},
     {'(', '$expr', ')', action = id},
   },
   expr = {
-    {'$base', '$plus_expr'},
+    {'$base'},
+    {'$base', '+', '$expr'},
+    {'$base', '$expr'},
+    {'fun', 'identifier', '->', '$expr', action = id},
   },
-  plus_expr = {
-    {''},
-    {'+', '$expr'},
-  }
 }
 
 local new_configuration = eliminate_nullables(configuration)
@@ -288,10 +339,17 @@ new_configuration = eliminate_cycles(new_configuration)
 print(new_configuration:pretty())
 new_configuration = indirect_elimination(new_configuration)
 print(new_configuration:pretty())
+new_configuration = left_factor_elimination(new_configuration)
+print(new_configuration:pretty())
 
 ll1(new_configuration)
 print(new_configuration:firsts():dot())
 print(new_configuration:follows():dot())
+--]]-- 
 
 left_recursion_elimination.eliminate_nullables = eliminate_nullables
+left_recursion_elimination.eliminate_cycles = eliminate_cycles
+left_recursion_elimination.immediate_elimination = immediate_elimination
+left_recursion_elimination.indirect_elimination = indirect_elimination
+left_recursion_elimination.left_factor_elimination = left_factor_elimination
 return left_recursion_elimination

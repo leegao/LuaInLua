@@ -77,7 +77,7 @@ function utils.sublist(tab, i, j)
   -- normalize
   local list = {}
   for k = i, j do
-    table.insert(list, tab[i])
+    table.insert(list, tab[k])
   end
   return list
 end

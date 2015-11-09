@@ -16,6 +16,7 @@ local function push(item, stack) table.insert(stack, item) end
 return lex.lex {
   root = {
     {'%eps', id 'EPS'},
+    {'\'\'', id 'EPS'},
     {'%code', id 'TOP_LEVEL'},
     {'%convert', id 'CONVERT'},
     {'%prologue', id 'PROLOGUE'},
@@ -29,8 +30,8 @@ return lex.lex {
     {';', id 'SEMICOLON'},
     {':=', id 'GETS'},
     {'|', id 'OR'},
-    {re '$(%a|_)(%a|%d|_|\')*', id 'VARIABLE'},
-    {re '(%a|_)(%a|%d|_|\')*', id 'IDENTIFIER'},
+    {re '$(%a|_)(%a|%d|_|#|\')*', id 'VARIABLE'},
+    {re '(%a|_)(%a|%d|_|#|\')*', id 'IDENTIFIER'},
     
     {'{:', function(piece, lexer) lexer:go 'code'; push('', code_stack) end},
     {'"', function(piece, lexer) lexer:go 'string'; push('', string_stack) end},

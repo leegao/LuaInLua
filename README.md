@@ -11,10 +11,10 @@ Status Report:
 2. Eliminate production cycles (A ⩲> A)
 3. Eliminte immediate left recursion
 4. Create left-recursion folding mechanism
+5. Create left-factor elimination
 
 In progress:
-
-5. Create left-factor elimination
+1. Create a lua parser in LL(1)
 
 TODO:
 
