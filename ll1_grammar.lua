@@ -215,7 +215,7 @@ local grammar = ll1 {
       end},
     {'$top_no_convert', 
       action = function(rules)
-        local configuration = setmetatable({}, conf)
+        local configuration = setmetatable({}, {__index = conf})
         configuration:finalize()
         return {configuration, flatten_rules(configuration, rules)}
       end},
@@ -383,7 +383,7 @@ local function parse(str)
   return epilogue(result)
 end
 
-local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/lua/grammar.ylua'):read("*all"))
+local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/lua/experimental.ylua'):read("*all"))
 print(code)
 os.remove(configuration.file .. '.table')
 local func, status = loadstring(code)

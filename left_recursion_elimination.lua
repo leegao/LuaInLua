@@ -219,11 +219,12 @@ local configuration = ll1.configure {
   }
 }
 
-local new_configuration = eliminate_nullables(configuration)
-print(new_configuration:pretty())
-new_configuration = eliminate_cycles(new_configuration)
-print(new_configuration:pretty())
+--local new_configuration = eliminate_nullables(configuration)
+--print(new_configuration:pretty())
+--new_configuration = eliminate_cycles(new_configuration)
+--print(new_configuration:pretty())
 
-ll1(new_configuration)
+--ll1(new_configuration)
 
+left_recursion_elimination.eliminate_nullables = eliminate_nullables
 return left_recursion_elimination

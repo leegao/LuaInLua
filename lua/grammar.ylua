@@ -1,67 +1,110 @@
-root := $block
+%file "/Users/leegao/sideproject/ParserSiProMo/lua/parser"
 
-block := $stat_list $retstat_opt
+root := $block;
 
-stat_list := $stat $stat_list'
-stat_list' := %eps | $stat_list
+block := $stat_list $retstat_opt;
+
+  stat_list := $stat $stat_list';
+  stat_list' := %eps | $stat_list;
 
 stat :=  ';' | 
-   varlist ‘=’ explist | 
-   functioncall | 
-   label | 
+   $varlist '=' $explist | 
+   $functioncall | 
+   $label | 
    break | 
    goto Name | 
-   do block end | 
-   while exp do block end | 
-   repeat block until exp | 
-   if exp then block {elseif exp then block} [else block] end | 
-   for Name ‘=’ exp ‘,’ exp [‘,’ exp] do block end | 
-   for namelist in explist do block end | 
-   function funcname funcbody | 
-   local function Name funcbody | 
-   local namelist [‘=’ explist] 
+   do $block end | 
+   while $exp do $block end | 
+   repeat $block until $exp | 
+   if $exp then $block $elseif_list_opt $else_opt end | 
+   for Name '=' $exp ',' $exp $comma_exp_opt do $block end | 
+   for $namelist in $explist do $block end | 
+   function $funcname $funcbody | 
+   local function Name $funcbody | 
+   local $namelist $eq_explist_opt;
 
-retstat_opt := retstat | %eps
-retstat ::= return [explist] [‘;’]
+  elseif_list := elseif $exp then $block $elseif_list';
+  elseif_list' := %eps | $elseif_list;
+  elseif_list_opt := %eps | $elseif_list;
 
-label ::= ‘::’ Name ‘::’
+  comma_exp_opt := ',' $exp | %eps;
 
-funcname ::= Name {‘.’ Name} [‘:’ Name]
+  eq_explist_opt := %eps | '=' $explist;
 
-varlist ::= var {‘,’ var}
+  else_opt := %eps | else $block;
 
-var ::=  Name | prefixexp ‘[’ exp ‘]’ | prefixexp ‘.’ Name 
+retstat := return $explist_opt $semicolon_opt;
 
-namelist ::= Name {‘,’ Name}
+  retstat_opt := $retstat | %eps;
 
-explist ::= exp {‘,’ exp}
+  explist_opt := %eps | $explist;
+  semicolon_opt := %eps | ';';
 
-exp ::=  nil | false | true | Numeral | LiteralString | ‘...’ | functiondef | 
-   prefixexp | tableconstructor | exp binop exp | unop exp 
+label := '::' Name '::';
 
-prefixexp ::= var | functioncall | ‘(’ exp ‘)’
+funcname := Name $dot_name_list_opt $colon_name_opt;
 
-functioncall ::=  prefixexp args | prefixexp ‘:’ Name args 
+  dot_name_list := '.' Name | $dot_name_list';
+  dot_name_list' := %eps | $dot_name_list;
+  dot_name_list_opt := %eps | $dot_name_list;
+  
+  colon_name_opt := %eps | ':' Name;
 
-args ::=  ‘(’ [explist] ‘)’ | tableconstructor | LiteralString 
+varlist := $var $comma_var_list';
 
-functiondef ::= function funcbody
+  comma_var_list := ',' $var | $comma_var_list';
+  comma_var_list' := %eps | $comma_var_list;
 
-funcbody ::= ‘(’ [parlist] ‘)’ block end
+var :=  Name | $prefixexp '[' $exp ']' | $prefixexp '.' Name;
 
-parlist ::= namelist [‘,’ ‘...’] | ‘...’
+namelist := Name comma_name_list_opt;
+  
+  comma_name_list := ',' Name | $comma_name_list';
+  comma_name_list' := %eps | $comma_name_list;
+  comma_name_list_opt := %eps | $comma_name_list;
 
-tableconstructor ::= ‘{’ [fieldlist] ‘}’
+explist := $exp; // {',' $exp};
 
-fieldlist ::= field {fieldsep field} [fieldsep]
+exp :=  nil | false | true | Numeral | LiteralString | '...' | $functiondef | 
+   $prefixexp | $tableconstructor | $exp $binop $exp | $unop $exp;
 
-field ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp | exp
+prefixexp := $var | $functioncall | '(' $exp ')';
 
-fieldsep ::= ‘,’ | ‘;’
+functioncall :=  $prefixexp $args | $prefixexp ':' Name $args;
 
-binop ::=  ‘+’ | ‘-’ | ‘*’ | ‘/’ | ‘//’ | ‘^’ | ‘%’ | 
-   ‘&’ | ‘~’ | ‘|’ | ‘>>’ | ‘<<’ | ‘..’ | 
-   ‘<’ | ‘<=’ | ‘>’ | ‘>=’ | ‘==’ | ‘~=’ | 
-   and | or
+args :=  '(' $explist_opt ')' | $tableconstructor | LiteralString;
 
-unop ::= ‘-’ | not | ‘#’ | ‘~’
+  explist_opt := %eps | $explist;
+
+functiondef := function $funcbody;
+
+funcbody := '(' $parlist_opt ')' $block end;
+  
+  parlist_opt := %eps | $parlist;
+
+parlist := $namelist $comma_varargs_opt | '...';
+
+  comma_varargs_opt := %eps | ',' '...';
+
+tableconstructor := '{' $fieldlist_opt '}';
+
+  fieldlist_opt := %eps | $fieldlist;
+
+fieldlist := $field $fieldsep_field_list_opt $fieldsep_opt;
+
+  fieldsep_field_list := $fieldsep $field | $fieldsep_field_list';
+  fieldsep_field_list' := %eps | $fieldsep_field_list;
+  fieldsep_field_list_opt := %eps | $fieldsep_field_list;
+  
+  fieldsep_opt := %eps | $fieldsep;
+
+field := '[' $exp ']' '=' $exp | Name '=' $exp | $exp;
+
+fieldsep := ',' | ';';
+
+binop :=  '+' | '-' | '*' | '/' | '//' | '^' | '%' | 
+   '&' | '~' | '|' | '>>' | '<<' | '..' | 
+   '<' | '<=' | '>' | '>=' | '==' | '~=' | 
+   and | or;
+
+unop := '-' | not | '#' | '~';

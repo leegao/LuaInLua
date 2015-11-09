@@ -206,14 +206,28 @@ function nonterminals:first(configuration)
   configuration:first(self.variable:sub(2))
 end
 
+local function prettify(production)
+  local result = {}
+  for object in utils.loop(production) do
+    local new
+    if object:sub(1,1) == '$' then
+      new = object
+    else
+      new = ("'%s'"):format(object)
+    end
+    table.insert(result, new)
+  end
+  return result
+end
+
 function configurations:pretty()
   local str = ''
   for variable, nonterminals in pairs(self) do
     local productions = {}
     for production in utils.loop(nonterminals) do
-      table.insert(productions, table.concat(production, ' '))
+      table.insert(productions, table.concat(prettify(production), ' '))
     end
-    str = str .. variable .. '\t' .. '->    ' .. table.concat(productions, ' | ') .. '\n'
+    str = str .. variable .. '\t\t' .. ':=    ' .. table.concat(productions, ' | ') .. ';\n'
   end
   return str
 end
