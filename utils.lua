@@ -23,6 +23,16 @@ function utils.copy(t)
   return tab
 end
 
+function utils.to_list(set)
+  local tab = {}
+  for item in pairs(set) do table.insert(tab, item) end
+  return setmetatable(tab, {__tostring = function(self) return table.concat(self, ', ') end})
+end
+
+function utils.to_string(list)
+  return setmetatable(utils.copy(list), {__tostring = function(self) return table.concat(self, ', ') end})
+end
+
 function utils.shallow_copy(t) 
   return {table.unpack(t)} 
 end

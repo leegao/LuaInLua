@@ -1,12 +1,12 @@
-%file "/Users/leegao/sideproject/ParserSiProMo/parser"
+%file "/Users/leegao/sideproject/ParserSiProMo/lua/parser"
 
 root := $block;
 
-block := $stat* $retstat?;
+block := $stat*;
 
 stat := ';' | 
   $varlist '=' $explist | 
-  $functioncall | 
+  $functioncall | // ( conflicts with var's (
   $label | 
   break | 
   goto Name | 
@@ -14,11 +14,9 @@ stat := ';' |
   while $exp do $block end | 
   repeat $block until $exp | 
   if $exp then $block (elseif $exp then $block;)* (else $block;)? end | 
-  for Name '=' $exp ',' $exp (',' $exp;)? do $block end | 
-  for $namelist in $explist do $block end | 
+  for (Name '=' $exp ',' $exp (',' $exp;)? do $block end | $namelist in $explist do $block end;) | 
   function $funcname funcbody | 
-  local function Name $funcbody | 
-  local $namelist ('=' $explist;)?;
+  local (function Name $funcbody | $namelist ('=' $explist;)?;);
 
 retstat := return $explist? ';'?;
 
@@ -28,18 +26,18 @@ funcname := Name ('.' Name;)* (':' Name;)?;
 
 varlist := $var (',' $var;)*;
 
-var := Name | $prefixexp '[' $exp ']' | $prefixexp '.' Name;
+var := Name | $prefixexp ('[' $exp ']' | '.' Name;);
 
 namelist := Name (',' Name;)*;
 
 explist := $exp (',' $exp;)*;
 
-exp := nil | false | true | Number | String | '...' | $functiondef | 
-  $prefixexp | $tableconstructor | $exp binop $exp | $unop exp;
+exp := (nil | false | true | Number | String | '...' | $functiondef | 
+  $prefixexp | $tableconstructor | $unop exp;) $binop $exp;
 
 prefixexp := $var | $functioncall | '(' $exp ')';
 
-functioncall := $prefixexp args | $prefixexp ':' Name $args;
+functioncall := $prefixexp (args | ':' Name $args;);
 
 args := '(' $explist? ')' | $tableconstructor | String;
 
@@ -51,7 +49,7 @@ parlist := $namelist (',' '...';)? | '...';
 
 tableconstructor := '{' $fieldlist? '}';
 
-fieldlist := $field ($fieldsep $field;)* $fieldsep?;
+fieldlist := $field ($fieldsep $field;)*;
 
 field := '[' $exp ']' '=' $exp | Name '=' $exp | $exp;
 

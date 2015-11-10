@@ -524,7 +524,6 @@ local function parse(str)
 end
 
 local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/lua/grammar.ylua'):read("*all"))
-print(code)
 os.remove(configuration.file .. '.table')
 local func, status = loadstring(code)
 if not func then

@@ -76,7 +76,7 @@ function worklist.forward(self, graph)
       local this = self:transfer(x, solution[pred], graph, pred)
       new = (new and self:merge(new, this)) or this
     end
-    if new and self:changed(old, new) then
+    if new and self:changed(old, new, x) then
       for succ in pairs(graph.forward[x]) do
         table.insert(worklist, succ)
       end

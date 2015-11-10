@@ -27,21 +27,34 @@ local first_algorithm = worklist {
       error(("Variable $%s does not exist."):format(node))
     end
     for production in utils.loop(nonterminals) do
+      local nullable = true
       for object in utils.loop(production) do
         if object:sub(1, 1) == '$' then
-          local partial_first_set = self.partial_solution[object:sub(2)]
+          local partial_first_set = utils.copy(self.partial_solution[object:sub(2)])
+          local eps = partial_first_set[EPS]
+          partial_first_set[EPS] = nil
           first_set = self:merge(first_set, partial_first_set)
-          if not partial_first_set[EPS] then break end
+          if not eps then 
+            nullable = false
+            break 
+          end
         else
-          first_set[object] = true
-          if object ~= EPS then break end
+          if object ~= EPS then 
+            first_set[object] = true
+            nullable = false
+            break
+          end
         end
+      end
+      if nullable then
+        first_set[EPS] = true
       end
     end
     return first_set
   end,
-  changed = function(self, old, new)
+  changed = function(self, old, new, x)
     -- assuming monotone in the new direction
+    -- print(utils.to_list(old), utils.to_list(new))
     for key in pairs(new) do
       if not old[key] then
         return true
@@ -75,6 +88,7 @@ local follow_algorithm = worklist {
     for suffix in pairs(graph.forward[pred][node]) do
       follow_set = self:merge(follow_set, ll1.first(configuration, suffix))
     end
+    -- TODO: first set may be null even when the production itself is not nullable
     if follow_set[EPS] then
       follow_set = self:merge(follow_set, follow_pred)
     end
@@ -186,16 +200,18 @@ local function merge(left, right)
     return merged
 end
 
+-- TODO SWAP THIS
 function ll1.first(configuration, production)
   local first_set = {}
   for object in utils.loop(production) do
     if object:sub(1, 1) == '$' then
-      local partial_first_set = configuration:first(object:sub(2))
+      local partial_first_set = utils.copy(configuration:first(object:sub(2)))
+      local eps = partial_first_set[EPS]
+      partial_first_set[EPS] = nil
       first_set = merge(first_set, partial_first_set)
-      if not partial_first_set[EPS] then return first_set end
+      if not eps then return first_set end
     else
-      first_set[object] = true
-      if object ~= EPS then return first_set end
+      if object ~= EPS then first_set[object] = true; return first_set end
     end
   end
   first_set[EPS] = true
@@ -257,9 +273,9 @@ function nonterminals:dependency(graph, configuration)
   local uses = configuration:uses(self.variable)
   for variable, suffix in utils.uloop(uses) do
     get_nonterminal(configuration, variable):dependency(graph, configuration)
-    setmetatable(
-      suffix, 
-      {__tostring = function(self) return table.concat(ll1.first(configuration, suffix), ', ') end})
+--    setmetatable(
+--      suffix, 
+--      {__tostring = function(self) return table.concat(ll1.first(configuration, suffix), ', ') end})
     graph:edge(variable:sub(2), self.variable:sub(2), suffix, true)
   end
   return graph

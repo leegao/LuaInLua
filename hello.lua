@@ -1,17 +1,10 @@
 local ll1 = require 'll1'
-local parser = require 'testing.experimental_parser'
+local parser = require 'lua.parser'
 local utils = require 'utils'
+local config = ll1.configure(parser.grammar)
+--print(config:pretty())
+--print(utils.to_list(config:follow('block')))
+config:follows():dot()
 
-local function dump_tree(tree)
-  if not tree.kind then return tree end
-  local subtrees = {}
-  for subtree in utils.loop(tree) do
-    table.insert(subtrees, dump_tree(subtree))
-  end
-  return ('%s(%s)'):format(tree.kind, table.concat(subtrees, ', '))
-end
-
-print(ll1.configure(parser.grammar):pretty())
-
-local tree = parser("(fun x -> 1 + x) 3")
-print(tree)
+--print(utils.to_list(config:follow('stat\'group#3')))
+ll1.yacc(parser.grammar)
