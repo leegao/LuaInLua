@@ -84,10 +84,28 @@ local function flatten(configuration, object)
   end
 end
 
-local function local_synthesis(configuration, raw_production, context)
+local function new_context(variable)
+  return {
+    name = function(self, name)
+      index = '$'..name
+      if not self[index] then self[index] = 1 end
+      local result = ("%s'%s#%s"):format(variable, name, self[index])
+      self[index] = self[index] + 1
+      return result
+    end,
+    variable = function(self)
+      return variable
+    end
+  }
+end
+
+local synthesis = {}
+
+function synthesis.local_synthesis(configuration, raw_production, context)
   -- depth first search
   local raw_action = raw_production.action
   local production = {}
+  local new_synthesis = {}
   -- compute the action
   if raw_action and raw_action[1] == 'CODE' then
     production.action = action[2]
@@ -112,18 +130,69 @@ end
     elseif raw_object.kind == 'productions' then
       -- second is a set of nonterminals, let's construct that
       local variable = context:name('group')
-      print(variable)
+      table.insert(production, variable)
+      local new_productions, new = synthesis.synthesize_nonterminals(configuration, variable, raw_object[2])
+      table.insert(new_synthesis, new_productions)
+      for more in utils.loop(new) do
+        table.insert(new_synthesis, more)
+      end
+    else
+      local variable = context:name(raw_object[1])
+      local inner = raw_object[2]
+      table.insert(production, variable)
+      -- The inner tree can be either a token or another list of productions. 
+      if inner.kind == 'productions' then
+        -- take care of the inner group first
+        local variable = context:name('group')
+        inner = {'VARIABLE', variable, kind = 'token'}
+        local new_productions, new = synthesis.synthesize_nonterminals(configuration, variable, raw_object[2])
+        table.insert(new_synthesis, new_productions)
+        for more in utils.loop(new) do
+          table.insert(new_synthesis, more)
+        end
+      end
+      assert(inner.kind == 'token')
+      -- Something* := %eps | Something Something*
+      -- Something+ := Something Something*
+      -- Something? := %eps | Something
+      if raw_object[1] == 'star' then
+        
+      elseif raw_object[1] == 'plus' then
+        
+      else
+        
+      end
     end
   end
+  return production, new_synthesis
+end
+
+function synthesis.synthesize_nonterminals(configuration, variable, raw_productions)
+  local productions = {}
+  local new_synthesis = {}
+  local context = new_context('$' .. variable)
+  for raw_production in utils.loop(raw_productions) do
+    local production, more = synthesis.local_synthesis(configuration, raw_production, context)
+    table.insert(productions, production)
+    for new in utils.loop(more) do
+      table.insert(new_synthesis, new)
+    end
+  end
+  productions.variable = '$' .. variable
+  -- productions.synthesized_from = raw_productions
+  return productions, new_synthesis
 end
 
 local function synthesize(configuration, raw)
+  local actions = {}
   for variable, raw_productions in pairs(raw) do
-    local productions = {}
-    for raw_production in utils.loop(raw_productions) do
-      local production, synthesized_variables = local_synthesis(configuration, raw_production)
+    local nonterminal, more = synthesis.synthesize_nonterminals(configuration, variable, raw_productions)
+    actions[variable] = nonterminal
+    for new in utils.loop(more) do
+      actions[new.variable:sub(2)] = new
     end
   end
+  return actions
 end
 
 local grammar = ll1 {
@@ -233,18 +302,18 @@ local grammar = ll1 {
     {'LPAREN', '$nonterminal', 'RPAREN', action = function(_, nonterminal, _) return {'PRODUCTIONS', nonterminal, kind = 'productions'} end}
   },
   valid_postfix = {
-    {'', action = function() return 'NOTHING' end},
-    {'PLUS', action = function() return 'PLUS' end},
-    {'STAR', action = function() return 'STAR' end},
-    {'MAYBE', action = function() return 'MAYBE' end},
+    {'', action = function() return 'nothing' end},
+    {'PLUS', action = function() return 'plus' end},
+    {'STAR', action = function() return 'star' end},
+    {'MAYBE', action = function() return 'maybe' end},
   },
   valid_rhs = {
     {'$single_rhs', '$valid_postfix', 
       action = function(object, postfix)
-        if object[1] == 'EPS' and postfix ~= 'NOTHING' then
+        if object[1] == 'EPS' and postfix ~= 'nothing' then
           error("Cannot use extended operation on nothing.")
         end
-        if postfix == 'NOTHING' then
+        if postfix == 'nothing' then
           return object
         end
         return {postfix, object, kind = 'postfix'}
