@@ -12,8 +12,10 @@ Status Report:
 3. Eliminte immediate left recursion
 4. Create left-recursion folding mechanism
 5. Create left-factor elimination
+6. Added support for extende BNF grammars
 
 In progress:
+
 1. Create a lua parser in LL(1)
 
 TODO:
