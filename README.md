@@ -12,6 +12,8 @@ Status Report:
 3. Eliminte immediate left recursion
 4. Create left-recursion folding mechanism
 5. Create left-factor elimination
+5. Self-hosting the Lexer.
+6. Self-hosting the Parser.
 6. Added support for extende BNF grammars
 
 In progress:
@@ -21,8 +23,7 @@ In progress:
 TODO:
 
 4. LR(0-1) Parser, which will also use a similar mechanism
-5. Self-hosting the Lexer.
-6. Self-hosting the Parser.
+
 7. Type-induction.
 8. Type inferencing.
 9. Interpreter.
