@@ -11,16 +11,15 @@ production' := STRING | eps
 production_list := $production $production_list'
 production_list' := eps | $production_list
 valid_rhs := IDENTIFIER | VARIABLE | EPS | QUOTED
-rhs_list := $valid_rhs $rhs_list'
-rhs_list' := eps | $rhs_list
+rhs_list := $valid_rhs $rhs_list_
+rhs_list_ := %eps | $rhs_list
 top := $top_opts $top_no_convert | $top_no_convert
 top_no_convert := $production_list $rules | $rules
 nonterminal := $rhs_list $nonterminal'
 nonterminal' := CODE nonterminal'' | REFERENCE nonterminal'' | SEMICOLON | OR $nonterminal
 nonterminal'' := eps | OR $nonterminal
 single_rule := IDENTIFIER GETS $nonterminal
-rules := $single_rule $rules'
-rules' := eps | $rules
+rules := $single_rule $rules | %eps
 --]]--
 
 local ll1 = require 'll1'
@@ -93,7 +92,7 @@ local function flatten_rules(configuration, rules)
 end
 
 local grammar = ll1 {
-  '/Users/leegao/sideproject/ParserSiProMo/ll1_parsing.table',
+--  '/Users/leegao/sideproject/ParserSiProMo/ll1_parsing.table',
   root = {{'$top', action = id}},
   conf = {
     {'CONVERT', 'CODE', '$configuration_', 
@@ -195,14 +194,14 @@ local grammar = ll1 {
     {'QUOTED', action = function(quoted) return quoted end},
   },
   rhs_list = {
-    {'$valid_rhs', "$rhs_list'", 
+    {'$valid_rhs', "$rhs_list_", 
       action = function(object, production)
         object.kind = 'token'
         table.insert(production, 1, object)
         return production
-      end}
+      end},
   },
-  ["rhs_list'"] = {
+  rhs_list_ = {
     {'', action = function() return {} end},
     {'$rhs_list', action = id},
   },
@@ -280,16 +279,13 @@ local grammar = ll1 {
       end}
   },
   rules = {
-    {'$single_rule', '$rules_', 
+    {'$single_rule', '$rules', 
       action = function(rule, rules)
         local id, nonterminal = unpack(rule)
         rules[id] = nonterminal
         return rules
-      end}
-  },
-  rules_ = {
-    {'', action = function() return {} end}, 
-    {'$rules', action = id}
+      end},
+    {'', action = function() return {} end}
   },
 }
 
@@ -385,17 +381,17 @@ end
 
 local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
 print(code)
-os.remove(configuration.file .. '.table')
-local func, status = loadstring(code)
-if not func then
-  error("ERROR: " .. status)
-end
-local succ, other_parser = pcall(func) -- lets just try it out and "warm the cache"
-if not succ then
-  error("ERROR: " .. other_parser)
-end
-if configuration.file then
-  local file = io.open(configuration.file .. '.lua', 'w')
-  file:write(code)
-  file:close()
-end
+--os.remove(configuration.file .. '.table')
+--local func, status = loadstring(code)
+--if not func then
+--  error("ERROR: " .. status)
+--end
+--local succ, other_parser = pcall(func) -- lets just try it out and "warm the cache"
+--if not succ then
+--  error("ERROR: " .. other_parser)
+--end
+--if configuration.file then
+--  local file = io.open(configuration.file .. '.lua', 'w')
+--  file:write(code)
+--  file:close()
+--end

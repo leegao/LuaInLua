@@ -30,6 +30,11 @@ return lex.lex {
     {';', id 'SEMICOLON'},
     {':=', id 'GETS'},
     {'|', id 'OR'},
+    {'(', id 'LPAREN'},
+    {')', id 'RPAREN'},
+    {'*', id 'STAR'},
+    {'+', id 'PLUS'},
+    {'?', id 'MAYBE'},
     {re '$(%a|_)(%a|%d|_|#|\')*', id 'VARIABLE'},
     {re '(%a|_)(%a|%d|_|#|\')*', id 'IDENTIFIER'},
     

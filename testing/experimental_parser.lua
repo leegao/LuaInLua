@@ -2,7 +2,7 @@ local lex = require 'lex'
 local re = require 're'
 local ll1 = require 'll1'
 local __GRAMMAR__ = {}
-__GRAMMAR__.grammar = {['expr\'factor#1'] = {[1] = {[1] = ''}, [2] = {[1] = '+', [2] = '$expr'}}, ['root'] = {[1] = {[1] = '$expr'}}, ['base'] = {[1] = {[1] = '(', [2] = '$expr', [3] = ')'}, [2] = {[1] = 'consts'}}, ['expr'] = {[1] = {[1] = '$base', [2] = '$expr\'factor#1'}, [2] = {[1] = 'fun', [2] = 'identifier', [3] = '->', [4] = '$expr'}}}
+__GRAMMAR__.grammar = {['base'] = {[1] = {[1] = '(', [2] = '$expr', [3] = ')'}, [2] = {[1] = 'consts'}}, ['expr'] = {[1] = {[1] = '$base', [2] = '$expr\'factor#1'}, [2] = {[1] = 'fun', [2] = 'identifier', [3] = '->', [4] = '$expr'}}, ['expr\'factor#1'] = {[1] = {[1] = ''}, [2] = {[1] = '+', [2] = '$expr'}}, ['root'] = {[1] = {[1] = '$expr'}}}
 __GRAMMAR__.grammar[1] = '/Users/leegao/sideproject/ParserSiProMo/testing/experimental_parser.table'
 local string_stack = {}
 local function id(token) return function(...) return {token, ...} end end
@@ -55,13 +55,13 @@ __GRAMMAR__.epilogue = function(result)
 __GRAMMAR__.default_action = function(item)
     return item
   end
-__GRAMMAR__.grammar["expr'factor#1"][1].action = __GRAMMAR__.default_action
-__GRAMMAR__.grammar["expr'factor#1"][2].action = __GRAMMAR__.default_action
-__GRAMMAR__.grammar["root"][1].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["base"][1].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["base"][2].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["expr"][1].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["expr"][2].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr'factor#1"][1].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr'factor#1"][2].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["root"][1].action = __GRAMMAR__.default_action
 __GRAMMAR__.ll1 = ll1(__GRAMMAR__.grammar)
 return function(str)
   local tokens = {}
