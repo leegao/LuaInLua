@@ -99,6 +99,14 @@ local function new_context(variable)
   }
 end
 
+local function star(object, variable)
+  return {
+    variable = '$' .. variable,
+    {object[2], '$' .. variable,  action = trim "function(item, list) table.insert(list, item); return list end"},
+    {'',  action = trim "function() return {} end"},
+  }, variable
+end
+
 local synthesis = {}
 
 function synthesis.local_synthesis(configuration, raw_production, context)
@@ -130,38 +138,59 @@ end
     elseif raw_object.kind == 'productions' then
       -- second is a set of nonterminals, let's construct that
       local variable = context:name('group')
-      table.insert(production, variable)
+      table.insert(production, '$' .. variable)
       local new_productions, new = synthesis.synthesize_nonterminals(configuration, variable, raw_object[2])
       table.insert(new_synthesis, new_productions)
       for more in utils.loop(new) do
         table.insert(new_synthesis, more)
       end
-    else
+    elseif raw_object.kind == 'postfix' then
       local variable = context:name(raw_object[1])
       local inner = raw_object[2]
-      table.insert(production, variable)
+      table.insert(production, '$' .. variable)
       -- The inner tree can be either a token or another list of productions. 
       if inner.kind == 'productions' then
         -- take care of the inner group first
-        local variable = context:name('group')
-        inner = {'VARIABLE', variable, kind = 'token'}
-        local new_productions, new = synthesis.synthesize_nonterminals(configuration, variable, raw_object[2])
+        local inner_variable = context:name('group')
+        local new_productions, new = synthesis.synthesize_nonterminals(configuration, inner_variable, inner[2])
+        inner = {'VARIABLE', '$' .. inner_variable, kind = 'token'}
         table.insert(new_synthesis, new_productions)
         for more in utils.loop(new) do
           table.insert(new_synthesis, more)
         end
+      else
+        inner[2] = flatten(configuration, inner)
       end
       assert(inner.kind == 'token')
       -- Something* := %eps | Something Something*
       -- Something+ := Something Something*
       -- Something? := %eps | Something
       if raw_object[1] == 'star' then
-        
+        local new = star(inner, variable)
+        table.insert(new_synthesis, new)
       elseif raw_object[1] == 'plus' then
-        
+        local new_star, star_var = star(inner, context:name('star'))
+        local new_plus = {
+          variable = '$' .. variable,
+          {inner[2], '$' .. star_var, 
+          action = trim [[
+  function(item, list)
+    table.insert(list, item)
+    return list
+  end
+]]}}
+        table.insert(new_synthesis, new_star)
+        table.insert(new_synthesis, new_plus)
       else
-        
+        local new_maybe = {
+          variable = '$' .. variable,
+          {inner[2],  action = trim "function(item) return {item} end"},
+          {'',  action = trim "function() return {} end"},
+        }
+        table.insert(new_synthesis, new_maybe)
       end
+    else
+      error "Unknown kind"
     end
   end
   return production, new_synthesis
@@ -170,7 +199,7 @@ end
 function synthesis.synthesize_nonterminals(configuration, variable, raw_productions)
   local productions = {}
   local new_synthesis = {}
-  local context = new_context('$' .. variable)
+  local context = new_context(variable)
   for raw_production in utils.loop(raw_productions) do
     local production, more = synthesis.local_synthesis(configuration, raw_production, context)
     table.insert(productions, production)
@@ -252,7 +281,7 @@ local grammar = ll1 {
     {'QUOTE', 'QUOTED', 'IDENTIFIER', '$configuration_', 
       action = function(_, quote, id, last)
         if not last.quotes then last.quotes = {} end
-        last.quotes[quote] = id
+        last.quotes[quote[2]] = id[2]
         return last
       end},
   },
@@ -463,19 +492,21 @@ local function epilogue(result)
   end
   code = code .. ('%s.ll1 = ll1(%s.grammar)\n'):format(name, name)
   code = code .. trim([[
-return function(str)
-  local tokens = {}
-  for _, token in ipairs(%s.prologue(str)) do
-    table.insert(
-      tokens, 
-      setmetatable(
-        token, 
-        {__tostring = function(self) return %s.convert(self) end}))
-  end
-  local result = %s.ll1:parse(tokens)
-  return %s.epilogue(result)
-end
-]]):format(name, name, name, name)
+return setmetatable(
+  %s, 
+  {__call = function(this, str)
+    local tokens = {}
+    for _, token in ipairs(this.prologue(str)) do
+      table.insert(
+        tokens, 
+        setmetatable(
+          token, 
+          {__tostring = function(self) return this.convert(self) end}))
+    end
+    local result = this.ll1:parse(tokens)
+    return this.epilogue(result)
+  end})
+]]):format(name)
   return code, configuration
 end
 
@@ -494,17 +525,17 @@ end
 
 local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
 print(code)
---os.remove(configuration.file .. '.table')
---local func, status = loadstring(code)
---if not func then
---  error("ERROR: " .. status)
---end
---local succ, other_parser = pcall(func) -- lets just try it out and "warm the cache"
---if not succ then
---  error("ERROR: " .. other_parser)
---end
---if configuration.file then
---  local file = io.open(configuration.file .. '.lua', 'w')
---  file:write(code)
---  file:close()
---end
+os.remove(configuration.file .. '.table')
+local func, status = loadstring(code)
+if not func then
+  error("ERROR: " .. status)
+end
+local succ, other_parser = pcall(func) -- lets just try it out and "warm the cache"
+if not succ then
+  error("ERROR: " .. other_parser)
+end
+if configuration.file then
+  local file = io.open(configuration.file .. '.lua', 'w')
+  file:write(code)
+  file:close()
+end

@@ -10,8 +10,6 @@ expr   = $consts $rexpr | ID $rexpr | FUN ID -> $expr | LPAREN $expr RPAREN $rex
 consts = NUMBER | STRING | TRUE | FALSE
 */
 
-%quote '+' PLUS
-
 %code {:
 local string_stack = {}
 local function id(token) return function(...) return {token, ...} end end
@@ -93,7 +91,16 @@ consts := NUMBER [: take2(_1) :]
         | STRING [: take2(_1) :] 
         | TRUE [: take2(_1) :] 
         | FALSE [: take2(_1) :]*/
-        
-base		:=    '(' $expr ')' | 'consts';
-expr		:=    $base ('hi';) | 'fun' 'identifier' '->' $expr ;
+
+%quote '(' LPAREN
+%quote ')' RPAREN
+%quote 'fun' FUN
+%quote '->' ARROW
+%quote '+' PLUS
+
+consts := NUMBER [: take2(_1) :] 
+        | STRING [: take2(_1) :] 
+        | 'true' [: take2(_1) :] 
+        | 'false' [: take2(_1) :]
+expr		:=    ('(' $expr ')' | $consts;) ( '+' $expr | $expr;)? | 'fun' ID+ '->' $expr | ID;
 root		:=    $expr;

@@ -1,3 +1,4 @@
+local ll1 = require 'll1'
 local parser = require 'testing.experimental_parser'
 local utils = require 'utils'
 
@@ -10,5 +11,7 @@ local function dump_tree(tree)
   return ('%s(%s)'):format(tree.kind, table.concat(subtrees, ', '))
 end
 
+print(ll1.configure(parser.grammar):pretty())
+
 local tree = parser("fun x -> 1 + x")
-print(dump_tree(tree))
+print(tree)

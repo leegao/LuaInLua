@@ -272,9 +272,11 @@ function ll1.configure(actions)
   -- Associate the correct set of metatables to the nonterminals
   local configuration = {}
   for variable, productions in pairs(actions) do
-    setmetatable(productions, {__index = nonterminals})
-    productions.variable = '$' .. variable
-    configuration[variable] = productions
+    if variable ~= 1 then
+      setmetatable(productions, {__index = nonterminals})
+      productions.variable = '$' .. variable
+      configuration[variable] = productions
+    end
   end
   return setmetatable(configuration, {__index = utils.copy(configurations)})
 end
