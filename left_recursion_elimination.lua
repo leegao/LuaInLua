@@ -312,6 +312,9 @@ local function left_factor_elimination(configuration)
       end
     end
   end
+  if has_changes then
+    return left_factor_elimination(actions)
+  end
   return ll1.configure(actions)
 end
 

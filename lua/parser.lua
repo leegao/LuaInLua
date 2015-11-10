@@ -150,7 +150,12 @@ __GRAMMAR__.grammar["fieldsep_field_list_opt"][2].action = __GRAMMAR__.default_a
 local left_elim = require 'left_recursion_elimination'
 
 local elim = left_elim.eliminate_nullables(ll1.configure(__GRAMMAR__.grammar))
-print(elim:pretty())
+local no_cycles = left_elim.eliminate_cycles(elim)
+local no_indirect = left_elim.indirect_elimination(no_cycles)
+local no_left = left_elim.left_factor_elimination(__GRAMMAR__.grammar)
+print(no_left:pretty())
+
+ll1(no_left)
 
 return function(str)
   local tokens = {}
