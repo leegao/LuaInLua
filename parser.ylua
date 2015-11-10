@@ -94,7 +94,6 @@ consts := NUMBER [: take2(_1) :]
         | TRUE [: take2(_1) :] 
         | FALSE [: take2(_1) :]*/
         
-expr'factor#1		:=    '' | '+' $expr;
 base		:=    '(' $expr ')' | 'consts';
-expr		:=    $base $expr'factor#1 | 'fun' 'identifier' '->' $expr ;
+expr		:=    $base ('hi';) | 'fun' 'identifier' '->' $expr ;
 root		:=    $expr;

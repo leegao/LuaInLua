@@ -10,7 +10,9 @@ production := PRODUCTION IDENTIFIER $production'
 production' := STRING | eps
 production_list := $production $production_list'
 production_list' := eps | $production_list
-valid_rhs := IDENTIFIER | VARIABLE | EPS | QUOTED
+single_rhs := IDENTIFIER | VARIABLE | EPS | QUOTED | '(' $rhs_list ')
+valid_rhs := $single_rhs valid_postfix
+valid_postfix := %eps | '+' | '*' | '?'
 rhs_list := $valid_rhs $rhs_list_
 rhs_list_ := %eps | $rhs_list
 top := $top_opts $top_no_convert | $top_no_convert
@@ -74,21 +76,54 @@ local function trim(s)
   return s:match "^%s*(.-)%s*$"
 end
 
-local function flatten_rules(configuration, rules)
-  for key, rule in pairs(rules) do
-    for production in utils.loop(rule) do
-      for i, object in ipairs(production) do
-        if object.kind == 'token' then
-          if object[1] == 'QUOTED' and configuration.quotes[object[2]] then
-            production[i] = configuration.quotes[object[2]]
-          else
-            production[i] = object[2]
-          end
-        end
-      end
+local function flatten(configuration, object)
+  if object[1] == 'QUOTED' and configuration.quotes[object[2]] then
+    return configuration.quotes[object[2]]
+  else
+    return object[2]
+  end
+end
+
+local function local_synthesis(configuration, raw_production, context)
+  -- depth first search
+  local raw_action = raw_production.action
+  local production = {}
+  -- compute the action
+  if raw_action and raw_action[1] == 'CODE' then
+    production.action = action[2]
+  elseif action and action[1] == 'REFERENCE' then
+    -- function(_1, _2, ...) 
+    --   local all = {_1, _2, ...}
+    local n = #production
+    local all = {}
+    for i = 1,n do table.insert(all, '_' .. i) end
+    all = table.concat(all, ', ')
+    production.action = trim([[
+function(%s)
+return %s
+end
+]]):format(all, action[2]:gsub("*all", all))
+  end
+  -- Each object in the raw production is either a token, a nonterminal, or a postfix, the last 2 induces new nonterminals
+  for raw_object in utils.loop(raw_production) do
+    if raw_object.kind == 'token' then
+      local object = (flatten(configuration, raw_object))
+      table.insert(production, object)
+    elseif raw_object.kind == 'productions' then
+      -- second is a set of nonterminals, let's construct that
+      local variable = context:name('group')
+      print(variable)
     end
   end
-  return rules
+end
+
+local function synthesize(configuration, raw)
+  for variable, raw_productions in pairs(raw) do
+    local productions = {}
+    for raw_production in utils.loop(raw_productions) do
+      local production, synthesized_variables = local_synthesis(configuration, raw_production)
+    end
+  end
 end
 
 local grammar = ll1 {
@@ -187,16 +222,37 @@ local grammar = ll1 {
     {'', action = function() return {} end},
     {'$production_list', action = function(list) return list end},
   },
+-- single_rhs := IDENTIFIER | VARIABLE | EPS | QUOTED | '(' $nonterminal ')
+-- valid_rhs := $single_rhs valid_postfix
+-- valid_postfix := %eps | '+' | '*' | '?'
+  single_rhs = {
+    {'IDENTIFIER', action = function(id) id.kind = 'token'; return id end}, 
+    {'VARIABLE', action = function(id) id.kind = 'token'; return id end}, 
+    {'EPS', action = function() return {'EPS', '', kind = 'token'} end},
+    {'QUOTED', action = function(quoted) quoted.kind = 'token'; return quoted end},
+    {'LPAREN', '$nonterminal', 'RPAREN', action = function(_, nonterminal, _) return {'PRODUCTIONS', nonterminal, kind = 'productions'} end}
+  },
+  valid_postfix = {
+    {'', action = function() return 'NOTHING' end},
+    {'PLUS', action = function() return 'PLUS' end},
+    {'STAR', action = function() return 'STAR' end},
+    {'MAYBE', action = function() return 'MAYBE' end},
+  },
   valid_rhs = {
-    {'IDENTIFIER', action = id}, 
-    {'VARIABLE', action = id}, 
-    {'EPS', action = function() return {'EPS', ''} end},
-    {'QUOTED', action = function(quoted) return quoted end},
+    {'$single_rhs', '$valid_postfix', 
+      action = function(object, postfix)
+        if object[1] == 'EPS' and postfix ~= 'NOTHING' then
+          error("Cannot use extended operation on nothing.")
+        end
+        if postfix == 'NOTHING' then
+          return object
+        end
+        return {postfix, object, kind = 'postfix'}
+      end},
   },
   rhs_list = {
     {'$valid_rhs', "$rhs_list_", 
       action = function(object, production)
-        object.kind = 'token'
         table.insert(production, 1, object)
         return production
       end},
@@ -210,13 +266,13 @@ local grammar = ll1 {
       action = function(configuration, rules)
         configuration:finalize()
         -- convert productions over 
-        return {configuration, flatten_rules(configuration, rules)}
+        return {configuration, rules}
       end},
     {'$top_no_convert', 
       action = function(rules)
         local configuration = setmetatable({}, {__index = conf})
         configuration:finalize()
-        return {configuration, flatten_rules(configuration, rules)}
+        return {configuration, rules}
       end},
   },
   top_no_convert = {
@@ -228,22 +284,8 @@ local grammar = ll1 {
     {'$rhs_list', "$nonterminal'", 
       action = function(production, pair)
         local action, nonterminal = unpack(pair)
-        if action and action[1] == 'CODE' then
-          production.action = action[2]
-        elseif action and action[1] == 'REFERENCE' then
-          -- function(_1, _2, ...) 
-          --   local all = {_1, _2, ...}
-          local n = #production
-          local all = {}
-          for i = 1,n do table.insert(all, '_' .. i) end
-          all = table.concat(all, ', ')
-          production.action = trim([[
-  function(%s)
-    return %s
-  end
-]]):format(all, action[2]:gsub("*all", all))
-        end
-        table.insert(nonterminal, 1, production)
+        production.action = action
+        table.insert(nonterminal, production)
         return nonterminal
       end},
   },
@@ -302,7 +344,9 @@ local function convert(token)
 end
 
 local function epilogue(result)
-  local configuration, actions = unpack(result)
+  local configuration, raw = unpack(result)
+  -- all nonterminals are unpacked, which means some productions may have postfixes or nonterminals
+  local actions = synthesize(configuration, raw)
   local name = configuration.default
   local functions = {}
   local code = ''
