@@ -1,110 +1,64 @@
-%file "/Users/leegao/sideproject/ParserSiProMo/lua/parser"
+%file "/Users/leegao/sideproject/ParserSiProMo/parser"
 
 root := $block;
 
-block := $stat_list $retstat_opt;
+block := $stat* $retstat?;
 
-  stat_list := $stat $stat_list';
-  stat_list' := %eps | $stat_list;
+stat := ';' | 
+  $varlist '=' $explist | 
+  $functioncall | 
+  $label | 
+  break | 
+  goto Name | 
+  do $block end | 
+  while $exp do $block end | 
+  repeat $block until $exp | 
+  if $exp then $block (elseif $exp then $block;)* (else $block;)? end | 
+  for Name '=' $exp ',' $exp (',' $exp;)? do $block end | 
+  for $namelist in $explist do $block end | 
+  function $funcname funcbody | 
+  local function Name $funcbody | 
+  local $namelist ('=' $explist;)?;
 
-stat :=  ';' | 
-   $varlist '=' $explist | 
-   $functioncall | 
-   $label | 
-   break | 
-   goto Name | 
-   do $block end | 
-   while $exp do $block end | 
-   repeat $block until $exp | 
-   if $exp then $block $elseif_list_opt $else_opt end | 
-   for Name '=' $exp ',' $exp $comma_exp_opt do $block end | 
-   for $namelist in $explist do $block end | 
-   function $funcname $funcbody | 
-   local function Name $funcbody | 
-   local $namelist $eq_explist_opt;
-
-  elseif_list := elseif $exp then $block $elseif_list';
-  elseif_list' := %eps | $elseif_list;
-  elseif_list_opt := %eps | $elseif_list;
-
-  comma_exp_opt := ',' $exp | %eps;
-
-  eq_explist_opt := %eps | '=' $explist;
-
-  else_opt := %eps | else $block;
-
-retstat := return $explist_opt $semicolon_opt;
-
-  retstat_opt := $retstat | %eps;
-
-  explist_opt := %eps | $explist;
-  semicolon_opt := %eps | ';';
+retstat := return $explist? ';'?;
 
 label := '::' Name '::';
 
-funcname := Name $dot_name_list_opt $colon_name_opt;
+funcname := Name ('.' Name;)* (':' Name;)?;
 
-  dot_name_list := '.' Name | $dot_name_list';
-  dot_name_list' := %eps | $dot_name_list;
-  dot_name_list_opt := %eps | $dot_name_list;
-  
-  colon_name_opt := %eps | ':' Name;
+varlist := $var (',' $var;)*;
 
-varlist := $var $comma_var_list';
+var := Name | $prefixexp '[' $exp ']' | $prefixexp '.' Name;
 
-  comma_var_list := ',' $var | $comma_var_list';
-  comma_var_list' := %eps | $comma_var_list;
+namelist := Name (',' Name;)*;
 
-var :=  Name | $prefixexp '[' $exp ']' | $prefixexp '.' Name;
+explist := $exp (',' $exp;)*;
 
-namelist := Name comma_name_list_opt;
-  
-  comma_name_list := ',' Name | $comma_name_list';
-  comma_name_list' := %eps | $comma_name_list;
-  comma_name_list_opt := %eps | $comma_name_list;
-
-explist := $exp; // {',' $exp};
-
-exp :=  nil | false | true | Numeral | LiteralString | '...' | $functiondef | 
-   $prefixexp | $tableconstructor | $exp $binop $exp | $unop $exp;
+exp := nil | false | true | Number | String | '...' | $functiondef | 
+  $prefixexp | $tableconstructor | $exp binop $exp | $unop exp;
 
 prefixexp := $var | $functioncall | '(' $exp ')';
 
-functioncall :=  $prefixexp $args | $prefixexp ':' Name $args;
+functioncall := $prefixexp args | $prefixexp ':' Name $args;
 
-args :=  '(' $explist_opt ')' | $tableconstructor | LiteralString;
-
-  explist_opt := %eps | $explist;
+args := '(' $explist? ')' | $tableconstructor | String;
 
 functiondef := function $funcbody;
 
-funcbody := '(' $parlist_opt ')' $block end;
-  
-  parlist_opt := %eps | $parlist;
+funcbody := '(' $parlist? ')' $block end;
 
-parlist := $namelist $comma_varargs_opt | '...';
+parlist := $namelist (',' '...';)? | '...';
 
-  comma_varargs_opt := %eps | ',' '...';
+tableconstructor := '{' $fieldlist? '}';
 
-tableconstructor := '{' $fieldlist_opt '}';
-
-  fieldlist_opt := %eps | $fieldlist;
-
-fieldlist := $field $fieldsep_field_list_opt $fieldsep_opt;
-
-  fieldsep_field_list := $fieldsep $field | $fieldsep_field_list';
-  fieldsep_field_list' := %eps | $fieldsep_field_list;
-  fieldsep_field_list_opt := %eps | $fieldsep_field_list;
-  
-  fieldsep_opt := %eps | $fieldsep;
+fieldlist := $field ($fieldsep $field;)* $fieldsep?;
 
 field := '[' $exp ']' '=' $exp | Name '=' $exp | $exp;
 
 fieldsep := ',' | ';';
 
-binop :=  '+' | '-' | '*' | '/' | '//' | '^' | '%' | 
-   '&' | '~' | '|' | '>>' | '<<' | '..' | 
-   '<' | '<=' | '>' | '>=' | '==' | '~=' | 
-   and | or;
+binop := '+' | '-' | '*' | '/' | '^' | '%' | '..' | 
+  '<' | '<=' | '>' | '>=' | '==' | '~=' | 
+  and | or;
 
-unop := '-' | not | '#' | '~';
+unop := '-' | not | '#';
