@@ -102,5 +102,5 @@ consts := NUMBER [: take2(_1) :]
         | STRING [: take2(_1) :] 
         | 'true' [: take2(_1) :] 
         | 'false' [: take2(_1) :]
-expr		:=    ('(' $expr ')' | $consts;) ( '+' $expr | $expr;)? | 'fun' ID+ '->' $expr | ID;
+expr		:=    ('(' $expr ')' [: _2 :] | $consts [: _1[2] :] | ID [: _G[_1[2]] :] ;) ( '+' $expr | $expr;)? | 'fun' ID+ '->' $expr;
 root		:=    $expr;

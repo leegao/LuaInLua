@@ -13,5 +13,5 @@ end
 
 print(ll1.configure(parser.grammar):pretty())
 
-local tree = parser("fun x -> 1 + x")
+local tree = parser("(fun x -> 1 + x) 3")
 print(tree)
