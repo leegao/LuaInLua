@@ -321,22 +321,9 @@ function ll1.yacc(actions)
             -- check to see if there's an oracle
             if configuration[variable].conflict and type(configuration[variable].conflict[terminal]) == 'function' then
               if type(transition_table[variable][terminal]) == 'number' then
-                transition_table[variable][terminal] = setmetatable(
-                  {transition_table[variable][terminal]}, 
-                  {
-                    __call = configuration[variable].conflict[terminal],
-                    __index = {
-                      go = function(self, tag)
-                        for to in utils.loop(self) do
-                          if configuration[variable][to].tag == tag then
-                            return to
-                          end
-                        end
-                        return ERROR
-                      end
-                    }
-                  })
+                transition_table[variable][terminal] = {transition_table[variable][terminal]}
               end
+              table.insert(transition_table[variable][terminal], i)
             else
               print('ERROR', variable, terminal, table.concat(configuration[variable][transition_table[variable][terminal]], ', '), transition_table[variable][terminal])
               print('', '', '<>', table.concat(production, ', '), i)
@@ -354,22 +341,9 @@ function ll1.yacc(actions)
               -- check to see if there's an oracle
               if configuration[variable].conflict and type(configuration[variable].conflict[terminal]) == 'function' then
                 if type(transition_table[variable][terminal]) == 'number' then
-                  transition_table[variable][terminal] = setmetatable(
-                    {transition_table[variable][terminal]}, 
-                    {
-                      __call = configuration[variable].conflict[terminal],
-                      __index = {
-                        go = function(self, tag)
-                          for to in utils.loop(self) do
-                            if configuration[variable][to].tag == tag then
-                              return to
-                            end
-                          end
-                          return ERROR
-                        end
-                      }
-                    })
+                  transition_table[variable][terminal] = {transition_table[variable][terminal]}
                 end
+                table.insert(transition_table[variable][terminal], i)
               else
                 print('ERROR', variable, terminal, table.concat(configuration[variable][transition_table[variable][terminal]], ', '), transition_table[variable][terminal])
                 print('', '', '<>', table.concat(production, ', '), i)
@@ -418,10 +392,28 @@ function yacc:parse(tokens, state, trace)
   if type(production_index) ~= 'number' then
     if type(production_index) ~= 'table' then
       print("Error", state, production_index, "Unknown oracle")
-    return ERROR, trace
+      return ERROR, trace
     end
-    local oracle = production_index
-    production_index = oracle(tokens)
+    local oracle = setmetatable(
+      utils.copy(production_index), 
+      {
+        __index = {
+          go = function(conflicts, tag)
+            for to in utils.loop(conflicts) do
+              if self.configuration[state][to].tag == tag then
+                return to
+              end
+            end
+            return ERROR
+          end
+        }
+      }
+    )
+    production_index = self.configuration[state].conflict[tostring(token)](oracle, tokens)
+    if not production_index then
+      print("Error", state, token, "Unknown token")
+      return ERROR, trace
+    end
   end
   local production = self.configuration[state][production_index]
   local local_trace = {state, converted_token, utils.copy(tokens), production}
@@ -501,7 +493,7 @@ function ll1.create(actions)
   local transitions, configuration = unpack(bundle)
   setmetatable(configuration, {__index = utils.copy(configurations)})
   local y = utils.copy(yacc)
-  y.configuration = configuration
+  y.configuration = actions
   setmetatable(transitions, {__index = y})
   local sane = true
   for variable, productions in pairs(configuration) do

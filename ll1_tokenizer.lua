@@ -7,6 +7,7 @@ local code_stack = {}
 local string_stack = {}
 local reference_stack = {}
 local quote_stack = {}
+local tag_stack = {}
 
 local function id(token) return function(...) return {token, ...} end end
 local function ignore(...) return end
@@ -43,6 +44,7 @@ return lex.lex {
     {'"', function(piece, lexer) lexer:go 'string'; push('', string_stack) end},
     {'\'', function(piece, lexer) lexer:go 'quote'; push('', quote_stack) end},
     {'[:', function(piece, lexer) lexer:go 'reference'; push('', reference_stack) end},
+    {'<', function(piece, lexer) lexer:go 'tag'; push('', tag_stack) end},
     
     {re '%s+', ignore},
     {re '/%*', function(piece, lexer) lexer:go 'comment' end},
@@ -65,6 +67,15 @@ return lex.lex {
     end},
     {re '.', function(piece, lexer) 
       push(pop(string_stack) .. piece, string_stack)
+    end}
+  },
+  tag = {
+    {'>', function(piece, lexer) 
+      lexer:go 'root'
+      return {'TAG', pop(tag_stack)}
+    end},
+    {re '.', function(piece, lexer) 
+      push(pop(tag_stack) .. piece, tag_stack)
     end}
   },
   quote = {

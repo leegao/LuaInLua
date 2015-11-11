@@ -2,7 +2,7 @@ local lex = require 'lex'
 local re = require 're'
 local ll1 = require 'll1'
 local __GRAMMAR__ = {}
-__GRAMMAR__.grammar = {['expr\'star#1'] = {[1] = {[1] = 'ID', [2] = '$expr\'star#1'}, [2] = {[1] = ''}, ['variable'] = '$expr\'star#1'}, ['expr\'group#1'] = {[1] = {[1] = 'ID'}, [2] = {[1] = '$consts'}, [3] = {[1] = 'LPAREN', [2] = '$expr', [3] = 'RPAREN'}, ['variable'] = '$expr\'group#1'}, ['expr\'plus#1'] = {[1] = {[1] = 'ID', [2] = '$expr\'star#1'}, ['variable'] = '$expr\'plus#1'}, ['expr\'maybe#1'] = {[1] = {[1] = '$expr\'group#2'}, [2] = {[1] = ''}, ['variable'] = '$expr\'maybe#1'}, ['consts'] = {[1] = {[1] = 'false'}, [2] = {[1] = 'true'}, [3] = {[1] = 'STRING'}, [4] = {[1] = 'NUMBER'}, ['variable'] = '$consts'}, ['expr'] = {[1] = {[1] = 'FUN', [2] = '$expr\'plus#1', [3] = 'ARROW', [4] = '$expr'}, [2] = {[1] = '$expr\'group#1', [2] = '$expr\'maybe#1'}, ['variable'] = '$expr'}, ['root'] = {[1] = {[1] = '$expr'}, ['variable'] = '$root'}, ['expr\'group#2'] = {[1] = {[1] = '$expr'}, [2] = {[1] = 'PLUS', [2] = '$expr'}, ['variable'] = '$expr\'group#2'}}
+__GRAMMAR__.grammar = {['consts'] = {[1] = {[1] = 'TRUE', [2] = 'FALSE', ['tag'] = 'tf'}, [2] = {[1] = 'FALSE'}, [3] = {[1] = 'TRUE', ['tag'] = 't'}, [4] = {[1] = 'STRING'}, [5] = {[1] = 'NUMBER'}, ['variable'] = '$consts'}, ['root'] = {[1] = {[1] = '$expr'}, ['variable'] = '$root'}, ['expr\'group#1'] = {[1] = {[1] = 'ID'}, [2] = {[1] = '$consts'}, [3] = {[1] = 'LPAREN', [2] = '$expr', [3] = 'RPAREN'}, ['variable'] = '$expr\'group#1'}, ['expr\'maybe#1'] = {[1] = {[1] = '$expr\'group#2'}, [2] = {[1] = ''}, ['variable'] = '$expr\'maybe#1'}, ['expr'] = {[1] = {[1] = 'FUN', [2] = '$expr\'plus#1', [3] = 'ARROW', [4] = '$expr'}, [2] = {[1] = '$expr\'group#1', [2] = '$expr\'maybe#1'}, ['variable'] = '$expr'}, ['expr\'plus#1'] = {[1] = {[1] = 'ID', [2] = '$expr\'star#1'}, ['variable'] = '$expr\'plus#1'}, ['expr\'group#2'] = {[1] = {[1] = '$expr'}, [2] = {[1] = 'PLUS', [2] = '$expr'}, ['variable'] = '$expr\'group#2'}, ['expr\'star#1'] = {[1] = {[1] = 'ID', [2] = '$expr\'star#1'}, [2] = {[1] = ''}, ['variable'] = '$expr\'star#1'}}
 __GRAMMAR__.grammar[1] = '/Users/leegao/sideproject/ParserSiProMo/testing/experimental_parser.table'
 local string_stack = {}
 local function id(token) return function(...) return {token, ...} end end
@@ -16,6 +16,8 @@ local tokenizer = lex.lex {
     {'->', id 'ARROW'},
     {'(', id 'LPAREN'},
     {')', id 'RPAREN'},
+    {'true', id 'TRUE'},
+    {'false', id 'FALSE'},
     {re '%s+', ignore},
     {re '%d+', id 'NUMBER'},
     {re '%d+%.%d+', id 'NUMBER'},
@@ -55,26 +57,35 @@ __GRAMMAR__.epilogue = function(result)
 __GRAMMAR__.default_action = function(item)
     return item
   end
-__GRAMMAR__.grammar["expr'star#1"][1].action = function(item, list) table.insert(list, item); return list end
-__GRAMMAR__.grammar["expr'star#1"][2].action = function() return {} end
+__GRAMMAR__.grammar["consts"][1].action = function() return 'true and false' end
+__GRAMMAR__.grammar["consts"][2].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["consts"][3].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["consts"][4].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["consts"][5].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["root"][1].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["expr'group#1"][1].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["expr'group#1"][2].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["expr'group#1"][3].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr'maybe#1"][1].action = function(item) return {item} end
+__GRAMMAR__.grammar["expr'maybe#1"][2].action = function() return {} end
+__GRAMMAR__.grammar["expr"][1].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr"][2].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["expr'plus#1"][1].action = function(item, list)
     table.insert(list, item)
     return list
   end
-__GRAMMAR__.grammar["expr'maybe#1"][1].action = function(item) return {item} end
-__GRAMMAR__.grammar["expr'maybe#1"][2].action = function() return {} end
-__GRAMMAR__.grammar["consts"][1].action = __GRAMMAR__.default_action
-__GRAMMAR__.grammar["consts"][2].action = __GRAMMAR__.default_action
-__GRAMMAR__.grammar["consts"][3].action = __GRAMMAR__.default_action
-__GRAMMAR__.grammar["consts"][4].action = __GRAMMAR__.default_action
-__GRAMMAR__.grammar["expr"][1].action = __GRAMMAR__.default_action
-__GRAMMAR__.grammar["expr"][2].action = __GRAMMAR__.default_action
-__GRAMMAR__.grammar["root"][1].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["expr'group#2"][1].action = __GRAMMAR__.default_action
 __GRAMMAR__.grammar["expr'group#2"][2].action = __GRAMMAR__.default_action
+__GRAMMAR__.grammar["expr'star#1"][1].action = function(item, list) table.insert(list, item); return list end
+__GRAMMAR__.grammar["expr'star#1"][2].action = function() return {} end
+__GRAMMAR__.grammar["consts"].conflict = {}
+__GRAMMAR__.grammar["consts"].conflict["TRUE"] = function(self, tokens)
+  if tostring(tokens[2]) == 'FALSE' then
+    return self:go 'tf'
+  else
+    return self:go 't'
+  end
+end
 __GRAMMAR__.ll1 = ll1(__GRAMMAR__.grammar)
 return setmetatable(
   __GRAMMAR__, 

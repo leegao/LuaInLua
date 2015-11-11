@@ -23,6 +23,8 @@ local tokenizer = lex.lex {
     {'->', id 'ARROW'},
     {'(', id 'LPAREN'},
     {')', id 'RPAREN'},
+    {'true', id 'TRUE'},
+    {'false', id 'FALSE'},
     {re '%s+', ignore},
     {re '%d+', id 'NUMBER'},
     {re '%d+%.%d+', id 'NUMBER'},
@@ -97,10 +99,22 @@ consts := NUMBER [: take2(_1) :]
 %quote 'fun' FUN
 %quote '->' ARROW
 %quote '+' PLUS
+%quote 'true' TRUE
+%quote 'false' FALSE
 
-consts := NUMBER [: take2(_1) :] 
-        | STRING [: take2(_1) :] 
-        | 'true' [: take2(_1) :] 
-        | 'false' [: take2(_1) :]
-expr		:=    ('(' $expr ')' [: _2 :] | $consts [: _1[2] :] | ID [: _G[_1[2]] :] ;) ( '+' $expr | $expr;)? | 'fun' ID+ '->' $expr;
+%resolve consts 'true' {:function(self, tokens)
+  if tostring(tokens[2]) == 'FALSE' then
+    return self:go 'tf'
+  else
+    return self:go 't'
+  end
+end:}
+
+consts := NUMBER
+        | STRING
+        | <t> 'true'
+        | 'false'
+        | <tf> 'true' 'false' {: function() return 'true and false' end:}
+
+expr		:=    ('(' $expr ')' | $consts | ID ;) ( '+' $expr | $expr;)? | 'fun' ID+ '->' $expr;
 root		:=    $expr;

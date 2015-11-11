@@ -17,7 +17,7 @@ rhs_list := $valid_rhs $rhs_list_
 rhs_list_ := %eps | $rhs_list
 top := $top_opts $top_no_convert | $top_no_convert
 top_no_convert := $production_list $rules | $rules
-nonterminal := $rhs_list $nonterminal'
+nonterminal := TAG? $rhs_list $nonterminal'
 nonterminal' := CODE nonterminal'' | REFERENCE nonterminal'' | SEMICOLON | OR $nonterminal
 nonterminal'' := eps | OR $nonterminal
 single_rule := IDENTIFIER GETS $nonterminal
@@ -81,9 +81,10 @@ end
   self.resolvers = {}
   for variable, resolvers in pairs(conflict_resolvers) do
     self.resolvers[variable] = {}
-    for conflict, action in utils.uloop(resolvers) do
+    for conflict_resolver in utils.loop(resolvers) do
+      local conflict, action = unpack(conflict_resolver)
       -- look up conflict in quotes
-      local conflict_id = flatten(conflict)
+      local conflict_id = flatten(self, conflict)
       if action[1] == 'CODE' then
         self.resolvers[variable][conflict_id] = action[2]
       else
@@ -101,7 +102,7 @@ end
 local function new_context(variable)
   return {
     name = function(self, name)
-      index = '$'..name
+      local index = '$'..name
       if not self[index] then self[index] = 1 end
       local result = ("%s'%s#%s"):format(variable, name, self[index])
       self[index] = self[index] + 1
@@ -130,8 +131,8 @@ function synthesis.local_synthesis(configuration, raw_production, context)
   local new_synthesis = {}
   -- compute the action
   if raw_action and raw_action[1] == 'CODE' then
-    production.action = action[2]
-  elseif action and action[1] == 'REFERENCE' then
+    production.action = raw_action[2]
+  elseif raw_action and raw_action[1] == 'REFERENCE' then
     -- function(_1, _2, ...) 
     --   local all = {_1, _2, ...}
     local n = #production
@@ -142,8 +143,9 @@ function synthesis.local_synthesis(configuration, raw_production, context)
 function(%s)
 return %s
 end
-]]):format(all, action[2]:gsub("*all", all))
+]]):format(all, raw_action[2]:gsub("*all", all))
   end
+  production.tag = raw_production.tag
   -- Each object in the raw production is either a token, a nonterminal, or a postfix, the last 2 induces new nonterminals
   for raw_object in utils.loop(raw_production) do
     if raw_object.kind == 'token' then
@@ -409,10 +411,19 @@ local grammar = ll1 {
     {'$rules', action = id},
   },
   nonterminal = {
+    -- 'tag?'
     {'$rhs_list', "$nonterminal'", 
       action = function(production, pair)
         local action, nonterminal = unpack(pair)
         production.action = action
+        table.insert(nonterminal, production)
+        return nonterminal
+      end},
+    {'TAG', '$rhs_list', "$nonterminal'", 
+      action = function(tag, production, pair)
+        local action, nonterminal = unpack(pair)
+        production.action = action
+        production.tag = tag[2]
         table.insert(nonterminal, production)
         return nonterminal
       end},
@@ -520,6 +531,15 @@ local function epilogue(result)
       code = code .. ('%s.grammar["%s"][%s].action = %s\n'):format(configuration.default, variable, i, functions[variable][i])
     end
   end
+  
+  -- let's add conflict table
+  for variable, resolvers in pairs(configuration.resolvers) do
+    code = code .. ('%s.grammar["%s"].conflict = {}\n'):format(name, variable)
+    for conflict, action in pairs(resolvers) do
+      code = code .. ('%s.grammar["%s"].conflict["%s"] = %s\n'):format(name, variable, conflict, action)
+    end
+  end
+  
   code = code .. ('%s.ll1 = ll1(%s.grammar)\n'):format(name, name)
   code = code .. trim([[
 return setmetatable(
@@ -553,15 +573,15 @@ local function parse(str)
   return epilogue(result)
 end
 
-local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/lua/grammar.ylua'):read("*all"))
+local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/parser.ylua'):read("*all"))
 os.remove(configuration.file .. '.table')
 local func, status = loadstring(code)
 if not func then
-  error("ERROR: " .. status)
+  print("ERROR: " .. status)
 end
 local succ, other_parser = pcall(func) -- lets just try it out and "warm the cache"
 if not succ then
-  error("ERROR: " .. other_parser)
+  print("ERROR: " .. other_parser)
 end
 if configuration.file then
   local file = io.open(configuration.file .. '.lua', 'w')
