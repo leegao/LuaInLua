@@ -1,6 +1,8 @@
-Let's build a compiler from the ground up in Lua. Here, we will be developing our own tools from scratch along the way, which is great because Lua doesn't come with much in terms of its standard library so we get to do a lot platforming work as well :)
+Let's build a Lua compiler from the ground up in Lua. Here, we will be developing our own tools from scratch along the way, which is great because Lua doesn't come with much in terms of its standard library so we get to do a lot platforming work as well :)
 
 I will be focusing heavier on the parsing aspect of this compiler as that is the low-hanging fruit aspect of compiler construction that I haven't had a chance to explore deeply yet.
+
+See https://github.com/leegao/Lua-In-Lua/blob/master/lua/grammar.ylua for the grammar, the parser language is written in the same language that the parser parses (yo dawg). Note that Lua's language specification is not LL(n) for any finite n, which means that any oracular lookahead machine will still not be able to parse this without angelicism. To get around this, we use an extremely clever idea: we relax the language to be parsable by LL(3) and we use the semantic action during parse time to restrict valid trees. This mix of "dynamic" and "static" parsing analysis will allow us to get a full Lua parser.
 
 Status Report:
 
