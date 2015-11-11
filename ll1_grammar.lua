@@ -4,7 +4,7 @@ Here's the grammar we're looking for
 
 root := $top
 
-top_opts := CONVERT CODE top_opt' | DEFAULT CODE top_opt' | PROLOGUE CODE top_opt' | EPILOGUE CODE top_opt' | TOP_LEVEL CODE top_opt' | QUOTE QUOTED $valid_rhs
+top_opts := CONVERT CODE top_opt' | DEFAULT CODE top_opt' | PROLOGUE CODE top_opt' | EPILOGUE CODE top_opt' | TOP_LEVEL CODE top_opt' | QUOTE QUOTED $valid_rhs | RESOLVE IDENTIFIER (IDENTIFIER | QUOTED;) CODE?
 top_opts' := $top_opts | eps
 production := PRODUCTION IDENTIFIER $production'
 production' := STRING | eps
@@ -30,6 +30,14 @@ local tokenizer = require 'll1_tokenizer'
 
 local id = function(...) return ... end
 local ignore = function() return {} end
+
+local function flatten(configuration, object)
+  if object[1] == 'QUOTED' and configuration.quotes[object[2]] then
+    return configuration.quotes[object[2]]
+  else
+    return object[2]
+  end
+end
 
 local conf = {}
 function conf:finalize()
@@ -69,19 +77,25 @@ end
   if not self.quotes then
     self.quotes = {}
   end
+  local conflict_resolvers = self.resolvers or {}
+  self.resolvers = {}
+  for variable, resolvers in pairs(conflict_resolvers) do
+    self.resolvers[variable] = {}
+    for conflict, action in utils.uloop(resolvers) do
+      -- look up conflict in quotes
+      local conflict_id = flatten(conflict)
+      if action[1] == 'CODE' then
+        self.resolvers[variable][conflict_id] = action[2]
+      else
+        self.resolvers[variable][conflict_id] = 'error'
+      end
+    end
+  end
   return self
 end
 
 local function trim(s)
   return s:match "^%s*(.-)%s*$"
-end
-
-local function flatten(configuration, object)
-  if object[1] == 'QUOTED' and configuration.quotes[object[2]] then
-    return configuration.quotes[object[2]]
-  else
-    return object[2]
-  end
 end
 
 local function new_context(variable)
@@ -284,6 +298,22 @@ local grammar = ll1 {
         last.quotes[quote[2]] = id[2]
         return last
       end},
+    -- RESOLVE IDENTIFIER (IDENTIFIER | QUOTED;) CODE?
+    {'RESOLVE', 'IDENTIFIER', '$id_or_quote', '$code_opt', '$configuration_',
+      action = function(_, id, conflict, action, last)
+        if not last.resolvers then last.resolvers = {} end
+        if not last.resolvers[id[2]] then last.resolvers[id[2]] = {} end
+        table.insert(last.resolvers[id[2]], {conflict, action})
+        return last
+      end},
+  },
+  id_or_quote = {
+    {'IDENTIFIER', action = id},
+    {'QUOTED', action = id},
+  },
+  code_opt = {
+    {'', action = function() return {} end},
+    {'CODE', action = id},
   },
   configuration_ = {
     {'', 

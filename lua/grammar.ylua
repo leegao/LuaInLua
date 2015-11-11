@@ -15,7 +15,7 @@ stat := ';' |
   repeat $block until $exp | 
   if $exp then $block (elseif $exp then $block;)* (else $block;)? end | 
   for (Name '=' $exp ',' $exp (',' $exp;)? do $block end | $namelist in $explist do $block end;) | 
-  function $funcname funcbody | 
+  function $funcname $funcbody | 
   local (function Name $funcbody | $namelist ('=' $explist;)?;);
 
 retstat := return $explist? ';'?;
@@ -37,7 +37,7 @@ exp := (nil | false | true | Number | String | '...' | $functiondef |
 
 prefixexp := $var | $functioncall | '(' $exp ')';
 
-functioncall := $prefixexp (args | ':' Name $args;);
+functioncall := $prefixexp ($args | ':' Name $args;);
 
 args := '(' $explist? ')' | $tableconstructor | String;
 

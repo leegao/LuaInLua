@@ -27,6 +27,7 @@ return lex.lex {
     {'%require', id 'REQUIRE'},
     {'%default.action', id 'DEFAULT_ACTION'},
     {'%quote', id 'QUOTE'},
+    {'%resolve', id 'RESOLVE'},
     {';', id 'SEMICOLON'},
     {':=', id 'GETS'},
     {'|', id 'OR'},

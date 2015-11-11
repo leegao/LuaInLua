@@ -12,7 +12,7 @@ end
 -- rexpr' = EPS | $expr | + $expr
 -- consts = number | string | true | false
 local parser = ll1 {
-  '/Users/leegao/sideproject/ParserSiProMo/testing/test_parser.lua',
+--  '/Users/leegao/sideproject/ParserSiProMo/testing/test_parser.lua',
   root = {
     {'$expr', action = id},
   },
@@ -32,6 +32,17 @@ local parser = ll1 {
     {'string', action = id},
     {'true', action = id},
     {'false', action = id},
+    {'a', '1', action = id, tag = 'a1'},
+    {'a', '2', action = id, tag = 'a2'},
+    conflict = {
+      a = function(self, tokens)
+        if tostring(tokens[2]) == '1' then
+          self:go 'a1'
+        else
+          self:go 'a2'
+        end
+      end
+    }
   }
 }
 local tree, trace = parser:parse{"fun", "identifier", "->", "fun", "identifier", "->", "identifier", "+", "number"}
