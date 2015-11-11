@@ -15,15 +15,22 @@ Status Report:
 5. Self-hosting the Lexer.
 6. Self-hosting the Parser.
 6. Added support for extende BNF grammars
+7. Added support for oracular lookaheads
+1. Create a lua parser in LL(1)
 
 In progress:
 
-1. Create a lua parser in LL(1)
+1. Add semantic actions to the lua parser
 
 TODO:
 
-4. LR(0-1) Parser, which will also use a similar mechanism
+9. Interpreter.
+10. Lua register machine
+11. Standard library
+12. Self-host the toolchain (5.2 compatibility)
 
+Stretch:
+
+4. LR(0-1) Parser, which will also use a similar mechanism
 7. Type-induction.
 8. Type inferencing.
-9. Interpreter.
