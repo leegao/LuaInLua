@@ -1,0 +1,10 @@
+%file "/Users/leegao/sideproject/ParserSiProMo/testing/elimination_parser"
+
+prefixexp := $var | $functioncall | '(' $exp ')';
+functioncall := $prefixexp $args;
+var := name | $prefixexp '[' $exp ']';
+exp := nil | $prefixexp;
+args := '(' ')';
+
+
+root := $prefixexp;

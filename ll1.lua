@@ -400,7 +400,7 @@ function yacc:parse(tokens, state, trace)
         __index = {
           go = function(conflicts, tag)
             for to in utils.loop(conflicts) do
-              if self.configuration[state][to].tag == tag then
+              if self.configuration[state][to].tag == tag or (tag == EPS and self.configuration[state][to][1] == EPS) then
                 return to
               end
             end

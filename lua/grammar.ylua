@@ -1,12 +1,43 @@
 %file "/Users/leegao/sideproject/ParserSiProMo/lua/parser"
 
+%resolve field Name {: function(self, tokens)
+  if tokens[2] == '=' then
+    return self:go 'assign'
+  else
+    return self:go 'exp'
+  end
+end :}
+
+// resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
+%resolve parlist'star#1 Name {: function(self, tokens)
+  if tokens[2] == ',' then
+    return self:go 'namelist'
+  else
+    return self:go ''
+  end
+end :}
+
+%resolve stat'group#2 Name {: function(self, tokens)
+  if tokens[2] == '=' then
+    return self:go 'forcounter'
+  else
+    return self:go 'foreach'
+  end
+end :}
+
+%resolve assignment_or_call'star#1 '(' {: function(self, tokens)
+  -- always reduce to call
+  return self:go 'call'
+end :}
+
 root := $block;
 
 block := $stat*;
 
 stat := ';' | 
-  $varlist '=' $explist | 
-  $functioncall | // ( conflicts with var's (
+//  $varlist '=' $explist | 
+//  $functioncall | // ( conflicts with var's (
+  $assignment_or_call |
   $label | 
   break | 
   goto Name | 
@@ -14,7 +45,7 @@ stat := ';' |
   while $exp do $block end | 
   repeat $block until $exp | 
   if $exp then $block (elseif $exp then $block;)* (else $block;)? end | 
-  for (Name '=' $exp ',' $exp (',' $exp;)? do $block end | $namelist in $explist do $block end;) | 
+  for (<forcounter> Name '=' $exp ',' $exp (',' $exp;)? do $block end | <foreach> $namelist in $explist do $block end;) | 
   function $funcname $funcbody | 
   local (function Name $funcbody | $namelist ('=' $explist;)?;);
 
@@ -24,20 +55,27 @@ label := '::' Name '::';
 
 funcname := Name ('.' Name;)* (':' Name;)?;
 
-varlist := $var (',' $var;)*;
+// varlist := $var (',' $var;)*;
 
-var := Name | $prefixexp ('[' $exp ']' | '.' Name;);
+// var := Name | $primaryexp ('[' $exp ']' | '.' Name;);
 
 namelist := Name (',' Name;)*;
 
 explist := $exp (',' $exp;)*;
 
 exp := (nil | false | true | Number | String | '...' | $functiondef | 
-  $prefixexp | $tableconstructor | $unop exp;) $binop $exp;
+  $suffixedexp | $tableconstructor | $unop exp;) $binop $exp;
 
-prefixexp := $var | $functioncall | '(' $exp ')';
+suffixedexp := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | $args;)*;
+primaryexp := Name | '(' $exp ')';
 
-functioncall := $prefixexp ($args | ':' Name $args;);
+// %eps is func, the other 2 are assignments
+assignment_or_call := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | <call> $args;)* $assignment?;
+assignment := ',' $suffixedexp $assignment | '=' $explist;
+
+// primaryexp := $var | $functioncall | '(' $exp ')';
+
+// functioncall := $primaryexp ($args | ':' Name $args;);
 
 args := '(' $explist? ')' | $tableconstructor | String;
 
@@ -45,13 +83,13 @@ functiondef := function $funcbody;
 
 funcbody := '(' $parlist? ')' $block end;
 
-parlist := $namelist (',' '...';)? | '...';
+parlist := (<namelist> Name ',';)+ (Name | '...';) | '...';
 
 tableconstructor := '{' $fieldlist? '}';
 
 fieldlist := $field ($fieldsep $field;)*;
 
-field := '[' $exp ']' '=' $exp | Name '=' $exp | $exp;
+field := '[' $exp ']' '=' $exp | <assign> Name '=' $exp | <exp> $exp;
 
 fieldsep := ',' | ';';
 

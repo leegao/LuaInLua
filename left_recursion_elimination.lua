@@ -204,6 +204,7 @@ local function immediate_elimination(nonterminal)
   local other = {variable = variable}
   for production in utils.loop(nonterminal) do
     local local_production = utils.copy(production)
+    print('\t', variable, utils.to_string(production))
     if local_production[1] == variable then
       assert(variable == table.remove(local_production, 1))
       table.insert(local_production, new_variable)
@@ -223,24 +224,27 @@ end
 local function indirect_elimination(configuration)
   local actions = utils.copy(configuration)
   local variables = {}
-  for key in pairs(configuration) do table.insert(variables, key) end
+  for node in configuration:get_dependency_graph():dfs() do table.insert(variables, node) end
   for i = 1,#variables do
     local old_left = actions[variables[i]]
     local new_left = utils.copy(old_left)
     local to_remove = {}
-    for j = 1, i-1 do
-      local old_right = actions[variables[j]]
-      -- find some production of the form A_i := A_j \gamma
-      for k, production in ipairs(old_left) do
-        if production[1] == variables[j] then
-          -- expand A_j out
-          for production_j in utils.loop(old_right) do
-            local new_i_k = utils.copy(production_j)
-            for l = 2, #production do
-              table.insert(new_i_k, production[l])
+    for j = 1, #variables do
+      if i ~= j then 
+        local old_right = actions[variables[j]]
+        -- find some production of the form A_i := A_j \gamma
+        for k, production in ipairs(old_left) do
+          if production[1] == '$' .. variables[j] then
+            -- expand A_j out
+            print(variables[i], variables[j], utils.to_string(production))
+            for production_j in utils.loop(old_right) do
+              local new_i_k = utils.copy(production_j)
+              for l = 2, #production do
+                table.insert(new_i_k, production[l])
+              end
+              table.insert(new_left, new_i_k)
+              to_remove[k] = true
             end
-            table.insert(new_left, new_i_k)
-            to_remove[j] = true
           end
         end
       end
@@ -249,6 +253,7 @@ local function indirect_elimination(configuration)
     for k in pairs(to_remove) do table.insert(needs_removing, k) end
     table.sort(needs_removing, function(a,b) return b > a end)
     for j in utils.loop(needs_removing) do
+      print(j)
       table.remove(new_left, j)
     end
     -- rewrite A[i] 
