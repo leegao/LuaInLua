@@ -35,17 +35,17 @@ local parser = ll1 {
     {'a', '1', action = id, tag = 'a1'},
     {'a', '2', action = id, tag = 'a2'},
     conflict = {
-      a = function(self, tokens)
+      a = function(state, tokens)
         if tostring(tokens[2]) == '1' then
-          self:go 'a1'
+          return state:go 'a1'
         else
-          self:go 'a2'
+          return state:go 'a2'
         end
       end
     }
   }
 }
-local tree, trace = parser:parse{"fun", "identifier", "->", "fun", "identifier", "->", "identifier", "+", "number"}
+local tree, trace = parser:parse{"fun", "identifier", "->", "fun", "identifier", "->", "identifier", "+", "a", "1"}
 
 for state, token, tokens, production, args in utils.uloop(trace) do
   local args_str = args and table.concat(utils.map(tostring, args), ', ') or 'ERROR'

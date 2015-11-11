@@ -200,7 +200,6 @@ local function merge(left, right)
     return merged
 end
 
--- TODO SWAP THIS
 function ll1.first(configuration, production)
   local first_set = {}
   for object in utils.loop(production) do
@@ -319,8 +318,29 @@ function ll1.yacc(actions)
       for terminal in pairs(firsts) do
         if terminal ~= EPS then
           if transition_table[variable][terminal] ~= ERROR and transition_table[variable][terminal] ~= i then
-            print('ERROR', variable, terminal, table.concat(configuration[variable][transition_table[variable][terminal]], ', '), transition_table[variable][terminal])
-            print('', '', '<>', table.concat(production, ', '), i)
+            -- check to see if there's an oracle
+            if configuration[variable].conflict and type(configuration[variable].conflict[terminal]) == 'function' then
+              if type(transition_table[variable][terminal]) == 'number' then
+                transition_table[variable][terminal] = setmetatable(
+                  {transition_table[variable][terminal]}, 
+                  {
+                    __call = configuration[variable].conflict[terminal],
+                    __index = {
+                      go = function(self, tag)
+                        for to in utils.loop(self) do
+                          if configuration[variable][to].tag == tag then
+                            return to
+                          end
+                        end
+                        return ERROR
+                      end
+                    }
+                  })
+              end
+            else
+              print('ERROR', variable, terminal, table.concat(configuration[variable][transition_table[variable][terminal]], ', '), transition_table[variable][terminal])
+              print('', '', '<>', table.concat(production, ', '), i)
+            end
           else
             transition_table[variable][terminal] = i
           end
@@ -331,8 +351,29 @@ function ll1.yacc(actions)
         for terminal in pairs(follows) do
           if terminal ~= EPS then
             if transition_table[variable][terminal] ~= ERROR and transition_table[variable][terminal] ~= i then 
-              print('ERROR', variable, terminal, table.concat(configuration[variable][transition_table[variable][terminal]], ', '), transition_table[variable][terminal])
-              print('', '', '<>', table.concat(production, ', '), i)
+              -- check to see if there's an oracle
+              if configuration[variable].conflict and type(configuration[variable].conflict[terminal]) == 'function' then
+                if type(transition_table[variable][terminal]) == 'number' then
+                  transition_table[variable][terminal] = setmetatable(
+                    {transition_table[variable][terminal]}, 
+                    {
+                      __call = configuration[variable].conflict[terminal],
+                      __index = {
+                        go = function(self, tag)
+                          for to in utils.loop(self) do
+                            if configuration[variable][to].tag == tag then
+                              return to
+                            end
+                          end
+                          return ERROR
+                        end
+                      }
+                    })
+                end
+              else
+                print('ERROR', variable, terminal, table.concat(configuration[variable][transition_table[variable][terminal]], ', '), transition_table[variable][terminal])
+                print('', '', '<>', table.concat(production, ', '), i)
+              end
             else
               transition_table[variable][terminal] = i
             end
@@ -372,6 +413,15 @@ function yacc:parse(tokens, state, trace)
   if not production_index then
     print("Error", state, token, "Unknown token")
     return ERROR, trace
+  end
+  -- check if we have an oracle
+  if type(production_index) ~= 'number' then
+    if type(production_index) ~= 'table' then
+      print("Error", state, production_index, "Unknown oracle")
+    return ERROR, trace
+    end
+    local oracle = production_index
+    production_index = oracle(tokens)
   end
   local production = self.configuration[state][production_index]
   local local_trace = {state, converted_token, utils.copy(tokens), production}
