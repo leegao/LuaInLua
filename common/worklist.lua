@@ -1,6 +1,6 @@
 -- construct the least fixed point of a transfer on some graph
-local graph = require "graph"
-local utils = require "utils"
+local graph = require "common.graph"
+local utils = require "common.utils"
 local worklist = {}
 
 function worklist.transfer(self, node, input, graph, pred)

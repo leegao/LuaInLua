@@ -1,4 +1,4 @@
-%file "/Users/leegao/sideproject/ParserSiProMo/testing/elimination_parser"
+%file "testing/elimination_parser"
 
 prefixexp := $var | $functioncall | '(' $exp ')';
 functioncall := $prefixexp $args;

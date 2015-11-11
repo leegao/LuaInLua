@@ -1,7 +1,7 @@
-local ll1 = require 'll1'
+local ll1 = require 'll1.ll1'
 local __GRAMMAR__ = {}
 __GRAMMAR__.grammar = {['var'] = {[1] = {[1] = '$prefixexp', [2] = '[', [3] = '$exp', [4] = ']'}, [2] = {[1] = 'name'}, ['variable'] = '$var'}, ['root'] = {[1] = {[1] = '$prefixexp'}, ['variable'] = '$root'}, ['exp'] = {[1] = {[1] = '$prefixexp'}, [2] = {[1] = 'nil'}, ['variable'] = '$exp'}, ['args'] = {[1] = {[1] = '(', [2] = ')'}, ['variable'] = '$args'}, ['functioncall'] = {[1] = {[1] = '$prefixexp', [2] = '$args'}, ['variable'] = '$functioncall'}, ['prefixexp'] = {[1] = {[1] = '(', [2] = '$exp', [3] = ')'}, [2] = {[1] = '$functioncall'}, [3] = {[1] = '$var'}, ['variable'] = '$prefixexp'}}
-__GRAMMAR__.grammar[1] = '/Users/leegao/sideproject/ParserSiProMo/testing/elimination_parser.table'
+__GRAMMAR__.grammar[1] = 'testing/elimination_parser.table'
 __GRAMMAR__.convert = function(token) return token[1] end
 __GRAMMAR__.prologue = function(str)
   local tokens = {}

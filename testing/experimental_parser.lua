@@ -1,9 +1,9 @@
-local lex = require 'lex'
-local re = require 're'
-local ll1 = require 'll1'
+local lex = require 'parsing.lex'
+local re = require 'parsing.re'
+local ll1 = require 'll1.ll1'
 local __GRAMMAR__ = {}
 __GRAMMAR__.grammar = {['consts'] = {[1] = {[1] = 'TRUE', [2] = 'FALSE', ['tag'] = 'tf'}, [2] = {[1] = 'FALSE'}, [3] = {[1] = 'TRUE', ['tag'] = 't'}, [4] = {[1] = 'STRING'}, [5] = {[1] = 'NUMBER'}, ['variable'] = '$consts'}, ['root'] = {[1] = {[1] = '$expr'}, ['variable'] = '$root'}, ['expr\'group#1'] = {[1] = {[1] = 'ID'}, [2] = {[1] = '$consts'}, [3] = {[1] = 'LPAREN', [2] = '$expr', [3] = 'RPAREN'}, ['variable'] = '$expr\'group#1'}, ['expr\'maybe#1'] = {[1] = {[1] = '$expr\'group#2'}, [2] = {[1] = ''}, ['variable'] = '$expr\'maybe#1'}, ['expr'] = {[1] = {[1] = 'FUN', [2] = '$expr\'plus#1', [3] = 'ARROW', [4] = '$expr'}, [2] = {[1] = '$expr\'group#1', [2] = '$expr\'maybe#1'}, ['variable'] = '$expr'}, ['expr\'plus#1'] = {[1] = {[1] = 'ID', [2] = '$expr\'star#1'}, ['variable'] = '$expr\'plus#1'}, ['expr\'group#2'] = {[1] = {[1] = '$expr'}, [2] = {[1] = 'PLUS', [2] = '$expr'}, ['variable'] = '$expr\'group#2'}, ['expr\'star#1'] = {[1] = {[1] = 'ID', [2] = '$expr\'star#1'}, [2] = {[1] = ''}, ['variable'] = '$expr\'star#1'}}
-__GRAMMAR__.grammar[1] = '/Users/leegao/sideproject/ParserSiProMo/testing/experimental_parser.table'
+__GRAMMAR__.grammar[1] = 'testing/experimental_parser.table'
 local string_stack = {}
 local function id(token) return function(...) return {token, ...} end end
 local function ignore(...) return end

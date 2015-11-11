@@ -4,9 +4,9 @@
 -- they are of the form
 --   e = x | e e | (e | e) | e* | e+ | ctrl
 
-local graph = require "graph"
-local utils = require "utils"
-local worklist = require "worklist"
+local graph = require "common.graph"
+local utils = require "common.utils"
+local worklist = require "common.worklist"
 
 local re = {}
 

@@ -24,9 +24,9 @@ single_rule := IDENTIFIER GETS $nonterminal
 rules := $single_rule $rules | %eps
 --]]--
 
-local ll1 = require 'll1'
-local utils = require 'utils'
-local tokenizer = require 'll1_tokenizer'
+local ll1 = require 'll1.ll1'
+local utils = require 'common.utils'
+local tokenizer = require 'parsing.ll1_tokenizer'
 
 local id = function(...) return ... end
 local ignore = function() return {} end
@@ -69,7 +69,7 @@ end
     print("Warning", "Are you sure you want to disable caching of this grammar? Specify %FILE otherwise.")
   end
   if not self.requires then
-    self.requires = {'ll1'}
+    self.requires = {'ll1.ll1'}
   end
   if not self.default_action then
     self.default_action = 'function(...) return {...} end'
@@ -241,7 +241,7 @@ local function synthesize(configuration, raw)
 end
 
 local grammar = ll1 {
---  '/Users/leegao/sideproject/ParserSiProMo/ll1_parsing.table',
+ 'parsing/ll1_parsing.table',
   root = {{'$top', action = id}},
   conf = {
     {'CONVERT', 'CODE', '$configuration_', 
@@ -288,8 +288,8 @@ local grammar = ll1 {
       end},
     {'REQUIRE', 'STRING', '$configuration_', 
       action = function(_, namespace, last)
-        if not last.requires then last.requires = {'ll1'} end
-        if namespace[2] ~= 'll1' then
+        if not last.requires then last.requires = {'ll1.ll1'} end
+        if namespace[2] ~= 'll1.ll1' then
           table.insert(last.requires, 1, namespace[2])
         end
         return last
@@ -490,7 +490,7 @@ local function epilogue(result)
   local functions = {}
   local code = ''
   for namespace in utils.loop(configuration.requires) do
-    code = code .. ('local %s = require \'%s\'\n'):format(namespace, namespace)
+    code = code .. ('local %s = require \'%s\'\n'):format(namespace:match("[a-zA-Z0-9_]+"), namespace)
   end
   code = code .. ('local %s = {}\n'):format(configuration.default)
 
@@ -573,7 +573,7 @@ local function parse(str)
   return epilogue(result)
 end
 
-local code, configuration = parse(io.open('/Users/leegao/sideproject/ParserSiProMo/lua/grammar.ylua'):read("*all"))
+local code, configuration = parse(io.open('lua/grammar.ylua'):read("*all"))
 os.remove(configuration.file .. '.table')
 local func, status = loadstring(code)
 if not func then

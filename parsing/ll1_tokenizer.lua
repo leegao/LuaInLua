@@ -1,7 +1,7 @@
 -- Frontend lexer for the parser
 
-local lex = require 'lex'
-local re = require 're'
+local lex = require 'parsing.lex'
+local re = require 'parsing.re'
 
 local code_stack = {}
 local string_stack = {}

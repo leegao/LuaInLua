@@ -2,10 +2,10 @@
 
 local left_recursion_elimination = {}
 
-local ll1 = require 'll1'
-local utils = require 'utils'
-local graph = require 'graph'
-local worklist = require 'worklist'
+local ll1 = require 'll1.ll1'
+local utils = require 'common.utils'
+local graph = require 'common.graph'
+local worklist = require 'common.worklist'
 
 local function hash(production)
   return table.concat({unpack(production)}, '`')

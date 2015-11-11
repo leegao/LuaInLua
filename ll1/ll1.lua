@@ -2,9 +2,9 @@
 
 local ll1 = {}
 
-local utils = require 'utils'
-local graph = require 'graph'
-local worklist = require 'worklist'
+local utils = require 'common.utils'
+local graph = require 'common.graph'
+local worklist = require 'common.worklist'
 
 local nonterminals = {}
 local configurations = {}

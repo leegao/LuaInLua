@@ -1,5 +1,5 @@
-local ll1 = require 'll1'
-local utils = require 'utils'
+local ll1 = require 'll1.ll1'
+local utils = require 'common.utils'
 
 local ignore = function(...) return end
 local id = function(...) 

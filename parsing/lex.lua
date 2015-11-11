@@ -2,7 +2,7 @@
 -- A tokenizer is an iterator over strings
 
 local lex = {}
-local re = require "re"
+local re = require "parsing.re"
 local alphabetical = re.compile("%a")
 
 local function lexicographical(a, b)

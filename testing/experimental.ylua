@@ -1,7 +1,7 @@
 // Parser frontend grammar (written in the parser for the same parser)
-%file "/Users/leegao/sideproject/ParserSiProMo/testing/experimental_parser"
-%require "lex"
-%require "re"
+%file "testing/experimental_parser"
+%require "parsing.lex"
+%require "parsing.re"
 
 /*
 root   = expr

@@ -1,6 +1,6 @@
 local parser = require "testing.elimination_parser"
-local ll1 = require 'll1'
-local elimination = require 'left_recursion_elimination'
+local ll1 = require 'll1.ll1'
+local elimination = require 'll1.elimination'
 
 local config = ll1.configure(parser.grammar)
 print(config:pretty())

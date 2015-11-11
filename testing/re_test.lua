@@ -1,5 +1,5 @@
-local re = require "re"
-local utils = require "utils"
+local re = require "parsing.re"
+local utils = require "common.utils"
 
 local function format_open(open)
   return open[1] .. '(' .. open[2] .. ')'

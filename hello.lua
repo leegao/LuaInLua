@@ -1,6 +1,6 @@
-local ll1 = require 'll1'
+local ll1 = require 'll1.ll1'
 local parser = require 'lua.parser'
-local utils = require 'utils'
+local utils = require 'common.utils'
 local config = ll1.configure(parser.grammar)
 --print(config:pretty())
 --print(utils.to_list(config:follow('block')))

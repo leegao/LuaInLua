@@ -1,4 +1,4 @@
-%file "/Users/leegao/sideproject/ParserSiProMo/lua/parser"
+%file "lua/parser"
 
 %resolve field Name {: function(self, tokens)
   if tokens[2] == '=' then

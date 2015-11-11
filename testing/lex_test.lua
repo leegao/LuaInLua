@@ -1,5 +1,5 @@
-local lex = require "lex"
-local re = require "re"
+local lex = require "parsing.lex"
+local re = require "parsing.re"
 local r = re.compile
 
 local string_stack = {}
