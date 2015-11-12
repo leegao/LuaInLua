@@ -33,22 +33,28 @@ end :}
   return self:go 'call'
 end :}
 
-%code {: local function always_reduce_group(self) return self:go '#present' end :}
-%resolve exp'maybe#1 '^' {: always_reduce_group :}
-%resolve exp'maybe#1 '==' {: always_reduce_group :}
-%resolve exp'maybe#1 '>=' {: always_reduce_group :}
-%resolve exp'maybe#1 '~=' {: always_reduce_group :}
-%resolve exp'maybe#1 '<=' {: always_reduce_group :}
-%resolve exp'maybe#1 '*' {: always_reduce_group :}
-%resolve exp'maybe#1 '>' {: always_reduce_group :}
-%resolve exp'maybe#1 '..' {: always_reduce_group :}
-%resolve exp'maybe#1 'and' {: always_reduce_group :}
-%resolve exp'maybe#1 'or' {: always_reduce_group :}
-%resolve exp'maybe#1 '/' {: always_reduce_group :}
-%resolve exp'maybe#1 '-' {: always_reduce_group :}
-%resolve exp'maybe#1 '+' {: always_reduce_group :}
-%resolve exp'maybe#1 '<' {: always_reduce_group :}
-%resolve exp'maybe#1 '%' {: always_reduce_group :}
+%code {: local function goto_present(self) return self:go '#present' end :}
+%resolve exp'maybe#1 '^' {: goto_present :}
+%resolve exp'maybe#1 '==' {: goto_present :}
+%resolve exp'maybe#1 '>=' {: goto_present :}
+%resolve exp'maybe#1 '~=' {: goto_present :}
+%resolve exp'maybe#1 '<=' {: goto_present :}
+%resolve exp'maybe#1 '*' {: goto_present :}
+%resolve exp'maybe#1 '>' {: goto_present :}
+%resolve exp'maybe#1 '..' {: goto_present :}
+%resolve exp'maybe#1 'and' {: goto_present :}
+%resolve exp'maybe#1 'or' {: goto_present :}
+%resolve exp'maybe#1 '/' {: goto_present :}
+%resolve exp'maybe#1 '-' {: goto_present :}
+%resolve exp'maybe#1 '+' {: goto_present :}
+%resolve exp'maybe#1 '<' {: goto_present :}
+%resolve exp'maybe#1 '%' {: goto_present :}
+
+%code {: local function goto_list(self) return self:go '#list' end :}
+%resolve exp'group#1'star#1 '[' {: goto_list :}
+%resolve exp'group#1'star#1 String {: goto_list :}
+%resolve exp'group#1'star#1 '{' {: goto_list :}
+%resolve exp'group#1'star#1 '(' {: goto_list :}
 
 %quote '(' LPAREN
 %quote ',' COMMA
@@ -243,6 +249,7 @@ parlist := (<namelist> Name ',';)+ (Name | '...';) | '...';
 // TODO: ensure that only the last $field has an optional $fieldsep
 tableconstructor := '{' $field* '}';
 
+// TODO ADD ? BACK!
 field := '[' $exp ']' '=' $exp $fieldsep? | <assign> Name '=' $exp $fieldsep? | <exp> $exp $fieldsep?;
 
 fieldsep [: {} :] := ',' | ';';

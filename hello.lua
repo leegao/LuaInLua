@@ -6,8 +6,8 @@ local config = ll1.configure(parser.grammar)
 --print(utils.to_list(config:follow('block')))
 --print(config:follows():dot())
 ll1.yacc(parser.grammar)
-print(utils.to_list(config:get_dependency_graph().reverse['suffixedexp\'star#1']))
-print(utils.to_list(config:follow('suffixedexp\'star#1')))
+-- print(utils.to_list(config:get_dependency_graph().reverse['suffixedexp\'star#1']))
+print(utils.to_list(config:first('stat')))
 
 local seen = {['suffixedexp\'star#1'] = true}
 for node, _, forward, reverse in config:get_dependency_graph():reverse_dfs('suffixedexp\'star#1') do
