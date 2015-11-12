@@ -32,7 +32,7 @@ end :}
 
 root := $block;
 
-block := $stat*;
+block := $stat* retstat?;
 
 stat := ';' | 
 //  $varlist '=' $explist | 
@@ -55,10 +55,6 @@ label := '::' Name '::';
 
 funcname := Name ('.' Name;)* (':' Name;)?;
 
-// varlist := $var (',' $var;)*;
-
-// var := Name | $primaryexp ('[' $exp ']' | '.' Name;);
-
 namelist := Name (',' Name;)*;
 
 explist := $exp (',' $exp;)*;
@@ -70,12 +66,17 @@ suffixedexp := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | $args;)*;
 primaryexp := Name | '(' $exp ')';
 
 // %eps is func, the other 2 are assignments
+// let's rule out the possibility of f() = x
 assignment_or_call := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | <call> $args;)* $assignment?;
 assignment := ',' $suffixedexp $assignment | '=' $explist;
 
-// primaryexp := $var | $functioncall | '(' $exp ')';
+// prefixexp := $var | $functioncall | '(' $exp ')';
 
-// functioncall := $primaryexp ($args | ':' Name $args;);
+// functioncall := $prefixexp ($args | ':' Name $args;);
+
+// varlist := $var (',' $var;)*;
+
+// var := Name | $prefixexp ('[' $exp ']' | '.' Name;);
 
 args := '(' $explist? ')' | $tableconstructor | String;
 
@@ -85,7 +86,8 @@ funcbody := '(' $parlist? ')' $block end;
 
 parlist := (<namelist> Name ',';)+ (Name | '...';) | '...';
 
-tableconstructor := '{' $fieldlist? '}';
+// TODO: disambiguate by restricting { fieldsep }
+tableconstructor := '{' $fieldlist? fieldsep? '}';
 
 fieldlist := $field ($fieldsep $field;)*;
 
