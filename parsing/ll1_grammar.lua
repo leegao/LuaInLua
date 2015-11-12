@@ -125,7 +125,7 @@ end
 local function star(object, variable)
   return {
     variable = '$' .. variable,
-    {object[2], '$' .. variable,  action = trim "function(item, list) table.insert(list, item); return list end"},
+    {object[2], '$' .. variable, tag = '#list', action = trim "function(item, list) table.insert(list, item); return list end"},
     {'',  action = trim "function() return {} end"},
   }, variable
 end
@@ -143,13 +143,13 @@ function synthesis.local_synthesis(configuration, raw_production, context)
   elseif raw_action and raw_action[1] == 'REFERENCE' then
     -- function(_1, _2, ...) 
     --   local all = {_1, _2, ...}
-    local n = #production
+    local n = #raw_production
     local all = {}
     for i = 1,n do table.insert(all, '_' .. i) end
     all = table.concat(all, ', ')
     production.action = trim([[
 function(%s)
-return %s
+  return %s
 end
 ]]):format(all, raw_action[2]:gsub("*all", all))
   end
@@ -197,7 +197,8 @@ end
         local new_plus = {
           variable = '$' .. variable,
           {inner[2], '$' .. star_var, 
-          action = trim [[
+            tag = '#list',
+            action = trim [[
   function(item, list)
     table.insert(list, item)
     return list
@@ -208,7 +209,7 @@ end
       else
         local new_maybe = {
           variable = '$' .. variable,
-          {inner[2],  action = trim "function(item) return {item} end"},
+          {inner[2], tag = '#present', action = trim "function(item) return {item} end"},
           {'',  action = trim "function() return {} end"},
         }
         table.insert(new_synthesis, new_maybe)
@@ -316,6 +317,16 @@ local grammar = ll1 {
         table.insert(last.resolvers[id[2]], {conflict, action})
         return last
       end},
+    {'PRODUCTION', 'IDENTIFIER', '$production_', '$configuration_', 
+      action = function(_, id, _, last)
+        if not last.productions then last.productions = {} end
+        last.productions[id[2]] = true
+        return last
+      end},
+  },
+  production_ = {
+    {'STRING', action = ignore}, 
+    {'', action = ignore},
   },
   id_or_quote = {
     {'IDENTIFIER', action = id},
@@ -333,28 +344,7 @@ local grammar = ll1 {
     {'$conf', 
       action = function(code) 
         return code 
-      end}},
-  
-  production = {
-    {'PRODUCTION', 'IDENTIFIER', '$production_', 
-      action = function(_, id)
-        return id[2]
       end},
-  },
-  production_ = {
-    {'STRING', action = ignore}, 
-    {'', action = ignore},
-  },
-  production_list = {
-    {'$production', "$production_list'", 
-      action = function(production, list)
-        list[production] = true
-        return list
-      end},
-  },
-  ['production_list\''] = {
-    {'', action = function() return {} end},
-    {'$production_list', action = id},
   },
 -- single_rhs := IDENTIFIER | VARIABLE | EPS | QUOTED | '(' $nonterminal ')
 -- valid_rhs := $single_rhs valid_postfix
@@ -396,27 +386,18 @@ local grammar = ll1 {
     {'$rhs_list', action = id},
   },
   top = {
-    {'$conf', '$top_no_convert', 
-      action = function(configuration, pair)
-        local list, rules = unpack(pair)
-        configuration.productions = list
+    {'$conf', '$rules', 
+      action = function(configuration, rules)
         configuration:finalize()
         -- convert productions over 
         return {configuration, rules}
       end},
-    {'$top_no_convert', 
+    {'$rules', 
       action = function(rules)
-        local list, rules = unpack(pair)
         local configuration = setmetatable({}, {__index = conf})
-        configuration.productions = list
         configuration:finalize()
         return {configuration, rules}
       end},
-  },
-  top_no_convert = {
-    {'$production_list', '$rules', 
-      action = function(list, rules) return {list, rules} end},
-    {'$rules', action = function(rules) return {{}, rules} end},
   },
   nonterminal = {
     -- 'tag?'
@@ -462,10 +443,22 @@ local grammar = ll1 {
       end},
   },
   single_rule = {
-    {'IDENTIFIER', 'GETS', '$nonterminal', 
-      action = function(id, _, nonterminals)
+    {'IDENTIFIER', '$code_or_ref_opt', 'GETS', '$nonterminal', 
+      action = function(id, default, _, nonterminals)
+        if #default ~= 0 then
+          for production in utils.loop(nonterminals) do
+            if not production.action then
+              production.action = default
+            end
+          end
+        end
         return {id[2], nonterminals}
       end}
+  },
+  code_or_ref_opt = {
+    {'', action = function() return {} end},
+    {'CODE', action = id},
+    {'REFERENCE', action = id}
   },
   rules = {
     {'$single_rule', '$rules', 

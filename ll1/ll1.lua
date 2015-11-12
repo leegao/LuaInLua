@@ -416,8 +416,8 @@ function yacc:parse(tokens, state, trace)
     end
   end
   local production = self.configuration[state][production_index]
-  local local_trace = {state, converted_token, utils.copy(tokens), production}
-  table.insert(trace, local_trace)
+  -- local local_trace = {state, converted_token, utils.copy(tokens), production}
+  -- table.insert(trace, local_trace)
   if production_index == ERROR then
     print("Error", state, tostring(token), "Candidates are:")
     for production in utils.loop(self.configuration[state]) do
@@ -434,7 +434,7 @@ function yacc:parse(tokens, state, trace)
         return ERROR, trace
       end
       table.insert(args, ret)
-    elseif current_token ~= EOF and node ~= EPS then
+    elseif converted_token ~= EOF and node ~= EPS then
       local token = consume(tokens)
       if not token then token = EOF end
       if node ~= tostring(token) then
@@ -442,8 +442,9 @@ function yacc:parse(tokens, state, trace)
         return ERROR, trace
       end
       table.insert(args, token)
-    elseif current_token ~= EOF and node == EPS then
+    elseif converted_token ~= EOF and node == EPS then
       -- don't do anything
+      assert(production[1] == EPS)
     else
       local token = consume(tokens)
       if token then
@@ -452,7 +453,7 @@ function yacc:parse(tokens, state, trace)
       end
     end
   end
-  table.insert(local_trace, args)
+  -- table.insert(local_trace, args)
   local success, result = pcall(production.action, unpack(args))
   if not success then
     print("ERROR", state, tostring(token), "Cannot call action: " .. result)
