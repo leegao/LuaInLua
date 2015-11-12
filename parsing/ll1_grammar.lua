@@ -21,7 +21,8 @@ nonterminal := TAG? $rhs_list $nonterminal'
 nonterminal' := CODE nonterminal'' | REFERENCE nonterminal'' | SEMICOLON | OR $nonterminal
 nonterminal'' := eps | OR $nonterminal
 single_rule := IDENTIFIER GETS $nonterminal
-rules := $single_rule $rules | %eps
+rules_or_code := $single_rule $rules_or_code | CODE $rules_or_code
+rules := $single_rule $rules_or_code | %eps
 --]]--
 
 local ll1 = require 'll1.ll1'
@@ -387,15 +388,23 @@ local grammar = ll1 {
   },
   top = {
     {'$conf', '$rules', 
-      action = function(configuration, rules)
+      action = function(configuration, rules_)
+        local rules, code = unpack(rules_)
         configuration:finalize()
+        if #code ~= 0 then
+          configuration.top_level = configuration.top_level .. '\n' .. code
+        end
         -- convert productions over 
         return {configuration, rules}
       end},
     {'$rules', 
-      action = function(rules)
+      action = function(rules_)
+        local rules, code = unpack(rules_)
         local configuration = setmetatable({}, {__index = conf})
         configuration:finalize()
+        if #code ~= 0 then
+          configuration.top_level = configuration.top_level .. '\n' .. code
+        end
         return {configuration, rules}
       end},
   },
@@ -460,14 +469,32 @@ local grammar = ll1 {
     {'CODE', action = id},
     {'REFERENCE', action = id}
   },
-  rules = {
-    {'$single_rule', '$rules', 
-      action = function(rule, rules)
+  -- rules_or_code := $single_rule $rules_or_code | CODE $rules_or_code
+  rules_or_code = {
+    {'$single_rule', '$rules_or_code', 
+      action = function(rule, list)
         local id, nonterminal = unpack(rule)
+        local rules, code = unpack(list)
         rules[id] = nonterminal
-        return rules
+        return {rules, code} 
       end},
-    {'', action = function() return {} end}
+    {'TOP_LEVEL', 'CODE', '$rules_or_code',
+      action = function(_, code, list)
+        local rules, codes = unpack(list)
+        codes = trim(code[2]) .. '\n' .. codes
+        return {rules, codes}
+      end},
+    {'', action = function() return {{}, ''} end},
+  },
+  rules = {
+    {'$single_rule', '$rules_or_code', 
+      action = function(rule, rules_or_code)
+        local id, nonterminal = unpack(rule)
+        local rules, codes = unpack(rules_or_code)
+        rules[id] = nonterminal
+        return {rules, codes}
+      end},
+    {'', action = function() return {{}, ''} end}
   },
 }
 
