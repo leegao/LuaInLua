@@ -174,7 +174,13 @@ function ast:__newindex(key, val)
   assert(not val.parent)
   rawset(val, 'parent', self)
 end
-setmetatable(ast, ast)
+
+function ast:set(key, val)
+  self[key] = val
+  return self
+end
+
+setmetatable(ast, {__index = ast, __newindex = ast.__newindex})
 
 local function node(kind)
   return setmetatable({kind = kind}, ast)
@@ -200,62 +206,62 @@ stat := ';' |
   'do' $block 'end' | 
   'while' $exp 'do' $block 'end' | 
   'repeat' $block 'until' $exp | 
-  'if' $exp 'then' $block ('elseif' $exp 'then' $block;)* ('else' $block;)? 'end' | 
+  'if' $exp 'then' $block ('elseif' $exp 'then' $block)* ('else' $block)? 'end' | 
   'for' (
-      <forcounter> Name '=' $exp ',' $exp (',' $exp;)? 'do' $block 'end' | 
-      <foreach> $namelist 'in' $explist 'do' $block 'end';) | 
+      <forcounter> Name '=' $exp ',' $exp (',' $exp)? 'do' $block 'end' | 
+      <foreach> $namelist 'in' $explist 'do' $block 'end') | 
   'function' $funcname $funcbody | 
-  'local' ('function' Name $funcbody | $namelist ('=' $explist;)?;);
+  'local' ('function' Name $funcbody | $namelist ('=' $explist)?)
 
-retstat := 'return' $explist? ';'?;
+retstat := 'return' $explist? ';'?
 
-label := '::' Name '::';
+label := '::' Name '::'
 
-funcname := Name ('.' Name;)* (':' Name;)?;
+funcname := Name ('.' Name)* (':' Name)?
 
-namelist := Name (',' Name;)*;
+namelist := Name (',' Name)*
 
-explist := $exp (',' $exp;)*;
+explist := $exp (',' $exp)*
 
 // there's a conflict on $binop between reducing the maybe? rule or going into the binop of the exp.
 // luckily for us, since not binds are not as tight as the binary operators, we'd always be reducing the rule
 exp := ('nil' | 'false' | 'true' | Number | String | '...' | $functiondef | 
-  $primaryexp $suffix* | $tableconstructor | $unop $exp;) ($binop $exp;)?; // TODO: resolve conflict @ suffix*
+  $primaryexp $suffix* | $tableconstructor | $unop $exp) ($binop $exp)? // TODO: resolve conflict @ suffix*
 
-suffix := '.' Name | '[' $exp ']' | ':' Name $args | $args;
-primaryexp := Name | '(' $exp ')';
+suffix := '.' Name | '[' $exp ']' | ':' Name $args | $args
+primaryexp := Name | '(' $exp ')'
 
 // %eps is func, the other 2 are assignments
 // let's rule out the possibility of f() = x
-assignment_or_call := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | <call> $args;)* $assignment?;
-assignment := ',' $primaryexp $suffix* $assignment | '=' $explist;
+assignment_or_call := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | <call> $args)* $assignment?
+assignment := ',' $primaryexp $suffix* $assignment | '=' $explist
 
-// prefixexp := $var | $functioncall | '(' $exp ')';
+// prefixexp := $var | $functioncall | '(' $exp ')'
 
-// functioncall := $prefixexp ($args | ':' Name $args;);
+// functioncall := $prefixexp ($args | ':' Name $args)
 
-// varlist := $var (',' $var;)*;
+// varlist := $var (',' $var)*
 
-// var := Name | $prefixexp ('[' $exp ']' | '.' Name;);
+// var := Name | $prefixexp ('[' $exp ']' | '.' Name)
 
-args := '(' $explist? ')' | $tableconstructor | String;
+args := '(' $explist? ')' | $tableconstructor | String
 
-functiondef := 'function' $funcbody;
+functiondef := 'function' $funcbody
 
-funcbody := '(' $parlist? ')' $block 'end';
+funcbody := '(' $parlist? ')' $block 'end'
 
-parlist := (<namelist> Name ',';)+ (Name | '...';) | '...';
+parlist := (<namelist> Name ',')+ (Name | '...') | '...'
 
 // TODO: ensure that only the last $field has an optional $fieldsep
-tableconstructor := '{' $field* '}';
+tableconstructor := '{' $field* '}' 
+    [: node('table'):set('fields', _2) :]
 
-// TODO ADD ? BACK!
-field := '[' $exp ']' '=' $exp $fieldsep? | <assign> Name '=' $exp $fieldsep? | <exp> $exp $fieldsep?;
+field := '[' $exp ']' '=' $exp $fieldsep? | <assign> Name '=' $exp $fieldsep? | <exp> $exp $fieldsep?
 
-fieldsep [: {} :] := ',' | ';';
+fieldsep [: {} :] := ',' | ';'
 
 binop [: from(_1) :] := '+' | '-' | '*' | '/' | '^' | '%' | '..' | 
   '<' | '<=' | '>' | '>=' | '==' | '~=' | 
-  'and' | 'or';
+  'and' | 'or'
 
-unop [: from(_1) :] := '-' | 'not' | '#';
+unop [: from(_1) :] := '-' | 'not' | '#'

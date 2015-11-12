@@ -251,7 +251,7 @@ local function synthesize(configuration, raw)
 end
 
 local grammar = ll1 {
- 'parsing/ll1_parsing.table',
+ -- 'parsing/ll1_parsing.table',
   root = {{'$top', action = id}},
   conf = {
     {'CONVERT', 'CODE', '$configuration_', 
@@ -384,7 +384,16 @@ local grammar = ll1 {
   },
   rhs_list_ = {
     {'', action = function() return {} end},
-    {'$rhs_list', action = id},
+    {'$rhs_list', action = id, tag = 'rhs'},
+    conflict = {
+      IDENTIFIER = function(self, tokens)
+        print("oracle", unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 4)))
+        if tokens[2][1] == 'GETS' or tokens[3][1] == 'GETS' then
+          return self:go ''
+        end
+        return self:go 'rhs'
+      end
+    }
   },
   top = {
     {'$conf', '$rules', 
@@ -440,6 +449,10 @@ local grammar = ll1 {
         return {nil, nonterminal}
       end},
     {'SEMICOLON', 
+      action = function()
+        return {nil, {}}
+      end},
+    {'', 
       action = function()
         return {nil, {}}
       end},

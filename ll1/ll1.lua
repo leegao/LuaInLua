@@ -419,6 +419,7 @@ function yacc:parse(tokens, state, trace)
   -- local local_trace = {state, converted_token, utils.copy(tokens), production}
   -- table.insert(trace, local_trace)
   if production_index == ERROR then
+    print("meh", unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
     print("Error", state, tostring(token), "Candidates are:")
     for production in utils.loop(self.configuration[state]) do
       print('', '', table.concat(utils.map(function(x) return (x == '' and 'eps') or tostring(x) end, production), ' '))
