@@ -85,18 +85,64 @@ end :}
 %quote 'break' BREAK
 
 // Character classes of tokens
-%production Name ""
+%production Name "class of valid identifiers"
+%production String "class of valid strings"
+%production Number "class of valid numbers"
 
-%production FUNCTION ""
-%production EQ ""
-%production COMMA ""
+%production FUNCTION
+%production EQ
+%production COMMA
 %production QUAD
 %production PERIOD
+%production LPAREN
+%production RPAREN
+%production END
+%production SEMICOLON
+%production LBRACE
+%production RBRACE
+%production OR
+%production AND
+%production NOTEQ
+%production EQEQ
+%production GE
+%production GT
+%production LE
+%production LT
+%production CONCAT
+%production MOD
+%production POW
+%production DIV
+%production MUL
+%production MIN
+%production PLUS
+%production LBRACK
+%production RBRACK
+%production LOCAL
+%production FOR
+%production IF
+%production THEN
+%production REPEAT
+%production UNTIL
+%production WHILE
+%production DO
+%production GOTO
+%production BREAK
+%production IN
+%production RETURN
+%production DOTS
+%production TRUE
+%production FALSE
+%production NIL
+%production ELSE
+%production ELSEIF
+%production HASH
+%production NOT
+%production COLON
 
 // A lua file is just a block
 root := $block;
 
-block := $stat* retstat?;
+block := $stat* $retstat?;
 
 stat := ';' | 
 //  $varlist '=' $explist | 
