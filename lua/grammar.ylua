@@ -1,7 +1,9 @@
 %file "lua/parser"
 
+
+// Conflict resolvers, since the approximation of Lua we're parsing is not LL(1) (but is LL(2))
 %resolve field Name {: function(self, tokens)
-  if tokens[2] == '=' then
+  if tokens[2] == 'EQ' then
     return self:go 'assign'
   else
     return self:go 'exp'
@@ -10,7 +12,7 @@ end :}
 
 // resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
 %resolve parlist'star#1 Name {: function(self, tokens)
-  if tokens[2] == ',' then
+  if tokens[2] == 'COMMA' then
     return self:go 'namelist'
   else
     return self:go ''
@@ -18,18 +20,80 @@ end :}
 end :}
 
 %resolve stat'group#2 Name {: function(self, tokens)
-  if tokens[2] == '=' then
+  if tokens[2] == 'EQ' then
     return self:go 'forcounter'
   else
     return self:go 'foreach'
   end
 end :}
 
+// Hack to get around the fact that one branch of this is always
+// "dead" states that would get killed later on anyways
 %resolve assignment_or_call'star#1 '(' {: function(self, tokens)
   -- always reduce to call
   return self:go 'call'
 end :}
 
+%quote '(' LPAREN
+%quote ',' COMMA
+%quote ':' COLON
+%quote '[' LBRACK
+%quote ']' RBRACK
+%quote '.' PERIOD
+%quote '~=' NOTEQ
+%quote '==' EQEQ
+%quote '>=' GE
+%quote '>' GT
+%quote '<=' LE
+%quote '<' LT
+%quote '..' CONCAT
+%quote '%' MOD
+%quote '^' POW
+%quote '/' DIV
+%quote '*' MUL
+%quote '-' MIN
+%quote '+' PLUS
+%quote '=' EQ
+%quote '#' HASH
+%quote ')' RPAREN
+%quote ';' SEMICOLON
+%quote '...' DOTS
+%quote '{' LBRACE
+%quote '}' RBRACE
+%quote '::' QUAD
+%quote 'function' FUNCTION
+%quote 'true' TRUE
+%quote 'false' FALSE
+%quote 'nil' NIL
+%quote 'or' OR
+%quote 'and' AND
+%quote 'return' RETURN
+%quote 'local' LOCAL
+%quote 'for' FOR
+%quote 'in' IN
+%quote 'do' DO
+%quote 'end' END
+%quote 'if' IF
+%quote 'not' NOT
+%quote 'then' THEN
+%quote 'else' ELSE
+%quote 'elseif' ELSEIF
+%quote 'repeat' REPEAT
+%quote 'until' UNTIL
+%quote 'while' WHILE
+%quote 'goto' GOTO
+%quote 'break' BREAK
+
+// Character classes of tokens
+%production Name ""
+
+%production FUNCTION ""
+%production EQ ""
+%production COMMA ""
+%production QUAD
+%production PERIOD
+
+// A lua file is just a block
 root := $block;
 
 block := $stat* retstat?;
@@ -39,17 +103,19 @@ stat := ';' |
 //  $functioncall | // ( conflicts with var's (
   $assignment_or_call |
   $label | 
-  break | 
-  goto Name | 
-  do $block end | 
-  while $exp do $block end | 
-  repeat $block until $exp | 
-  if $exp then $block (elseif $exp then $block;)* (else $block;)? end | 
-  for (<forcounter> Name '=' $exp ',' $exp (',' $exp;)? do $block end | <foreach> $namelist in $explist do $block end;) | 
-  function $funcname $funcbody | 
-  local (function Name $funcbody | $namelist ('=' $explist;)?;);
+  'break' | 
+  'goto' Name | 
+  'do' $block 'end' | 
+  'while' $exp 'do' $block 'end' | 
+  'repeat' $block 'until' $exp | 
+  'if' $exp 'then' $block ('elseif' $exp 'then' $block;)* ('else' $block;)? 'end' | 
+  'for' (
+      <forcounter> Name '=' $exp ',' $exp (',' $exp;)? 'do' $block 'end' | 
+      <foreach> $namelist 'in' $explist 'do' $block 'end';) | 
+  'function' $funcname $funcbody | 
+  'local' ('function' Name $funcbody | $namelist ('=' $explist;)?;);
 
-retstat := return $explist? ';'?;
+retstat := 'return' $explist? ';'?;
 
 label := '::' Name '::';
 
@@ -59,8 +125,8 @@ namelist := Name (',' Name;)*;
 
 explist := $exp (',' $exp;)*;
 
-exp := (nil | false | true | Number | String | '...' | $functiondef | 
-  $suffixedexp | $tableconstructor | $unop exp;) $binop $exp;
+exp := ('nil' | 'false' | 'true' | Number | String | '...' | $functiondef | 
+  $suffixedexp | $tableconstructor | $unop $exp;) $binop $exp;
 
 suffixedexp := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | $args;)*;
 primaryexp := Name | '(' $exp ')';
@@ -80,23 +146,21 @@ assignment := ',' $suffixedexp $assignment | '=' $explist;
 
 args := '(' $explist? ')' | $tableconstructor | String;
 
-functiondef := function $funcbody;
+functiondef := 'function' $funcbody;
 
-funcbody := '(' $parlist? ')' $block end;
+funcbody := '(' $parlist? ')' $block 'end';
 
 parlist := (<namelist> Name ',';)+ (Name | '...';) | '...';
 
-// TODO: disambiguate by restricting { fieldsep }
-tableconstructor := '{' $fieldlist? fieldsep? '}';
+// TODO: ensure that only the last $field has an optional $fieldsep
+tableconstructor := '{' $field* '}';
 
-fieldlist := $field ($fieldsep $field;)*;
-
-field := '[' $exp ']' '=' $exp | <assign> Name '=' $exp | <exp> $exp;
+field := '[' $exp ']' '=' $exp $fieldsep? | <assign> Name '=' $exp $fieldsep? | <exp> $exp $fieldsep?;
 
 fieldsep := ',' | ';';
 
 binop := '+' | '-' | '*' | '/' | '^' | '%' | '..' | 
   '<' | '<=' | '>' | '>=' | '==' | '~=' | 
-  and | or;
+  'and' | 'or';
 
-unop := '-' | not | '#';
+unop := '-' | 'not' | '#';

@@ -28,6 +28,8 @@ local ll1 = require 'll1.ll1'
 local utils = require 'common.utils'
 local tokenizer = require 'parsing.ll1_tokenizer'
 
+local EPS = ''
+
 local id = function(...) return ... end
 local ignore = function() return {} end
 
@@ -35,6 +37,9 @@ local function flatten(configuration, object)
   if object[1] == 'QUOTED' and configuration.quotes[object[2]] then
     return configuration.quotes[object[2]]
   else
+    if object[1] == 'QUOTED' then
+      print(("WARNING: '%s' does not have an associated identifier."):format(object[2]))
+    end
     return object[2]
   end
 end
@@ -76,6 +81,9 @@ end
   end
   if not self.quotes then
     self.quotes = {}
+  end
+  if not self.productions then
+    self.productions = {}
   end
   local conflict_resolvers = self.resolvers or {}
   self.resolvers = {}
@@ -329,28 +337,24 @@ local grammar = ll1 {
   
   production = {
     {'PRODUCTION', 'IDENTIFIER', '$production_', 
-      action = function(_, id, self)
-        self.id = id
-        return self
+      action = function(_, id)
+        return id[2]
       end},
   },
   production_ = {
-    {'STRING', 
-      action = function(str)
-        return {string = str}
-      end}, 
-    {'', action = function() return {} end},
+    {'STRING', action = ignore}, 
+    {'', action = ignore},
   },
   production_list = {
     {'$production', "$production_list'", 
       action = function(production, list)
-        table.insert(list, production)
+        list[production] = true
         return list
       end},
   },
   ['production_list\''] = {
     {'', action = function() return {} end},
-    {'$production_list', action = function(list) return list end},
+    {'$production_list', action = id},
   },
 -- single_rhs := IDENTIFIER | VARIABLE | EPS | QUOTED | '(' $nonterminal ')
 -- valid_rhs := $single_rhs valid_postfix
@@ -393,22 +397,26 @@ local grammar = ll1 {
   },
   top = {
     {'$conf', '$top_no_convert', 
-      action = function(configuration, rules)
+      action = function(configuration, pair)
+        local list, rules = unpack(pair)
+        configuration.productions = list
         configuration:finalize()
         -- convert productions over 
         return {configuration, rules}
       end},
     {'$top_no_convert', 
       action = function(rules)
+        local list, rules = unpack(pair)
         local configuration = setmetatable({}, {__index = conf})
+        configuration.productions = list
         configuration:finalize()
         return {configuration, rules}
       end},
   },
   top_no_convert = {
     {'$production_list', '$rules', 
-      action = function(_, rules) return rules end},
-    {'$rules', action = id},
+      action = function(list, rules) return {list, rules} end},
+    {'$rules', action = function(rules) return {{}, rules} end},
   },
   nonterminal = {
     -- 'tag?'
@@ -486,6 +494,15 @@ local function epilogue(result)
   local configuration, raw = unpack(result)
   -- all nonterminals are unpacked, which means some productions may have postfixes or nonterminals
   local actions = synthesize(configuration, raw)
+  for variable, nonterminal in pairs(actions) do
+    for production in utils.loop(nonterminal) do
+      for object in utils.loop(production) do
+        if object ~= EPS and object:sub(1, 1) ~= '$' and not configuration.productions[object] then
+          print(("WARNING: The token identifier %s is not defined."):format(object))
+        end
+      end
+    end
+  end
   local name = configuration.default
   local functions = {}
   local code = ''
