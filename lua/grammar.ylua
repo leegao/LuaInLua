@@ -113,7 +113,6 @@
 
 local ast = {}
 function ast:__newindex(key, val)
-  print(key, val)
   if type(key) ~= 'string' then
     rawset(self, key, val)
   end
@@ -150,7 +149,6 @@ local function node(kind)
 end
 
 local function from(token)
-  print(token)
   local leaf = node 'leaf'
   leaf.value = token
   return leaf
@@ -186,7 +184,12 @@ stat := ';' [: node 'empty' :]
             [: node('foreach'):set('names', _1):set('iterator', _3):set('block', _5) :]) 
               /* Whole action */ [: _2 :]
       | 'function' $funcname $funcbody 
-      | 'local' ('function' Name $funcbody | $namelist ('=' $explist)?)
+          [: node('functiondef'):set('funcname', _2):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2])) :]
+      | 'local' ('function' Name $funcbody 
+            [: node('localfunctiondef'):set('name', from(_2)):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2])) :]
+        | $namelist ('=' $explist [: _2 :])?
+            [: node('localassign'):set('left', _1):set(right, _2[1]) :]
+            ) [: _2 :]
 
 %resolve stat'group#2 Name {: function(self, tokens)
   if tokens[2] == 'EQ' then
@@ -203,12 +206,14 @@ label := '::' Name '::' [: node('label'):set('name', from(_2)) :]
 
 funcname := Name ('.' Name [: from(_2) :])* (':' Name [: from(_2) :])? {:
   function(name, names, colon)
+    local tree = node 'funcnames'
     colon = colon[1]
-    table.insert(names, 1, from(name))
+    tree:list(name)
+    tree:list(unpack(names))
     if colon then
-      table.insert(names, colon)
-      names.colon = colon
+      tree.colon = colon
     end
+    return tree
   end
 :}
 
