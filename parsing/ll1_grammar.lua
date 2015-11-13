@@ -251,7 +251,7 @@ local function synthesize(configuration, raw)
 end
 
 local grammar = ll1 {
- -- 'parsing/ll1_parsing.table',
+  'parsing/ll1_parsing.table',
   root = {{'$top', action = id}},
   conf = {
     {'CONVERT', 'CODE', '$configuration_', 
