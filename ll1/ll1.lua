@@ -457,7 +457,8 @@ function yacc:parse(tokens, state, trace)
   -- table.insert(local_trace, args)
   local success, result = pcall(production.action, unpack(args))
   if not success then
-    print("ERROR", state, tostring(token), "Cannot call action: " .. result)
+    print("ERROR", "Cannot call action: " .. result)
+    print("  From", state, tostring(token), table.concat(utils.map(tostring, production), ' '))
     return ERROR, trace
   end
   return result, trace

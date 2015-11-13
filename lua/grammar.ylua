@@ -237,7 +237,36 @@ explist := $exp (',' $exp [: _2 :])* {:
 
 %code {:
 -- this will either reduce to an index, a call, a name, or a grouped expression
-local function handle_primary_suffix(primary, suffixlist)
+-- // Shape of a suffix: {index = shape(from(name)), args = shape(args)}
+-- suffix := '.' Name {\: suffix_dot :\} // field
+--         | '[' $exp ']' {\: suffix_bracket :\} // field
+--         | ':' Name $args {\: suffix_colon :\} // arg
+--         | $args {\: suffix_args :\} // arg
+-- primaryexp := Name [: from(_1) :] 
+--         | '(' $exp ')' [: _2 :]
+-- primary_suffix := $primaryexp $suffix*
+-- Plan: recurse on the structural inductive properties of a list
+local function handle_primary_suffix(left, suffixlist)
+  if #suffixlist == 0 then
+    return left
+  end
+  -- pop the first element out of suffixlist
+  local suffix = suffixlist[1]
+  local rest = utils.sublist(suffixlist, 2)
+  if suffix.index and not suffix.args then
+    return handle_primary_suffix(
+        node('index'):set('left', left):set('right', suffix.index), 
+        rest)
+  elseif suffix.args and not suffix.index then
+    return handle_primary_suffix(
+        node('call'):set('target', left):set('args', suffix.args), 
+        rest)
+  elseif suffix.args and suffix.index then
+    local index = node('index'):set('left', left):set('right', suffix.index)
+    return handle_primary_suffix(
+        node('selfcall'):set('target', index):set('args', suffix.args), 
+        rest)
+  end
   error 'unimplemented'
 end
 :}
