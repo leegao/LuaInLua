@@ -118,9 +118,9 @@ function ast:__newindex(key, val)
   end
   assert(not self[key], 'Fields passed to a node should be initialized only once.')
   rawset(self, key, val)
-  table.insert(self, val)
   -- other stuff
   if val.kind then
+    table.insert(self, val)
     assert(not val.parent, 'Fields passed to a node should be unowned.')
     rawset(val, 'parent', self)
   end
@@ -199,10 +199,16 @@ namelist := Name (',' Name)*
 
 explist := $exp (',' $exp)*
 
+%code {:
+local function handle_primary_suffix(primary, suffixlist)
+  error 'unimplemented'
+end
+:}
+
 // there's a conflict on $binop between reducing the maybe? rule or going into the binop of the exp.
 // luckily for us, since not binds are not as tight as the binary operators, we'd always be reducing the rule
 exp := ('nil' | 'false' | 'true' | Number | String | '...' | $functiondef | 
-  $primaryexp $suffix* | $tableconstructor | $unop $exp) ($binop $exp)? // TODO: resolve conflict @ suffix*
+  $primaryexp $suffix* {: handle_primary_suffix :} | $tableconstructor | $unop $exp) ($binop $exp)? // TODO: resolve conflict @ suffix*
 
 %code {: local function goto_present(self) return self:go '#present' end :}
 %resolve exp'maybe#1 '^' {: goto_present :}
@@ -227,14 +233,75 @@ exp := ('nil' | 'false' | 'true' | Number | String | '...' | $functiondef |
 %resolve exp'group#1'star#1 '{' {: goto_list :}
 %resolve exp'group#1'star#1 '(' {: goto_list :}
 
+%code {:
+  local function suffix_dot(_, name)
+    return {
+      index = from(name),
+      args = nil,
+    }
+  end
+  local function suffix_bracket(_, exp)
+    return {
+      index = exp,
+      args = nil,
+    }
+  end
+  local function suffix_colon(_, name, args)
+    return {
+      index = from(name),
+      args = args,
+    }
+  end
+  local function suffix_args(args)
+    return {
+      index = nil,
+      args = args,
+    }
+  end
+:}
 
-suffix := '.' Name | '[' $exp ']' | ':' Name $args | $args
-primaryexp := Name | '(' $exp ')'
+suffix := '.' Name {: suffix_dot :} | '[' $exp ']' {: suffix_bracket :} | ':' Name $args {: suffix_colon :} | $args {: suffix_args :}
+primaryexp := Name [: from(_1) :] | '(' $exp ')' [: _2 :]
 
 // %eps is func, the other 2 are assignments
 // let's rule out the possibility of f() = x
-assignment_or_call := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | <call> $args)* $assignment?
-assignment := ',' $primaryexp $suffix* $assignment | '=' $explist
+assignment_or_call := $primaryexp (
+                          '.' Name {: suffix_dot :}
+                        | '[' $exp ']' {: suffix_bracket :}
+                        | ':' Name $args {: suffix_colon :}
+                        | <call> $args {: suffix_args :})* $assignment?
+                      {:
+                        function(left, suffixes, assignment_opt)
+                          local assignment = #assignment_opt == 0 and {} or assignment_opt[1]
+                          -- let's reduce to call or assignment
+                          if (#suffixes == 0 or not suffixes[#suffixes].arg) and #assignment == 0 then
+                            error('Parser error: you can only specify a call or an assignment here')
+                          end
+                          if #suffixes ~= 0 and #assignment ~= 0 and suffixes[#suffixes].arg then
+                            error 'Parser error: you cannot assign to a call'
+                          end
+                          
+                          if #assignment ~= 0 then
+                            -- assignment case
+                            -- assignment is a list of subsequent assignments
+                            local lvals, rvals = unpack(assignment)
+                            local tree = node 'assignments'
+                            tree.left = lvals
+                            tree.right = rvals
+                          else
+                            -- call case
+                            return handle_primary_suffix(left, suffixes)
+                          end
+                        end
+                      :}
+assignment := ',' $primaryexp $suffix* $assignment 
+              {: 
+                function(_1, _2, _3) 
+                  local left, right = unpack(_3)
+                  left:list(handle_primary_suffix(_1, _2)); 
+                  return {left, right}
+                end :}
+            | '=' $explist [: {node 'lvalue', _2} :]
 
 // Hack to get around the fact that one branch of this is always
 // "dead" states that would get killed later on anyways
@@ -248,9 +315,9 @@ end :}
     // varlist := $var (',' $var)*
     // var := Name | $prefixexp ('[' $exp ']' | '.' Name)
 
-args := '(' $explist? ')' [: (#_2 == 0 and {}) or _2[1] :] 
-      | $tableconstructor [: {_1} :]
-      | String [: {from(_1)} :]
+args := '(' $explist? ')' [: (#_2 == 0 and node 'args') or node('args'):list(unpack(_2[1])) :] 
+      | $tableconstructor [: node('args'):list(_1) :]
+      | String [: node('args'):list(from(_1)) :]
 
 functiondef := 'function' $funcbody [: node('function'):set('parameters', _2[1]):set('body', _2[2]) :]
 
