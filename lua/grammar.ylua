@@ -1,3 +1,5 @@
+%require "common.utils"
+
 %file "lua/parser"
 
 %quote '(' LPAREN
@@ -111,23 +113,39 @@
 
 local ast = {}
 function ast:__newindex(key, val)
-  assert(not self[key])
+  if type(key) ~= 'string' then
+    rawset(self, key, val)
+  end
+  assert(not self[key], 'Fields passed to a node should be initialized only once.')
   rawset(self, key, val)
   table.insert(self, val)
   -- other stuff
-  assert(not val.parent)
-  rawset(val, 'parent', self)
+  if val.kind then
+    assert(not val.parent, 'Fields passed to a node should be unowned.')
+    rawset(val, 'parent', self)
+  end
 end
 
 function ast:set(key, val)
+  if not key or not val then return self end
+  assert(val.kind, 'Set should only be called on child trees.')
   self[key] = val
   return self
 end
 
-setmetatable(ast, {__index = ast, __newindex = ast.__newindex})
+function ast:list(...)
+  list = {...}
+  for child in utils.loop(list) do
+    assert(child.kind, 'List should only be called on child trees.')
+    table.insert(self, child)
+    assert(not child.parent, 'Children passed to list(...) should be unowned.')
+    rawset(child, 'parent', self)
+  end
+  return self
+end
 
 local function node(kind)
-  return setmetatable({kind = kind}, ast)
+  return setmetatable({kind = kind}, {__index = ast, __newindex = ast.__newindex})
 end
 
 local function from(token)
@@ -138,9 +156,15 @@ end
 :}
 
 // A lua file is just a block
-root := $block;
+root := $block [: _1 :]
 
-block := $stat* $retstat?;
+block := $stat* $retstat? {: function(stats, ret)
+  local tree = node 'block'
+  tree:list(unpack(stats))
+  
+  return tree:set('ret', (#ret ~= 0 and ret[1]) or nil) 
+end
+:}
 
 stat := ';' | 
   $assignment_or_call |
@@ -219,36 +243,61 @@ assignment := ',' $primaryexp $suffix* $assignment | '=' $explist
   return self:go 'call'
 end :}
 
-// prefixexp := $var | $functioncall | '(' $exp ')'
+    // prefixexp := $var | $functioncall | '(' $exp ')'
+    // functioncall := $prefixexp ($args | ':' Name $args)
+    // varlist := $var (',' $var)*
+    // var := Name | $prefixexp ('[' $exp ']' | '.' Name)
 
-// functioncall := $prefixexp ($args | ':' Name $args)
+args := '(' $explist? ')' [: (#_2 == 0 and {}) or _2[1] :] 
+      | $tableconstructor [: {_1} :]
+      | String [: {from(_1)} :]
 
-// varlist := $var (',' $var)*
-
-// var := Name | $prefixexp ('[' $exp ']' | '.' Name)
-
-args := '(' $explist? ')' | $tableconstructor | String
-
-functiondef := 'function' $funcbody
+functiondef := 'function' $funcbody [: node('function'):set('parameters', _2[1]):set('body', _2[2]) :]
 
 funcbody := '(' $parlist? ')' $block 'end'
+          {: 
+            function(_, parameters_opt, _, block)
+              local parameters = (#parameters_opt == 0 and {}) or parameters_opt[1]
+              return {parameters, block}
+            end 
+          :}
 
 // resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
-parlist := (<namelist> Name ',')+ (Name | '...') | '...'
-%resolve parlist'star#1 Name {: function(self, tokens)
-  if tokens[2] == 'COMMA' then
-    return self:go 'namelist'
-  else
-    return self:go ''
+%code {:
+  local function parlist_namelist(namelist, trail)
+    local parameters = node 'parameters'
+    for name in utils.loop(parameters) do
+      parameters:list(from(name))
+    end
+    if trail[1] == 'DOTS' then
+      parameters.vararg = from(trail)
+    else
+      parameters:list(from(trail))
+    end
   end
-end :}
+:}
+
+parlist := (<namelist> Name ',' [: _1 :])+ (Name [: _1 :] | '...' [: _1 :]) 
+            {: parlist_namelist :}
+         | '...' 
+            [: node('parameters'):list(from(_1)) :]
+
+        %resolve parlist'star#1 Name {: function(self, tokens)
+          if tokens[2] == 'COMMA' then
+            return self:go 'namelist'
+          else
+            return self:go ''
+          end
+        end :}
 
 // TODO: ensure that only the last $field has an optional $fieldsep
 tableconstructor := '{' $field* '}' 
-    [: node('table'):set('fields', _2) :]
+    [: node('table'):list(unpack(_2)) :]
 
 // Conflict resolvers, since the approximation of Lua we're parsing is not LL(1) (but is LL(2))
-field := '[' $exp ']' '=' $exp $fieldsep? | <assign> Name '=' $exp $fieldsep? | <exp> $exp $fieldsep?
+field := '[' $exp ']' '=' $exp $fieldsep? 
+       | <assign> Name '=' $exp $fieldsep? 
+       | <exp> $exp $fieldsep?
 %resolve field Name {: function(self, tokens)
   if tokens[2] == 'EQ' then
     return self:go 'assign'

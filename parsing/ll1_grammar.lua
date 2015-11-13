@@ -561,7 +561,11 @@ local function epilogue(result)
   local functions = {}
   local code = ''
   for namespace in utils.loop(configuration.requires) do
-    code = code .. ('local %s = require \'%s\'\n'):format(namespace:match("[a-zA-Z0-9_]+"), namespace)
+    local final = namespace
+    for name in namespace:gmatch("[a-zA-Z0-9_]+") do
+      final = name
+    end
+    code = code .. ('local %s = require \'%s\'\n'):format(namespace:match(final), namespace)
   end
   code = code .. ('local %s = {}\n'):format(configuration.default)
 
