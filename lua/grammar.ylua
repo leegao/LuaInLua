@@ -113,6 +113,7 @@
 
 local ast = {}
 function ast:__newindex(key, val)
+  print(key, val)
   if type(key) ~= 'string' then
     rawset(self, key, val)
   end
@@ -149,6 +150,7 @@ local function node(kind)
 end
 
 local function from(token)
+  print(token)
   local leaf = node 'leaf'
   leaf.value = token
   return leaf
@@ -243,7 +245,7 @@ exp := ('nil' {: from :}
         ) ($binop $exp [: {_1, _2} :])? // TODO: resolve conflict @ suffix*
           {:
             function(left, binops_opt)
-              local binop, right = unpack(binops_opt)
+              local binop, right = unpack(binops_opt[1] or {})
               if binop then
                 local tree = node 'binop'
                 tree.left = left
@@ -406,9 +408,9 @@ tableconstructor := '{' $field* '}'
     [: node('table'):list(unpack(_2)) :]
 
 // Conflict resolvers, since the approximation of Lua we're parsing is not LL(1) (but is LL(2))
-field := '[' $exp ']' '=' $exp $fieldsep? 
-       | <assign> Name '=' $exp $fieldsep? 
-       | <exp> $exp $fieldsep?
+field := '[' $exp ']' '=' $exp $fieldsep? [: node('element'):set('index', _2):set('value', _5) :]
+       | <assign> Name '=' $exp $fieldsep? [: node('element'):set('index', from(_1)):set('value', _3) :]
+       | <exp> $exp $fieldsep? [: node('element'):set('value', _1) :]
 %resolve field Name {: function(self, tokens)
   if tokens[2] == 'EQ' then
     return self:go 'assign'

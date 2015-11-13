@@ -30,4 +30,4 @@ ll1.yacc(parser.grammar)
 --end
 
 --ll1.yacc(parser.grammar)
-parser "RETURN LBRACE Number PLUS Number RBRACE"
+parser "RETURN FUNCTION LPAREN RPAREN RETURN LBRACE Number PLUS Number RBRACE END"
