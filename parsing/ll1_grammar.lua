@@ -387,7 +387,7 @@ local grammar = ll1 {
     {'$rhs_list', action = id, tag = 'rhs'},
     conflict = {
       IDENTIFIER = function(self, tokens)
-        print("oracle", unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 4)))
+        -- print("oracle", unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 4)))
         if tokens[2][1] == 'GETS' or tokens[3][1] == 'GETS' then
           return self:go ''
         end
@@ -398,18 +398,32 @@ local grammar = ll1 {
   top = {
     {'$conf', '$rules', 
       action = function(configuration, rules_)
-        local rules, code = unpack(rules_)
+        local rules, code, resolvers = unpack(rules_)
+        if not configuration.resolvers then configuration.resolvers = {} end
+        for key, resolver in pairs(resolvers) do
+          if not configuration.resolvers[key] then configuration.resolvers[key] = {} end
+          for conflict in utils.loop(resolver) do
+            table.insert(configuration.resolvers[key], conflict)
+          end
+        end
         configuration:finalize()
         if #code ~= 0 then
           configuration.top_level = configuration.top_level .. '\n' .. code
         end
-        -- convert productions over 
+        -- convert productions over
         return {configuration, rules}
       end},
     {'$rules', 
       action = function(rules_)
-        local rules, code = unpack(rules_)
+        local rules, code, resolvers = unpack(rules_)
         local configuration = setmetatable({}, {__index = conf})
+        if not configuration.resolvers then configuration.resolvers = {} end
+        for key, resolver in pairs(resolvers) do
+          if not configuration.resolvers[key] then configuration.resolvers[key] = {} end
+          for conflict in utils.loop(resolver) do
+            table.insert(configuration.resolvers[key], conflict)
+          end
+        end
         configuration:finalize()
         if #code ~= 0 then
           configuration.top_level = configuration.top_level .. '\n' .. code
@@ -487,27 +501,34 @@ local grammar = ll1 {
     {'$single_rule', '$rules_or_code', 
       action = function(rule, list)
         local id, nonterminal = unpack(rule)
-        local rules, code = unpack(list)
+        local rules, code, resolvers = unpack(list)
         rules[id] = nonterminal
-        return {rules, code} 
+        return {rules, code, resolvers} 
       end},
     {'TOP_LEVEL', 'CODE', '$rules_or_code',
       action = function(_, code, list)
-        local rules, codes = unpack(list)
+        local rules, codes, resolvers = unpack(list)
         codes = trim(code[2]) .. '\n' .. codes
-        return {rules, codes}
+        return {rules, codes, resolvers}
       end},
-    {'', action = function() return {{}, ''} end},
+    {'RESOLVE', 'IDENTIFIER', '$id_or_quote', '$code_opt', '$rules_or_code',
+      action = function(_, id, conflict, action, list)
+        local rules, codes, resolvers = unpack(list)
+        if not resolvers[id[2]] then resolvers[id[2]] = {} end
+        table.insert(resolvers[id[2]], {conflict, action})
+        return {rules, codes, resolvers}
+      end},
+    {'', action = function() return {{}, '', {}} end},
   },
   rules = {
     {'$single_rule', '$rules_or_code', 
       action = function(rule, rules_or_code)
         local id, nonterminal = unpack(rule)
-        local rules, codes = unpack(rules_or_code)
+        local rules, codes, resolvers = unpack(rules_or_code)
         rules[id] = nonterminal
-        return {rules, codes}
+        return {rules, codes, resolvers}
       end},
-    {'', action = function() return {{}, ''} end}
+    {'', action = function() return {{}, '', {}} end}
   },
 }
 

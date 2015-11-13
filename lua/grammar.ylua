@@ -1,61 +1,5 @@
 %file "lua/parser"
 
-// Conflict resolvers, since the approximation of Lua we're parsing is not LL(1) (but is LL(2))
-%resolve field Name {: function(self, tokens)
-  if tokens[2] == 'EQ' then
-    return self:go 'assign'
-  else
-    return self:go 'exp'
-  end
-end :}
-
-// resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
-%resolve parlist'star#1 Name {: function(self, tokens)
-  if tokens[2] == 'COMMA' then
-    return self:go 'namelist'
-  else
-    return self:go ''
-  end
-end :}
-
-%resolve stat'group#2 Name {: function(self, tokens)
-  if tokens[2] == 'EQ' then
-    return self:go 'forcounter'
-  else
-    return self:go 'foreach'
-  end
-end :}
-
-// Hack to get around the fact that one branch of this is always
-// "dead" states that would get killed later on anyways
-%resolve assignment_or_call'star#1 '(' {: function(self, tokens)
-  -- always reduce to call
-  return self:go 'call'
-end :}
-
-%code {: local function goto_present(self) return self:go '#present' end :}
-%resolve exp'maybe#1 '^' {: goto_present :}
-%resolve exp'maybe#1 '==' {: goto_present :}
-%resolve exp'maybe#1 '>=' {: goto_present :}
-%resolve exp'maybe#1 '~=' {: goto_present :}
-%resolve exp'maybe#1 '<=' {: goto_present :}
-%resolve exp'maybe#1 '*' {: goto_present :}
-%resolve exp'maybe#1 '>' {: goto_present :}
-%resolve exp'maybe#1 '..' {: goto_present :}
-%resolve exp'maybe#1 'and' {: goto_present :}
-%resolve exp'maybe#1 'or' {: goto_present :}
-%resolve exp'maybe#1 '/' {: goto_present :}
-%resolve exp'maybe#1 '-' {: goto_present :}
-%resolve exp'maybe#1 '+' {: goto_present :}
-%resolve exp'maybe#1 '<' {: goto_present :}
-%resolve exp'maybe#1 '%' {: goto_present :}
-
-%code {: local function goto_list(self) return self:go '#list' end :}
-%resolve exp'group#1'star#1 '[' {: goto_list :}
-%resolve exp'group#1'star#1 String {: goto_list :}
-%resolve exp'group#1'star#1 '{' {: goto_list :}
-%resolve exp'group#1'star#1 '(' {: goto_list :}
-
 %quote '(' LPAREN
 %quote ',' COMMA
 %quote ':' COLON
@@ -213,6 +157,14 @@ stat := ';' |
   'function' $funcname $funcbody | 
   'local' ('function' Name $funcbody | $namelist ('=' $explist)?)
 
+%resolve stat'group#2 Name {: function(self, tokens)
+  if tokens[2] == 'EQ' then
+    return self:go 'forcounter'
+  else
+    return self:go 'foreach'
+  end
+end :}
+
 retstat := 'return' $explist? ';'?
 
 label := '::' Name '::'
@@ -228,6 +180,30 @@ explist := $exp (',' $exp)*
 exp := ('nil' | 'false' | 'true' | Number | String | '...' | $functiondef | 
   $primaryexp $suffix* | $tableconstructor | $unop $exp) ($binop $exp)? // TODO: resolve conflict @ suffix*
 
+%code {: local function goto_present(self) return self:go '#present' end :}
+%resolve exp'maybe#1 '^' {: goto_present :}
+%resolve exp'maybe#1 '==' {: goto_present :}
+%resolve exp'maybe#1 '>=' {: goto_present :}
+%resolve exp'maybe#1 '~=' {: goto_present :}
+%resolve exp'maybe#1 '<=' {: goto_present :}
+%resolve exp'maybe#1 '*' {: goto_present :}
+%resolve exp'maybe#1 '>' {: goto_present :}
+%resolve exp'maybe#1 '..' {: goto_present :}
+%resolve exp'maybe#1 'and' {: goto_present :}
+%resolve exp'maybe#1 'or' {: goto_present :}
+%resolve exp'maybe#1 '/' {: goto_present :}
+%resolve exp'maybe#1 '-' {: goto_present :}
+%resolve exp'maybe#1 '+' {: goto_present :}
+%resolve exp'maybe#1 '<' {: goto_present :}
+%resolve exp'maybe#1 '%' {: goto_present :}
+
+%code {: local function goto_list(self) return self:go '#list' end :}
+%resolve exp'group#1'star#1 '[' {: goto_list :}
+%resolve exp'group#1'star#1 String {: goto_list :}
+%resolve exp'group#1'star#1 '{' {: goto_list :}
+%resolve exp'group#1'star#1 '(' {: goto_list :}
+
+
 suffix := '.' Name | '[' $exp ']' | ':' Name $args | $args
 primaryexp := Name | '(' $exp ')'
 
@@ -235,6 +211,13 @@ primaryexp := Name | '(' $exp ')'
 // let's rule out the possibility of f() = x
 assignment_or_call := $primaryexp ('.' Name | '[' $exp ']' | ':' Name $args | <call> $args)* $assignment?
 assignment := ',' $primaryexp $suffix* $assignment | '=' $explist
+
+// Hack to get around the fact that one branch of this is always
+// "dead" states that would get killed later on anyways
+%resolve assignment_or_call'star#1 '(' {: function(self, tokens)
+  -- always reduce to call
+  return self:go 'call'
+end :}
 
 // prefixexp := $var | $functioncall | '(' $exp ')'
 
@@ -250,13 +233,29 @@ functiondef := 'function' $funcbody
 
 funcbody := '(' $parlist? ')' $block 'end'
 
+// resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
 parlist := (<namelist> Name ',')+ (Name | '...') | '...'
+%resolve parlist'star#1 Name {: function(self, tokens)
+  if tokens[2] == 'COMMA' then
+    return self:go 'namelist'
+  else
+    return self:go ''
+  end
+end :}
 
 // TODO: ensure that only the last $field has an optional $fieldsep
 tableconstructor := '{' $field* '}' 
     [: node('table'):set('fields', _2) :]
 
+// Conflict resolvers, since the approximation of Lua we're parsing is not LL(1) (but is LL(2))
 field := '[' $exp ']' '=' $exp $fieldsep? | <assign> Name '=' $exp $fieldsep? | <exp> $exp $fieldsep?
+%resolve field Name {: function(self, tokens)
+  if tokens[2] == 'EQ' then
+    return self:go 'assign'
+  else
+    return self:go 'exp'
+  end
+end :}
 
 fieldsep [: {} :] := ',' | ';'
 
