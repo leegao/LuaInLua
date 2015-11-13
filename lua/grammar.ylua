@@ -180,8 +180,11 @@ stat := ';' [: node 'empty' :]
           ('else' $block [: node('else'):set('block', _2) :])? 'end' 
               [: node('if'):set('cond', _2):set('block', _4):list(unpack(_5)):set('else', _6[1]) :]
       | 'for' (
-          <forcounter> Name '=' $exp ',' $exp (',' $exp [: _2 :])? 'do' $block 'end'
-        | <foreach> $namelist 'in' $explist 'do' $block 'end') 
+          <forcounter> Name '=' $exp ',' $exp (',' $exp [: _2 :])?  'do' $block 'end'
+            [: node('fori'):set('id', from(_1)):set('start', _3):set('finish', _5):set('step', _6[1]):set('block', _8) :]
+        | <foreach> $namelist 'in' $explist 'do' $block 'end'
+            [: node('foreach'):set('names', _1):set('iterator', _3):set('block', _5) :]) 
+              /* Whole action */ [: _2 :]
       | 'function' $funcname $funcbody 
       | 'local' ('function' Name $funcbody | $namelist ('=' $explist)?)
 
@@ -211,8 +214,10 @@ funcname := Name ('.' Name [: from(_2) :])* (':' Name [: from(_2) :])? {:
 
 namelist := Name (',' Name [: from(_2) :])* {:
   function(name, names)
-    table.insert(names, 1, from(name))
-    return names
+    local tree = node 'names'
+    tree:list(from(name))
+    tree:list(unpack(names))
+    return tree
   end
 :}
 
