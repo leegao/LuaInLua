@@ -163,25 +163,27 @@ root := $block [: _1 :]
 block := $stat* $retstat? {: function(stats, ret)
   local tree = node 'block'
   tree:list(unpack(stats))
-  
   return tree:set('ret', (#ret ~= 0 and ret[1]) or nil) 
 end
 :}
 
-stat := ';' | 
-  $assignment_or_call |
-  $label | 
-  'break' | 
-  'goto' Name | 
-  'do' $block 'end' | 
-  'while' $exp 'do' $block 'end' | 
-  'repeat' $block 'until' $exp | 
-  'if' $exp 'then' $block ('elseif' $exp 'then' $block)* ('else' $block)? 'end' | 
-  'for' (
-      <forcounter> Name '=' $exp ',' $exp (',' $exp)? 'do' $block 'end' | 
-      <foreach> $namelist 'in' $explist 'do' $block 'end') | 
-  'function' $funcname $funcbody | 
-  'local' ('function' Name $funcbody | $namelist ('=' $explist)?)
+stat := ';' [: node 'empty' :]
+      | $assignment_or_call [: _1 :]
+      | $label [: _1 :]
+      | 'break' [: node 'break' :]
+      | 'goto' Name [: node('goto'):set('label', from(_2)) :]
+      | 'do' $block 'end' [: _2 :]
+      | 'while' $exp 'do' $block 'end' [: node('while'):set('cond', _2):set('block', _4) :]
+      | 'repeat' $block 'until' $exp [: node('repeat'):set('cond', _4):set('block', _2) :]
+      | 'if' $exp 'then' $block 
+          ('elseif' $exp 'then' $block [: node('elseif'):set('cond', _2):set('block', _4) :])* 
+          ('else' $block [: node('else'):set('block', _2) :])? 'end' 
+              [: node('if'):set('cond', _2):set('block', _4):list(unpack(_5)):set('else', _6[1]) :]
+      | 'for' (
+          <forcounter> Name '=' $exp ',' $exp (',' $exp [: _2 :])? 'do' $block 'end'
+        | <foreach> $namelist 'in' $explist 'do' $block 'end') 
+      | 'function' $funcname $funcbody 
+      | 'local' ('function' Name $funcbody | $namelist ('=' $explist)?)
 
 %resolve stat'group#2 Name {: function(self, tokens)
   if tokens[2] == 'EQ' then
@@ -370,7 +372,7 @@ functiondef := 'function' $funcbody [: node('function'):set('parameters', _2[1])
 funcbody := '(' $parlist? ')' $block 'end'
           {: 
             function(_, parameters_opt, _, block)
-              local parameters = (#parameters_opt == 0 and {}) or parameters_opt[1]
+              local parameters = parameters_opt[1] or node 'parameters'
               return {parameters, block}
             end 
           :}
