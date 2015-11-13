@@ -189,17 +189,40 @@ stat := ';' |
   end
 end :}
 
-retstat := 'return' $explist? ';'?
+// just return the explist
+retstat := 'return' $explist? ';'? [: #_2 == 0 and {} or _2[1] :]
 
-label := '::' Name '::'
+label := '::' Name '::' [: node('label'):set('name', from(_2)) :]
 
-funcname := Name ('.' Name)* (':' Name)?
+funcname := Name ('.' Name [: from(_2) :])* (':' Name [: from(_2) :])? {:
+  function(name, names, colon)
+    colon = colon[1]
+    table.insert(names, 1, from(name))
+    if colon then
+      table.insert(names, colon)
+      names.colon = colon
+    end
+  end
+:}
 
-namelist := Name (',' Name)*
+namelist := Name (',' Name [: from(_2) :])* {:
+  function(name, names)
+    table.insert(names, 1, from(name))
+    return names
+  end
+:}
 
-explist := $exp (',' $exp)*
+explist := $exp (',' $exp [: _2 :])* {:
+  function(exp, explist)
+    local tree = node 'explist'
+    tree:list(exp)
+    tree:list(unpack(explist))
+    return tree
+  end
+:}
 
 %code {:
+-- this will either reduce to an index, a call, a name, or a grouped expression
 local function handle_primary_suffix(primary, suffixlist)
   error 'unimplemented'
 end
@@ -207,8 +230,29 @@ end
 
 // there's a conflict on $binop between reducing the maybe? rule or going into the binop of the exp.
 // luckily for us, since not binds are not as tight as the binary operators, we'd always be reducing the rule
-exp := ('nil' | 'false' | 'true' | Number | String | '...' | $functiondef | 
-  $primaryexp $suffix* {: handle_primary_suffix :} | $tableconstructor | $unop $exp) ($binop $exp)? // TODO: resolve conflict @ suffix*
+exp := ('nil' {: from :} 
+      | 'false' {: from :} 
+      | 'true' {: from :} 
+      | Number {: from :} 
+      | String {: from :} 
+      | '...' {: from :} 
+      | $functiondef [: _1 :] 
+      | $primaryexp $suffix* {: handle_primary_suffix :} 
+      | $tableconstructor [: _1 :] 
+      | $unop $exp [: node('unop'):set('operator', _):set('operand', _2) :]
+        ) ($binop $exp [: {_1, _2} :])? // TODO: resolve conflict @ suffix*
+          {:
+            function(left, binops_opt)
+              local binop, right = unpack(binops_opt)
+              if binop then
+                local tree = node 'binop'
+                tree.left = left
+                tree.right = right
+                return tree
+              end
+              return left
+            end
+          :}
 
 %code {: local function goto_present(self) return self:go '#present' end :}
 %resolve exp'maybe#1 '^' {: goto_present :}
@@ -303,12 +347,12 @@ assignment := ',' $primaryexp $suffix* $assignment
                 end :}
             | '=' $explist [: {node 'lvalue', _2} :]
 
-// Hack to get around the fact that one branch of this is always
-// "dead" states that would get killed later on anyways
-%resolve assignment_or_call'star#1 '(' {: function(self, tokens)
-  -- always reduce to call
-  return self:go 'call'
-end :}
+    // Hack to get around the fact that one branch of this is always
+    // "dead" states that would get killed later on anyways
+    %resolve assignment_or_call'star#1 '(' {: function(self, tokens)
+      -- always reduce to call
+      return self:go 'call'
+    end :}
 
     // prefixexp := $var | $functioncall | '(' $exp ')'
     // functioncall := $prefixexp ($args | ':' Name $args)
@@ -329,20 +373,20 @@ funcbody := '(' $parlist? ')' $block 'end'
             end 
           :}
 
-// resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
-%code {:
-  local function parlist_namelist(namelist, trail)
-    local parameters = node 'parameters'
-    for name in utils.loop(parameters) do
-      parameters:list(from(name))
-    end
-    if trail[1] == 'DOTS' then
-      parameters.vararg = from(trail)
-    else
-      parameters:list(from(trail))
-    end
-  end
-:}
+    // resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
+    %code {:
+      local function parlist_namelist(namelist, trail)
+        local parameters = node 'parameters'
+        for name in utils.loop(parameters) do
+          parameters:list(from(name))
+        end
+        if trail[1] == 'DOTS' then
+          parameters.vararg = from(trail)
+        else
+          parameters:list(from(trail))
+        end
+      end
+    :}
 
 parlist := (<namelist> Name ',' [: _1 :])+ (Name [: _1 :] | '...' [: _1 :]) 
             {: parlist_namelist :}
