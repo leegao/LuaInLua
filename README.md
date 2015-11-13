@@ -19,14 +19,15 @@ Status Report:
 6. Added support for extende BNF grammars
 7. Added support for oracular lookaheads
 1. Create a lua parser in LL(1)
+1. Add semantic actions to the lua parser
 
 In progress:
 
-1. Add semantic actions to the lua parser
+1. Add a tokenizer for Lua
+2. Interpreter.
 
 TODO:
 
-9. Interpreter.
 10. Lua register machine
 11. Standard library
 12. Self-host the toolchain (5.2 compatibility)
