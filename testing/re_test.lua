@@ -30,4 +30,4 @@ local function visualize(pattern, str)
     end)
 end
 -- Let's get the tokens to a regex parser
-print(visualize("/%*", "//adasdfsdf\n"))
+print(visualize("//ab?d", "//adasdfsdf\n"))

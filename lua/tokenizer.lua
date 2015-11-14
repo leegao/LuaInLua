@@ -64,6 +64,30 @@ local longstring
 local str_prefix
 local str
 
+--[[
+| < NUMBER: <HEX> | <FLOAT> >
+| < #FLOAT: <FNUM> (<EXP>)? >
+| < #FNUM: (<DIGIT>)+ "." (<DIGIT>)* | "." (<DIGIT>)+ | (<DIGIT>)+ >
+| < #DIGIT: ["0"-"9"] >
+| < #EXP: ["e","E"] (["+","-"])? (<DIGIT>)+ >
+| < #HEX: "0" ["x","X"] <HEXNUM> (<HEXEXP>)? >
+| < #HEXNUM: (<HEXDIGIT>)+ "." (<HEXDIGIT>)* | "." (<HEXDIGIT>)+ | (<HEXDIGIT>)+ >
+| < #HEXDIGIT: ["0"-"9","a"-"f","A"-"F"] >
+| < #HEXEXP: ["e","E","p","P"] (["+","-"])? (<DIGIT>)+ >
+--]]
+
+local DIGIT = '%d'
+local HEXEXP = ('[eEpP][+-]?%s+'):format(DIGIT)
+local HEXDIGIT = '[0-9a-fA-F]'
+local HEXNUM = ('(%s)+%s(%s)*|%s(%s)+|(%s)+'):format(HEXDIGIT, '%.', HEXDIGIT, '%.', HEXDIGIT, HEXDIGIT)
+local HEX = ('0[xX](%s)(%s)?'):format(HEXNUM, HEXEXP)
+local EXP = ('[eE][+-]?%s+'):format(DIGIT)
+local FNUM = ('%s+%s%s*|%s%s+|%s+'):format(DIGIT, '[.]', DIGIT, '[.]', DIGIT, DIGIT)
+local FLOAT = ('(%s)(%s)?'):format(FNUM, EXP)
+
+print(FLOAT)
+print(re(FLOAT):match('1'))
+
 local function id(token) return function(x) return {token, x} end end
 local function ignore(...) return end
 local function pop(stack) return table.remove(stack) end
@@ -133,6 +157,8 @@ return lex.lex {
     {re '[', id 'LBRACK'},
     
     {re '"|\'', function(piece, lexer) str_prefix = piece; str = ''; lexer:go 'string' end},
+
+    {re(('(%s)|(%s)'):format(HEX, FLOAT)), id 'NUMBER'},
   },
   string = {
     {re '[^\'"\\]+', function(piece) str = str .. piece end},

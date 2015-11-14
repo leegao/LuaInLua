@@ -2,7 +2,7 @@
 
 -- Step 1: Parse regular expressions
 -- they are of the form
---   e = x | e e | (e | e) | e* | e+ | ctrl
+--   e = x | e e | (e | e) | e* | e+ | e? | ctrl
 
 local graph = require "common.graph"
 local utils = require "common.utils"
@@ -51,6 +51,20 @@ local function star(item)
   end
 end
 
+local function maybe(item)
+  if item[1] == 'or' then
+    local left = item[2]
+    local right = item[3]
+    return {'or', left, maybe(right)}
+  elseif item[1] == 'concat' then
+    local left = item[2]
+    local right = item[3]
+    return {'concat', left, maybe(right)}
+  else
+    return {'maybe', item}
+  end
+end
+
 local function plus(item)
   if item[1] == 'or' then
     local left = item[2]
@@ -76,11 +90,12 @@ local function reduce_groups(tree)
     end
   elseif tree[1] == "star" then
     return {"star", reduce_groups(tree[2])}
+  elseif tree[1] == "maybe" then
+    return {"maybe", reduce_groups(tree[2])}
   else
     return {tree[1], reduce_groups(tree[2]), reduce_groups(tree[3])}
   end
 end
-
 
 local function parse_re(str, character_classes)
   local stack = {''}
@@ -99,6 +114,8 @@ local function parse_re(str, character_classes)
       item = star(item)
     elseif c == "+" then
       item = plus(item)
+    elseif c == '?' then
+      item = maybe(item)
     elseif c == "(" or c == "(?" then
       push(item, stack)
       local open = c
@@ -143,6 +160,14 @@ local function translate_to_nfa(context, tree)
   if type(tree) == 'string' then
     local l, r = context:get(), context:get()
     context.graph:edge(l, r, tree)
+    return {l, r}
+  elseif tree[1] == 'maybe' then
+    local l, r = context:get(), context:get()
+    local l_, r_ = unpack(translate_to_nfa(context, tree[2]))
+    context.graph
+        :edge(l, l_, '')
+        :edge(r_, r, '')
+        :edge(l, r, '')
     return {l, r}
   elseif tree[1] == 'star' then
     local l, r = context:get(), context:get()
@@ -329,8 +354,9 @@ local function re_match(graph, str, character_classes)
 end
 
 function re.compile(pattern, character_classes)
+  local regex_tree
   if not character_classes then character_classes = re.default_classes end
-  local regex_tree, character_classes = parse_re(pattern, character_classes)
+  regex_tree, character_classes = parse_re(pattern, character_classes)
   local nfa_context = new_context()
   local start, finish = unpack(translate_to_nfa(nfa_context, regex_tree))
   nfa_context:accept(finish)
