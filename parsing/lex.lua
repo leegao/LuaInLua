@@ -55,7 +55,8 @@ function context:next()
 end
 
 function context:go(state)
-  assert(self.configuration[state] and self.configuration.state ~= state)
+  assert(self.configuration[state], ("State %s does not exist."):format(state))
+  assert(self.configuration.state ~= state, ("You are already in state %s."):format(state))
   self.state = state
 end
 

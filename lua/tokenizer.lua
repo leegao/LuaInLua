@@ -59,8 +59,10 @@ local re = require 'parsing.re'
 --]]--
 
 local longcomment
+local longstringprefix
+local longstring
 
-local function id(token) return function(...) return {token, ...} end end
+local function id(token) return function(x) return {token, x} end end
 local function ignore(...) return end
 local function pop(stack) return table.remove(stack) end
 local function push(item, stack) table.insert(stack, item) end
@@ -70,7 +72,6 @@ return lex.lex {
     {'(', id 'LPAREN'},
     {',', id 'COMMA'},
     {':', id 'COLON'},
-    {'[', id 'LBRACK'},
     {']', id 'RBRACK'},
     {'.', id 'PERIOD'},
     {'~=', id 'NOTEQ'},
@@ -123,7 +124,13 @@ return lex.lex {
     {re '--[=[', function(_, lexer) lexer:go 'longcomment1' end},
     {re '--[==+[', function(piece, lexer) longcomment = piece; lexer:go 'longcommentn' end},
     {re '--[^\n]*', ignore},
+    {re '[[', function(_, lexer) longstring = ''; lexer:go 'longstring' end},
+    {re '[=[', function(_, lexer) longstring = ''; lexer:go 'longstring1' end},
+    {re '[==+[', function(piece, lexer) longstring = ''; longstringprefix = piece; lexer:go 'longstringn' end},
     {re '-', id 'MIN'},
+    {re '[', id 'LBRACK'},
+    
+    {re '"|\'', function(piece, lexer) str = piece; lexer:go 'string' end},
   },
   longcomment = {
     {re '.', ignore},
@@ -141,5 +148,23 @@ return lex.lex {
         end
       end},
     {re '.', ignore},
+  },
+  longstring = {
+    {re '.', function(c) longstring = longstring .. c end},
+    {']]', function(_, lexer) lexer:go 'root'; return {'String', longstring} end},
+  },
+  longstring1 = {
+    {re '.', function(c) longstring = longstring .. c end},
+    {']=]', function(_, lexer) lexer:go 'root'; return {'String', longstring} end},
+  },
+  longstringn = {
+    {re ']==+]', 
+      function(piece, lexer)
+        if #piece == #longstringprefix then
+          lexer:go 'root'
+          return {'String', longstring}
+        end
+      end},
+    {re '.', function(c) longstring = longstring .. c end},
   },
 }
