@@ -104,6 +104,9 @@ function lex.lex(actions)
       while not token and #context.current ~= 0 do
         token = context:next()
       end
+      if not token and #context.current == 0 and context.state ~= 'root' then
+        error('Unexpectedly terminated in state ' .. context.state)
+      end
       return token
     end
   end

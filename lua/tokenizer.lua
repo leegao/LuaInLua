@@ -84,7 +84,6 @@ return lex.lex {
     {'^', id 'POW'},
     {'/', id 'DIV'},
     {'*', id 'MUL'},
-    {'-', id 'MIN'},
     {'+', id 'PLUS'},
     {'=', id 'EQ'},
     {'#', id 'HASH'},
@@ -120,29 +119,27 @@ return lex.lex {
     {re '(%a|_)(%a|%d|_)*', id 'IDENTIFIER'},
     {re '%s+', ignore},
     
-    {re '--[^\n]*', ignore},
-    {'--[[', function(_, lexer) lexer:go 'longcomment' end},
-    {'--[=[', function(_, lexer) lexer:go 'longcomment1' end},
+    {re '--[[', function(_, lexer) lexer:go 'longcomment' end},
+    {re '--[=[', function(_, lexer) lexer:go 'longcomment1' end},
     {re '--[==+[', function(piece, lexer) longcomment = piece; lexer:go 'longcommentn' end},
+    {re '--[^\n]*', ignore},
+    {re '-', id 'MIN'},
   },
   longcomment = {
-    {re '[^-]+', ignore},
-    {'-', ignore},
-    {'--]]', function(_, lexer) lexer:go 'root' end},
+    {re '.', ignore},
+    {']]', function(_, lexer) lexer:go 'root' end},
   },
   longcomment1 = {
-    {re '[^-]+', ignore},
-    {'-', ignore},
-    {'--]=]', function(_, lexer) lexer:go 'root' end},
+    {re '.', ignore},
+    {']=]', function(_, lexer) lexer:go 'root' end},
   },
   longcommentn = {
-    {re '[^-]+', ignore},
-    {'-', ignore},
-    {re '--]==+]', 
+    {re ']==+]', 
       function(piece, lexer)
-        if #piece == #longcomment then
+        if (2 + #piece) == #longcomment then
           lexer:go 'root'
         end
       end},
+    {re '.', ignore},
   },
 }
