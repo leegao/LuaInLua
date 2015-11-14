@@ -1,4 +1,5 @@
 %require "common.utils"
+%require "lua.tokenizer"
 
 %file "lua/parser"
 
@@ -106,6 +107,16 @@
 %production HASH
 %production NOT
 %production COLON
+
+%prologue {:
+  function(stream)
+    local tokens = {}
+    for token in tokenizer(stream) do
+      table.insert(tokens, token)
+    end
+    return tokens
+  end
+:}
 
 // Let's create a set of trees where the children are recorded as integer indices
 // and also as named fields
@@ -402,7 +413,7 @@ assignment := ',' $primaryexp $suffix* $assignment
     // varlist := $var (',' $var)*
     // var := Name | $prefixexp ('[' $exp ']' | '.' Name)
 
-args := '(' $explist? ')' [: (#_2 == 0 and node 'args') or node('args'):list(unpack(_2[1])) :] 
+args := '(' $explist? ')' [: (#_2 == 0 and node 'args') or node('args'):set('explist', _2[1]) :] 
       | $tableconstructor [: node('args'):list(_1) :]
       | String [: node('args'):list(from(_1)) :]
 

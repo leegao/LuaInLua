@@ -85,9 +85,6 @@ local EXP = ('[eE][+-]?%s+'):format(DIGIT)
 local FNUM = ('%s+%s%s*|%s%s+|%s+'):format(DIGIT, '[.]', DIGIT, '[.]', DIGIT, DIGIT)
 local FLOAT = ('(%s)(%s)?'):format(FNUM, EXP)
 
-print(FLOAT)
-print(re(FLOAT):match('1'))
-
 local function id(token) return function(x) return {token, x} end end
 local function ignore(...) return end
 local function pop(stack) return table.remove(stack) end
@@ -143,7 +140,7 @@ return lex.lex {
     {'goto', id 'GOTO'},
     {'break', id 'BREAK'},
     
-    {re '(%a|_)(%a|%d|_)*', id 'IDENTIFIER'},
+    {re '(%a|_)(%a|%d|_)*', id 'Name'},
     {re '%s+', ignore},
     
     {re '--[[', function(_, lexer) lexer:go 'longcomment' end},
@@ -158,7 +155,7 @@ return lex.lex {
     
     {re '"|\'', function(piece, lexer) str_prefix = piece; str = ''; lexer:go 'string' end},
 
-    {re(('(%s)|(%s)'):format(HEX, FLOAT)), id 'NUMBER'},
+    {re(('(%s)|(%s)'):format(HEX, FLOAT)), id 'Number'},
   },
   string = {
     {re '[^\'"\\]+', function(piece) str = str .. piece end},

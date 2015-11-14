@@ -30,4 +30,6 @@ ll1.yacc(parser.grammar)
 --end
 
 --ll1.yacc(parser.grammar)
-parser "RETURN LPAREN FUNCTION LPAREN RPAREN RETURN LBRACE Number PLUS Number RBRACE END RPAREN String"
+local tree = parser "return (a)(3)"
+
+print(tree)
