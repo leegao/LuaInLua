@@ -31,5 +31,5 @@ ll1.yacc(parser.grammar)
 
 --ll1.yacc(parser.grammar)
 local tree = parser(io.open('common/graph.lua', 'r'):read('*all'))
---local tree = parser 'setmetatable(g, graph)'
+--local tree = parser 'if not tag then tag = true end'
 print(tree)

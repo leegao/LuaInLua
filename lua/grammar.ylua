@@ -169,6 +169,12 @@ local function from(token)
 end
 :}
 
+
+// =======================================================================================
+// ===                                 GRAMMAR RULES                                   ===
+// =======================================================================================
+
+
 // A lua file is just a block
 root := $block [: _1 :]
 
@@ -390,6 +396,7 @@ assignment_or_call := $primaryexp (
                             local tree = node 'assignments'
                             tree.left = lvals
                             tree.right = rvals
+                            return tree
                           else
                             -- call case
                             return handle_primary_suffix(left, suffixes)
