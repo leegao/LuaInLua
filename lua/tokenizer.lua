@@ -61,6 +61,8 @@ local re = require 'parsing.re'
 local longcomment
 local longstringprefix
 local longstring
+local str_prefix
+local str
 
 local function id(token) return function(x) return {token, x} end end
 local function ignore(...) return end
@@ -130,7 +132,21 @@ return lex.lex {
     {re '-', id 'MIN'},
     {re '[', id 'LBRACK'},
     
-    {re '"|\'', function(piece, lexer) str = piece; lexer:go 'string' end},
+    {re '"|\'', function(piece, lexer) str_prefix = piece; str = ''; lexer:go 'string' end},
+  },
+  string = {
+    {re '[^\'"\\]+', function(piece) str = str .. piece end},
+    {re '\\"|\\\'', function(piece) str = str .. piece:sub(2, 2) end},
+    {re '"|\'', 
+      function(piece, lexer)
+        if piece == str_prefix then
+          lexer:go 'root'
+          return {'String', str}
+        else
+          str = str .. piece
+        end
+      end},
+    {re '.', function(piece) str = str .. piece end},
   },
   longcomment = {
     {re '.', ignore},
