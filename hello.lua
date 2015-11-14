@@ -30,6 +30,6 @@ ll1.yacc(parser.grammar)
 --end
 
 --ll1.yacc(parser.grammar)
-local tree = parser "return (a)(3)"
-
+--local tree = parser(io.open('common/graph.lua', 'r'):read('*all'))
+local tree = parser 'setmetatable(g, graph)'
 print(tree)

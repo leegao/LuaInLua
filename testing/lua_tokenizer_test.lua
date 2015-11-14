@@ -1,8 +1,13 @@
 local tokenizer = require 'lua.tokenizer'
 local utils = require 'common.utils'
 
-for token in tokenizer('for i = a --[==[]==] b [[ab "c"]] "abc\'\\"" \'123\' 3.1415926e32') do
-  -- print(unpack(token))
+for token in tokenizer('forward') do
+  print(unpack(token))
+end
+
+
+for token in tokenizer('= a --[==[]==] b [[ab "c"]] "abc\'\\"" \'123\' 3.1415926e32') do
+  print(unpack(token))
 end
 
 local tokens = {}

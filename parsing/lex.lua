@@ -14,9 +14,9 @@ local function boundary(last, first)
   -- make sure that alpha(last) xor alpha(first)
   if not last then return false end
   if not first then return true end
-  local alpha_last = re.match(alphabetical, last)
-  local alpha_first = re.match(alphabetical, first)
-  return (alpha_last and not alpha_first) or (not alpha_last and alpha_first)
+  local alpha_last = alphabetical:match(last)
+  local alpha_first = alphabetical:match(first)
+  return (alpha_last and not alpha_first) or (not alpha_last)
 end
 
 local function peek(word, n)
@@ -35,7 +35,7 @@ function context:next()
 
   -- go through the set of words and see if any of them matches
   for _, word in ipairs(action_node.words) do
-    if current:sub(1, #word) == word and boundary(word:sub(-1), peek(word, #word + 1)) then
+    if current:sub(1, #word) == word and boundary(word:sub(-1), peek(current, #word + 1)) then
       -- matched a word, so consume and go on
       self.current = current:sub(#word + 1)
       return action_node.word_map[word](word, self)

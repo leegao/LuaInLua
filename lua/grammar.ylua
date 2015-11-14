@@ -145,8 +145,11 @@ function ast:set(key, val)
 end
 
 function ast:list(...)
-  list = {...}
+  local list = {...}
   for child in utils.loop(list) do
+    if not child.kind then
+      print(debug.traceback())
+    end
     assert(child.kind, 'List should only be called on child trees.')
     table.insert(self, child)
     assert(not child.parent, 'Children passed to list(...) should be unowned.')
@@ -199,11 +202,11 @@ stat := ';' [: node 'empty' :]
       | 'local' ('function' Name $funcbody 
             [: node('localfunctiondef'):set('name', from(_2)):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2])) :]
         | $namelist ('=' $explist [: _2 :])?
-            [: node('localassign'):set('left', _1):set(right, _2[1]) :]
+            [: node('localassign'):set('left', _1):set('right', _2[1]) :]
             ) [: _2 :]
 
 %resolve stat'group#2 Name {: function(self, tokens)
-  if tokens[2] == 'EQ' then
+  if tostring(tokens[2]) == 'EQ' then
     return self:go 'forcounter'
   else
     return self:go 'foreach'
@@ -219,7 +222,7 @@ funcname := Name ('.' Name [: from(_2) :])* (':' Name [: from(_2) :])? {:
   function(name, names, colon)
     local tree = node 'funcnames'
     colon = colon[1]
-    tree:list(name)
+    tree:list(from(name))
     tree:list(unpack(names))
     if colon then
       tree.colon = colon
@@ -293,7 +296,7 @@ exp := ('nil' {: from :}
       | $functiondef [: _1 :] 
       | $primaryexp $suffix* {: handle_primary_suffix :} 
       | $tableconstructor [: _1 :] 
-      | $unop $exp [: node('unop'):set('operator', _):set('operand', _2) :]
+      | $unop $exp [: node('unop'):set('operator', _1):set('operand', _2) :]
         ) ($binop $exp [: {_1, _2} :])? // TODO: resolve conflict @ suffix*
           {:
             function(left, binops_opt)
@@ -363,6 +366,7 @@ primaryexp := Name [: from(_1) :] | '(' $exp ')' [: _2 :]
 
 // %eps is func, the other 2 are assignments
 // let's rule out the possibility of f() = x
+
 assignment_or_call := $primaryexp (
                           '.' Name {: suffix_dot :}
                         | '[' $exp ']' {: suffix_bracket :}
@@ -372,10 +376,10 @@ assignment_or_call := $primaryexp (
                         function(left, suffixes, assignment_opt)
                           local assignment = #assignment_opt == 0 and {} or assignment_opt[1]
                           -- let's reduce to call or assignment
-                          if (#suffixes == 0 or not suffixes[#suffixes].arg) and #assignment == 0 then
+                          if (#suffixes == 0 or not suffixes[#suffixes].args) and #assignment == 0 then
                             error('Parser error: you can only specify a call or an assignment here')
                           end
-                          if #suffixes ~= 0 and #assignment ~= 0 and suffixes[#suffixes].arg then
+                          if #suffixes ~= 0 and #assignment ~= 0 and suffixes[#suffixes].args then
                             error 'Parser error: you cannot assign to a call'
                           end
                           
@@ -405,7 +409,7 @@ assignment := ',' $primaryexp $suffix* $assignment
     // "dead" states that would get killed later on anyways
     %resolve assignment_or_call'star#1 '(' {: function(self, tokens)
       -- always reduce to call
-      return self:go 'call'
+      return self:go '#list'
     end :}
 
     // prefixexp := $var | $functioncall | '(' $exp ')'
@@ -448,7 +452,7 @@ parlist := (<namelist> Name ',' [: _1 :])+ (Name [: _1 :] | '...' [: _1 :])
             [: node('parameters'):list(from(_1)) :]
 
         %resolve parlist'star#1 Name {: function(self, tokens)
-          if tokens[2] == 'COMMA' then
+          if tostring(tokens[2]) == 'COMMA' then
             return self:go 'namelist'
           else
             return self:go ''
@@ -464,7 +468,7 @@ field := '[' $exp ']' '=' $exp $fieldsep? [: node('element'):set('index', _2):se
        | <assign> Name '=' $exp $fieldsep? [: node('element'):set('index', from(_1)):set('value', _3) :]
        | <exp> $exp $fieldsep? [: node('element'):set('value', _1) :]
 %resolve field Name {: function(self, tokens)
-  if tokens[2] == 'EQ' then
+  if tostring(tokens[2]) == 'EQ' then
     return self:go 'assign'
   else
     return self:go 'exp'
