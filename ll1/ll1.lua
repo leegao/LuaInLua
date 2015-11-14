@@ -404,6 +404,7 @@ function yacc:parse(tokens, state, trace)
                 return to
               end
             end
+            print("Warning " .. tag .. " is not valid")
             return ERROR
           end
         }

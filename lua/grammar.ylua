@@ -453,7 +453,7 @@ parlist := (<namelist> Name ',' [: _1 :])+ (Name [: _1 :] | '...' [: _1 :])
 
         %resolve parlist'star#1 Name {: function(self, tokens)
           if tostring(tokens[2]) == 'COMMA' then
-            return self:go 'namelist'
+            return self:go '#list'
           else
             return self:go ''
           end
