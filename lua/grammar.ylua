@@ -188,7 +188,7 @@ end
 stat := ';' [: node 'empty' :]
       | $assignment_or_call [: _1 :]
       | $label [: _1 :]
-      | 'break' [: node 'break' :]
+      | 'break' [: from(_1) :]
       | 'goto' Name [: node('goto'):set('label', from(_2)) :]
       | 'do' $block 'end' [: _2 :]
       | 'while' $exp 'do' $block 'end' [: node('while'):set('cond', _2):set('block', _4) :]
@@ -392,14 +392,19 @@ assignment_or_call := $primaryexp (
                           if #assignment ~= 0 then
                             -- assignment case
                             -- assignment is a list of subsequent assignments
+                            local ps = handle_primary_suffix(left, suffixes)
+                            assert(ps.kind == 'index' or ps.kind == 'leaf' and tostring(ps.value) == 'Name')
                             local lvals, rvals = unpack(assignment)
+                            table.insert(lvals, 1, ps)
                             local tree = node 'assignments'
                             tree.left = lvals
                             tree.right = rvals
                             return tree
                           else
                             -- call case
-                            return handle_primary_suffix(left, suffixes)
+                            local ps = handle_primary_suffix(left, suffixes)
+                            assert(ps.kind == 'call' or ps.kind == 'selfcall')
+                            return ps
                           end
                         end
                       :}
