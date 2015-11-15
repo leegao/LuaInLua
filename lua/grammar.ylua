@@ -405,7 +405,7 @@ assignment_or_call := $primaryexp (
                       :}
 assignment := ',' $primaryexp $suffix* $assignment 
               {: 
-                function(_1, _2, _3) 
+                function(_, _1, _2, _3) 
                   local left, right = unpack(_3)
                   left:list(handle_primary_suffix(_1, _2)); 
                   return {left, right}
