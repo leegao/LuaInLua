@@ -220,7 +220,7 @@ stat := ';' [: node 'empty' :]
 end :}
 
 // just return the explist
-retstat := 'return' $explist? ';'? [: #_2 == 0 and {} or _2[1] :]
+retstat := 'return' $explist? ';'? [: #_2 == 0 and node 'explist' or _2[1] :]
 
 label := '::' Name '::' [: node('label'):set('name', from(_2)) :]
 
