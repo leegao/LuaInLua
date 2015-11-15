@@ -56,5 +56,5 @@ ll1.yacc(parser.grammar)
 
 --local tree = parser 'function graph.vertices(self) end'
 
-local tree = parser(io.open('common/graph.lua', 'r'):read('*all'))
+local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
 print(tree)
