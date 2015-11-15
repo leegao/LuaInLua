@@ -126,7 +126,7 @@ end
 local function star(object, variable)
   return {
     variable = '$' .. variable,
-    {object[2], '$' .. variable, tag = '#list', action = trim "function(item, list) table.insert(list, item); return list end"},
+    {object[2], '$' .. variable, tag = '#list', action = trim "function(item, list) table.insert(list, 1, item); return list end"},
     {'',  action = trim "function() return {} end"},
   }, variable
 end
@@ -201,7 +201,7 @@ end
             tag = '#list',
             action = trim [[
   function(item, list)
-    table.insert(list, item)
+    table.insert(list, 1, item)
     return list
   end
 ]]}}

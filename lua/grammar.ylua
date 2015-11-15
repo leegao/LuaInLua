@@ -450,13 +450,12 @@ funcbody := '(' $parlist? ')' $block 'end'
         else
           parameters:list(from(trail))
         end
+        return parameters
       end
     :}
 
-parlist := (<namelist> Name ',' [: _1 :])+ (Name [: _1 :] | '...' [: _1 :]) 
+parlist := (<namelist> Name ',' [: _1 :])* (Name [: _1 :] | '...' [: _1 :]) 
             {: parlist_namelist :}
-         | '...' 
-            [: node('parameters'):list(from(_1)) :]
 
         %resolve parlist'star#1 Name {: function(self, tokens)
           if tostring(tokens[2]) == 'COMMA' then
