@@ -19,8 +19,8 @@ local function byte(str, i)
   return str:byte(i), i+1
 end
 
-local function string(str, i)
-  local size, i = int(str, i)
+local function string(str, i, size)
+  local size, i = int(str, i, size)
   if size == 0 then
     return nil, i
   end

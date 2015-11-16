@@ -6,10 +6,10 @@ local reader  = require "bytecode.reader"
 
 local chunk = {}
 
-local sizeof_int = 4
-local sizeof_sizet = 4
-local sizeof_instruction = 4
-local sizeof_number = 8
+--chunk.sizeof_int = 4
+--chunk.sizeof_sizet = 4
+--chunk.sizeof_instruction = 4
+chunk.sizeof_number = 8
 
 local function generic_list(ctx, parser, size)
   local n = ctx:int(size)
@@ -40,10 +40,16 @@ function chunk.load_header(ctx)
   assert(ctx:byte() == 0x52) -- version
   assert(ctx:byte() == 0) -- format version
   assert(ctx:byte() == 1) -- little endian
-  sizeof_int = assert(ctx:byte()) -- sizeof(int)
-  sizeof_sizet = assert(ctx:byte()) -- sizeof(size_t)
-  sizeof_instruction = assert(ctx:byte()) -- sizeof(Instruction)
-  assert(ctx:byte() == sizeof_number) -- sizeof(number)
+  if not chunk.sizeof_int then
+    chunk.sizeof_int = assert(ctx:byte()) -- sizeof(int)
+    chunk.sizeof_sizet = assert(ctx:byte()) -- sizeof(size_t)
+    chunk.sizeof_instruction = assert(ctx:byte()) -- sizeof(Instruction)
+  else
+    assert(ctx:byte() == chunk.sizeof_int) -- sizeof(int)
+    assert(ctx:byte() == chunk.sizeof_sizet) -- sizeof(size_t)
+    assert(ctx:byte() == chunk.sizeof_sizet) -- sizeof(Instruction)
+  end
+  assert(ctx:byte() == chunk.sizeof_number) -- sizeof(number)
   assert(ctx:byte() == 0) -- is integer
   assert(ctx:int() == 0x0a0d9319) -- TAIL
   assert(ctx:short() == 0x0a1a) -- MORE TAIL
@@ -74,6 +80,24 @@ function chunk.load_upvalues(ctx)
   )
 end
 
+function chunk.load_debug(ctx)
+  local source = ctx:string(sizeof_sizet)
+  local lineinfo = generic_list(ctx, ctx.int)
+  local locals = generic_list(
+    ctx,
+    function(ctx)
+      return {name = ctx:string(sizeof_sizet), first_pc = ctx:int(), last_pc = ctx:int()}
+    end
+  )
+  local upvalues = generic_list(ctx, function(ctx) return ctx:string(sizeof_sizet) end)
+  return {
+    source = source,
+    lineinfo = lineinfo,
+    locals = locals,
+    upvalues = upvalues,
+  }
+end
+
 function chunk.load_function(ctx)
   local first_line   = ctx:int()
   local last_line    = ctx:int()
@@ -83,7 +107,7 @@ function chunk.load_function(ctx)
   local code         = chunk.load_code(ctx)
   local constants    = chunk.load_constants(ctx)
   local upvalues     = chunk.load_upvalues(ctx)
---  local debug        = load_debug(ctx)
+  local debug        = chunk.load_debug(ctx)
 --  local instructions = generic_list(ctx, function(ctx) return opcode.instruction(reader.int(ctx)) end)
 --  local constants    = generic_list(ctx, constant)
 --
@@ -104,17 +128,26 @@ function chunk.load_function(ctx)
     code         = code,
     constants    = constants,
     upvalues     = upvalues,
+    debug        = debug,
   }
 end
 
-local function hello() end
+-- Configure the chunk reader for the first time
+chunk.load_header(reader.new_reader(string.dump(loadstring '')))
 
-local ctx = reader.new_reader(string.dump(hello))
-
-chunk.load_header(ctx)
-
-reader:configure(sizeof_int)
-
-chunk.load_function(ctx)
+function chunk.undump(str_or_function)
+  local str = str_or_function
+  if type(str_or_function) == 'function' then
+    str = string.dump(str_or_function)
+  end
+  assert(type(str) == 'string', "You can only undump functions or bytecode")
+  local ctx = reader.new_reader(str)
+  ctx:configure(chunk.sizeof_int)
+  chunk.load_header(ctx) -- verify
+  local func = chunk.load_function(ctx)
+  assert(ctx[2] > #ctx[1], "There is some extra data left inside the bytecode.")
+  -- TODO: Verify bytecode
+  return func
+end
 
 return chunk
