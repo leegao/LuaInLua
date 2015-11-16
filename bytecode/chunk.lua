@@ -65,15 +65,25 @@ function chunk.load_constants(ctx)
   return constants
 end
 
+function chunk.load_upvalues(ctx)
+  return generic_list(
+    ctx,
+    function(ctx)
+      return {instack = ctx:byte(), index = ctx:byte()}
+    end
+  )
+end
+
 function chunk.load_function(ctx)
   local first_line   = ctx:int()
   local last_line    = ctx:int()
   local nparams      = ctx:byte()
   local is_vararg    = ctx:byte()
   local stack_size   = ctx:byte()
-  local code = chunk.load_code(ctx)
-  local constants = chunk.load_constants(ctx)
-  --local upvalues = load_upvalues(ctx)
+  local code         = chunk.load_code(ctx)
+  local constants    = chunk.load_constants(ctx)
+  local upvalues     = chunk.load_upvalues(ctx)
+--  local debug        = load_debug(ctx)
 --  local instructions = generic_list(ctx, function(ctx) return opcode.instruction(reader.int(ctx)) end)
 --  local constants    = generic_list(ctx, constant)
 --
@@ -93,6 +103,7 @@ function chunk.load_function(ctx)
     stack_size   = stack_size,
     code         = code,
     constants    = constants,
+    upvalues     = upvalues,
   }
 end
 
