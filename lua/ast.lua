@@ -6,8 +6,8 @@ function ast:before(node)
   
 end
 
-function ast:after(node)
-  
+function ast:after(node, result)
+  return result
 end
 
 function ast:accept(node)
@@ -16,16 +16,16 @@ function ast:accept(node)
   end
   self:before(node)
   local action = self['on_' .. node.kind]
-  local continue = true
+  local result, continue
   if action then
-    continue = action(self, node)
+    result, continue = action(self, node)
   end
   if continue then
     for child in utils.loop(node) do
       self:accept(child)
     end
   end
-  self:after(node)
+  return self:after(node, result)
 end
 
 return setmetatable(
