@@ -1,7 +1,12 @@
 local bit = require "bit"
+local utils = require "common.utils"
 
 local function int(str, i)
   return str:byte(i)+str:byte(i+1)*256+str:byte(i+2)*(256*256)+str:byte(i+3)*(256*256*256), i+4
+end
+
+local function sizet(str, i)
+  error "Not implemented"
 end
 
 local function short(str, i)
@@ -57,8 +62,12 @@ end
 
 local reader = {int=contexualize(int), short=contexualize(short), byte=contexualize(byte), string=contexualize(string), double=contexualize(double), contexualize = contexualize}
 
+function reader:configure(sizet)
+  self.sizet = sizet
+end
+
 local function new_reader(str)
-  return setmetatable({str, 1}, {__index=reader})
+  return setmetatable({str, 1}, {__index=utils.copy(reader)})
 end
 
 reader.new_reader = new_reader
