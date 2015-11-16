@@ -1,5 +1,5 @@
 local bit = require "bit"
-local ir =  require "ir"
+local ir =  require "bytecode.ir"
 --[[
 /*----------------------------------------------------------------------
 name			args	description
