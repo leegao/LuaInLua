@@ -23,7 +23,7 @@ function ir.R(r)
 	if ir.Registers[r] then return ir.Registers[r] end
 	local register = setmetatable({r=r}, {__tostring = function(self) 
 		if ir.func then 
-			local name = ir.func.locals[r+1]
+			local name = (ir.func.debug.locals[r+1] or {}).name
 			if name and tostring(name):byte(1) ~= 40 then
 				return 'r('..tostring(name)..')'
 			end

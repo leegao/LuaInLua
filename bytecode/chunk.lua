@@ -2,7 +2,9 @@
 -- and http://www.lua.org/source/5.2/lundump.c.html#luaU_undump for changes
 
 local opcode = require "bytecode.opcode"
-local reader  = require "bytecode.reader"
+local reader = require "bytecode.reader"
+local utils = require "common.utils"
+local ir = require 'bytecode.ir'
 
 local chunk = {}
 
@@ -151,6 +153,11 @@ function chunk.undump(str_or_function)
 end
 
 -- testing
-chunk.undump(chunk.undump)
+local func = chunk.undump(chunk.undump)
+ir.func = func
+for instruction in utils.loop(func.code) do
+  print(instruction)
+end
+
 
 return chunk
