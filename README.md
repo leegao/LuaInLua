@@ -20,15 +20,16 @@ Status Report:
 7. Added support for oracular lookaheads
 1. Create a lua parser in LL(1)
 1. Add semantic actions to the lua parser
+1. Add a tokenizer for Lua
+1. Lua 5.2 bytecode deserializer
 
 In progress:
 
-1. Add a tokenizer for Lua
-2. Interpreter.
+1. Lua 5.2 bytecode interpreter
+2. AST -> Bytecode compiler.
 
 TODO:
 
-10. Lua register machine
 11. Standard library
 12. Self-host the toolchain (5.2 compatibility)
 
