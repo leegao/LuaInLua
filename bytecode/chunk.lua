@@ -4,26 +4,12 @@
 local opcode = require "bytecode.opcode"
 local reader  = require "bytecode.reader"
 
+local chunk = {}
+
 local sizeof_int = 4
-local sizeof_sizet
+local sizeof_sizet = 4
 local sizeof_instruction = 4
 local sizeof_number = 8
-
-local function load_header(ctx)
-  local header = ctx:int()
-  assert(header == 0x61754c1b) -- ESC. Lua
-  assert(ctx:byte() == 0x52) -- version
-  assert(ctx:byte() == 0) -- format version
-  assert(ctx:byte() == 1) -- little endian
-  assert(ctx:byte(), 4) -- sizeof(int)
-  local sizet = assert(ctx:byte()) -- sizeof(size_t)
-  assert(ctx:byte() == 4) -- sizeof(Instruction)
-  assert(ctx:byte() == 8) -- sizeof(number)
-  assert(ctx:byte() == 0) -- is integer
-  assert(ctx:int() == 0x0a0d9319) -- TAIL
-  assert(ctx:short() == 0x0a1a) -- MORE TAIL
-  return sizet
-end
 
 local function generic_list(ctx, parser, size)
   local n = ctx:int(size)
@@ -44,30 +30,49 @@ local function constant(ctx)
     return ctx:double()
   elseif type == 4 then
     return ctx:string()
+  else
+    error "Cannot parse constant"
   end
 end
 
-local function load_code(ctx)
+function chunk.load_header(ctx)
+  assert(ctx:int() == 0x61754c1b) -- ESC. Lua
+  assert(ctx:byte() == 0x52) -- version
+  assert(ctx:byte() == 0) -- format version
+  assert(ctx:byte() == 1) -- little endian
+  sizeof_int = assert(ctx:byte()) -- sizeof(int)
+  sizeof_sizet = assert(ctx:byte()) -- sizeof(size_t)
+  sizeof_instruction = assert(ctx:byte()) -- sizeof(Instruction)
+  assert(ctx:byte() == sizeof_number) -- sizeof(number)
+  assert(ctx:byte() == 0) -- is integer
+  assert(ctx:int() == 0x0a0d9319) -- TAIL
+  assert(ctx:short() == 0x0a1a) -- MORE TAIL
+  return
+end
+
+
+function chunk.load_code(ctx)
   return generic_list(
     ctx,
     function(ctx)
-      return opcode.instruction(ctx:int())
+      return opcode.instruction(ctx:int(sizeof_instruction))
     end)
 end
 
-local function load_function(ctx)
+function chunk.load_constants(ctx)
+  local constants = generic_list(ctx, constant)
+  constants.functions = generic_list(ctx, chunk.load_function)
+  return constants
+end
+
+function chunk.load_function(ctx)
   local first_line   = ctx:int()
-  print(first_line)
   local last_line    = ctx:int()
-  print(last_line)
   local nparams      = ctx:byte()
-  print(nparams)
   local is_vararg    = ctx:byte()
-  print(is_vararg)
   local stack_size   = ctx:byte()
-  print(stack_size)
-  local code = load_code(ctx)
-  --local constants = load_constants(ctx)
+  local code = chunk.load_code(ctx)
+  local constants = chunk.load_constants(ctx)
   --local upvalues = load_upvalues(ctx)
 --  local instructions = generic_list(ctx, function(ctx) return opcode.instruction(reader.int(ctx)) end)
 --  local constants    = generic_list(ctx, constant)
@@ -86,6 +91,8 @@ local function load_function(ctx)
     nparams      = nparams,
     is_vararg    = is_vararg,
     stack_size   = stack_size,
+    code         = code,
+    constants    = constants,
   }
 end
 
@@ -93,9 +100,10 @@ local function hello() end
 
 local ctx = reader.new_reader(string.dump(hello))
 
-sizeof_sizet = load_header(ctx)
+chunk.load_header(ctx)
 
-ctx:configure(sizeof_sizet)
-load_function(ctx)
+reader:configure(sizeof_int)
 
-return {header=header, func=func}
+chunk.load_function(ctx)
+
+return chunk
