@@ -4,8 +4,14 @@
 local opcode = require "bytecode.opcode"
 local reader  = require "bytecode.reader"
 
-local function header(ctx)
-  assert(ctx:int() == 0x61754c1b) -- ESC. Lua
+local sizeof_int = 4
+local sizeof_sizet
+local sizeof_instruction = 4
+local sizeof_number = 8
+
+local function load_header(ctx)
+  local header = ctx:int()
+  assert(header == 0x61754c1b) -- ESC. Lua
   assert(ctx:byte() == 0x52) -- version
   assert(ctx:byte() == 0) -- format version
   assert(ctx:byte() == 1) -- little endian
@@ -19,11 +25,11 @@ local function header(ctx)
   return sizet
 end
 
-local function generic_list(ctx, f)
-  local n = ctx:int()
+local function generic_list(ctx, parser, size)
+  local n = ctx:int(size)
   local ret = {}
-  for i=1,n do
-    table.insert(ret, f(ctx))
+  for i = 1, n do
+    table.insert(ret, parser(ctx))
   end
   return ret
 end
@@ -41,13 +47,28 @@ local function constant(ctx)
   end
 end
 
-local function func(ctx)
+local function load_code(ctx)
+  return generic_list(
+    ctx,
+    function(ctx)
+      return opcode.instruction(ctx:int())
+    end)
+end
+
+local function load_function(ctx)
   local first_line   = ctx:int()
+  print(first_line)
   local last_line    = ctx:int()
+  print(last_line)
   local nparams      = ctx:byte()
+  print(nparams)
   local is_vararg    = ctx:byte()
+  print(is_vararg)
   local stack_size   = ctx:byte()
-  
+  print(stack_size)
+  local code = load_code(ctx)
+  --local constants = load_constants(ctx)
+  --local upvalues = load_upvalues(ctx)
 --  local instructions = generic_list(ctx, function(ctx) return opcode.instruction(reader.int(ctx)) end)
 --  local constants    = generic_list(ctx, constant)
 --
@@ -68,12 +89,13 @@ local function func(ctx)
   }
 end
 
+local function hello() end
 
-local ctx = reader.new_reader(string.dump(loadfile 'hello.lua'))
+local ctx = reader.new_reader(string.dump(hello))
 
-local sizet = header(ctx)
+sizeof_sizet = load_header(ctx)
 
-ctx:configure(sizet)
-func(ctx)
+ctx:configure(sizeof_sizet)
+load_function(ctx)
 
 return {header=header, func=func}

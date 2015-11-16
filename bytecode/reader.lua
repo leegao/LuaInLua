@@ -1,8 +1,15 @@
 local bit = require "bit"
 local utils = require "common.utils"
 
-local function int(str, i)
-  return str:byte(i)+str:byte(i+1)*256+str:byte(i+2)*(256*256)+str:byte(i+3)*(256*256*256), i+4
+local function int(str, i, n)
+  if not n then n = 4 end
+  if n == 1 then
+    return str:byte(i), i + 1
+  end
+  local k = str:byte(i)
+  local m, i = int(str, i + 1, n-1)
+
+  return bit.lshift(m, 8) + k, i
 end
 
 local function sizet(str, i)
@@ -10,7 +17,7 @@ local function sizet(str, i)
 end
 
 local function short(str, i)
-  return str:byte(i)+str:byte(i+1)*256, i+2
+  return int(str, i, 2)
 end
 
 local function byte(str, i)
@@ -53,8 +60,9 @@ local function double(str, i)
 end
 
 local function contexualize(f)
-  return function(ctx)
-    local r, i = f(unpack(ctx))
+  return function(ctx, ...)
+    local str, i = unpack(ctx)
+    local r, i = f(str, i, ...)
     ctx[2] = i
     return r
   end
