@@ -13,7 +13,6 @@ chunk.sizeof_number = 8
 
 local function generic_list(ctx, parser, size)
   local n = ctx:int(size)
-  print(n)
   local ret = {}
   for i = 1, n do
     table.insert(ret, parser(ctx))
@@ -62,7 +61,7 @@ function chunk.load_code(ctx)
   return generic_list(
     ctx,
     function(ctx)
-      return opcode.instruction(ctx:int(sizeof_instruction))
+      return opcode.instruction(ctx:int(chunk.sizeof_instruction))
     end)
 end
 
@@ -87,10 +86,10 @@ function chunk.load_debug(ctx)
   local locals = generic_list(
     ctx,
     function(ctx)
-      return {name = ctx:string(sizeof_sizet), first_pc = ctx:int(), last_pc = ctx:int()}
+      return {name = ctx:string(chunk.sizeof_sizet), first_pc = ctx:int(), last_pc = ctx:int()}
     end
   )
-  local upvalues = generic_list(ctx, function(ctx) return ctx:string(sizeof_sizet) end)
+  local upvalues = generic_list(ctx, function(ctx) return ctx:string(chunk.sizeof_sizet) end)
   return {
     source = source,
     lineinfo = lineinfo,
@@ -151,6 +150,7 @@ function chunk.undump(str_or_function)
   return func
 end
 
+-- testing
 chunk.undump(chunk.undump)
 
 return chunk
