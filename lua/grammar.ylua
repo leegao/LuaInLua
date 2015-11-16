@@ -125,7 +125,7 @@
 local ast = {}
 function ast:__newindex(key, val)
   if type(key) ~= 'string' then
-    rawset(self, key, val)
+    return rawset(self, key, val)
   end
   assert(not self[key], 'Fields passed to a node should be initialized only once.')
   rawset(self, key, val)
@@ -163,6 +163,12 @@ local function node(kind)
 end
 
 local function from(token)
+  if tostring(token) == 'Name' then
+    local leaf = node 'name'
+    leaf.token = token
+    leaf.name = token[2]
+    return leaf
+  end
   local leaf = node 'leaf'
   leaf.value = token
   return leaf
@@ -393,7 +399,7 @@ assignment_or_call := $primaryexp (
                             -- assignment case
                             -- assignment is a list of subsequent assignments
                             local ps = handle_primary_suffix(left, suffixes)
-                            assert(ps.kind == 'index' or ps.kind == 'leaf' and tostring(ps.value) == 'Name')
+                            assert(ps.kind == 'index' or ps.kind == 'name')
                             local lvals, rvals = unpack(assignment)
                             table.insert(lvals, 1, ps)
                             local tree = node 'assignments'

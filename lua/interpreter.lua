@@ -39,7 +39,12 @@ local interpreter = visitor {
   on_localassign = function(self, assignment)
     -- left (namelist), right (explist)
     assert(assignment.left.kind == 'names')
-    print(assignment.left.kind)
+    local names = utils.map(function(name) return name.name end, assignment.left)
+    if assignment.right then
+      assert(assignment.right.kind == 'explist')
+    else
+      -- assign them nil
+    end
     return false
   end,
 
