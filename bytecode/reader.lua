@@ -7,7 +7,6 @@ local function int(str, i, n)
   end
   local k = str:byte(i)
   local m, i = int(str, i + 1, n-1)
-
   return bit.lshift(m, 8) + k, i
 end
 
@@ -29,8 +28,8 @@ local function string(str, i, size)
 end
 
 local function double(str, i)
-  local lo, i = int(str, i)
-  local hi, i = int(str, i)
+  local lo, i = int(str, i, 4)
+  local hi, i = int(str, i, 4)
   -- 1 11 52
   -- hi:63    - sign
   -- hi:62-52 - exp

@@ -13,6 +13,7 @@ chunk.sizeof_number = 8
 
 local function generic_list(ctx, parser, size)
   local n = ctx:int(size)
+  print(n)
   local ret = {}
   for i = 1, n do
     table.insert(ret, parser(ctx))
@@ -24,12 +25,12 @@ local function constant(ctx)
   local type = ctx:byte()
   if type == 0 then
     return nil
-  elseif type == 1 then
+  elseif type == 1 then -- boolean
     return ctx:byte() ~= 0
   elseif type == 3 then
     return ctx:double()
   elseif type == 4 then
-    return ctx:string()
+    return ctx:string(chunk.sizeof_sizet)
   else
     error "Cannot parse constant"
   end
@@ -47,7 +48,7 @@ function chunk.load_header(ctx)
   else
     assert(ctx:byte() == chunk.sizeof_int) -- sizeof(int)
     assert(ctx:byte() == chunk.sizeof_sizet) -- sizeof(size_t)
-    assert(ctx:byte() == chunk.sizeof_sizet) -- sizeof(Instruction)
+    assert(ctx:byte() == chunk.sizeof_instruction) -- sizeof(Instruction)
   end
   assert(ctx:byte() == chunk.sizeof_number) -- sizeof(number)
   assert(ctx:byte() == 0) -- is integer
@@ -81,8 +82,8 @@ function chunk.load_upvalues(ctx)
 end
 
 function chunk.load_debug(ctx)
-  local source = ctx:string(sizeof_sizet)
-  local lineinfo = generic_list(ctx, ctx.int)
+  local source = ctx:string(chunk.sizeof_sizet)
+  local lineinfo = generic_list(ctx, function(ctx) return ctx:int() end)
   local locals = generic_list(
     ctx,
     function(ctx)
@@ -149,5 +150,7 @@ function chunk.undump(str_or_function)
   -- TODO: Verify bytecode
   return func
 end
+
+chunk.undump(chunk.undump)
 
 return chunk
