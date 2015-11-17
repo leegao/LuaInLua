@@ -60,11 +60,13 @@ end
 
 
 function chunk.load_code(ctx)
-  return generic_list(
-    ctx,
-    function(ctx)
-      return opcode.instruction(ctx:int(chunk.sizeof_instruction))
-    end)
+  local ir = ctx:get_ir()
+  local n = ctx:int(size)
+  local instructions = {}
+  for i = 1, n do
+    table.insert(instructions, opcode.instruction(ir, ctx:int(chunk.sizeof_instruction), i))
+  end
+  return instructions
 end
 
 function chunk.load_constants(ctx)
@@ -101,6 +103,7 @@ function chunk.load_debug(ctx)
 end
 
 function chunk.load_function(ctx)
+  table.insert(ctx.ir_stack, ir())
   local first_line   = ctx:int()
   local last_line    = ctx:int()
   local nparams      = ctx:byte()
@@ -120,7 +123,8 @@ function chunk.load_function(ctx)
 --              {__tostring = function(self) return self[1] end,
 --              __eq = function(self, other) return tostring(self) == tostring(other) end}) end)
 --  local upvalues     = generic_list(ctx, reader.string)
-  
+
+  local ir_context = table.remove(ctx.ir_stack)
   return {
     first_line   = first_line,
     last_line    = last_line,
@@ -131,6 +135,7 @@ function chunk.load_function(ctx)
     constants    = constants,
     upvalues     = upvalues,
     debug        = debug,
+    ir_context   = ir_context,
   }
 end
 
@@ -145,6 +150,10 @@ function chunk.undump(str_or_function)
   assert(type(str) == 'string', "You can only undump functions or bytecode")
   local ctx = reader.new_reader(str)
   ctx:configure(chunk.sizeof_int)
+  ctx.ir_stack = {}
+  function ctx:get_ir()
+    return self.ir_stack[#self.ir_stack]
+  end
   chunk.load_header(ctx) -- verify
   local func = chunk.load_function(ctx)
   assert(ctx[2] > #ctx[1], "There is some extra data left inside the bytecode.")
@@ -154,7 +163,6 @@ end
 
 -- testing
 local func = chunk.undump(chunk.undump)
-ir.func = func
 for instruction in utils.loop(func.code) do
   print(instruction)
 end

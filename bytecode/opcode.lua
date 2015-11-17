@@ -133,7 +133,7 @@ local ARGS = {
   {{A, R}, {B, R}},
   {{A, R}, {B, R}}, --R(A) := length of R(B)
   {{A, R}, {B, R}, {C, R}}, --R(A) := R(B).. ... ..R(C)
-  {{A, function(A) if A >= 0 then return R(A) else V(0) end end}, {sBx, V}}, --pc+=sBx; if (A) close all upvalues >= R(A - 1)
+  {{A, function(ctx, A) if A >= 0 then return R(ctx, A) else V(ctx, 0) end end}, {sBx, V}}, --pc+=sBx; if (A) close all upvalues >= R(A - 1)
   {{A, V}, {B, RK}, {C, RK}}, --if ((RK(B) == RK(C)) ~= A) then pc++
   {{A, V}, {B, RK}, {C, RK}},
   {{A, V}, {B, RK}, {C, RK}},
@@ -165,7 +165,7 @@ local OPMT = {__tostring = function(self)
     return string.format("%s(%s)",self.op, table.concat(r2, ', '))
   end}
 
-local function instruction(int)
+local function instruction(ctx, int, position)
   -- 6 8 9 9
   local op = bit.band(int, 0x3f)+1
   local A  = bit.rshift(bit.band(int, 0x3fc0), 6)
@@ -176,12 +176,12 @@ local function instruction(int)
   local sBx = Bx - 131071
   local this = {A = A, B = B, C = C, Ax = Ax, Bx = Bx, sBx = sBx }
   if not OPCODES[op] then
-    print(op)
+    error("Opcode " .. op .. " not found!")
   end
 
   local inst = setmetatable({op = OPCODES[op]}, OPMT)
   for _,v in ipairs(ARGS[op]) do
-    inst[v[1]] = v[2](this[v[1]])
+    inst[v[1]] = v[2](ctx, this[v[1]], position)
   end
   
   return inst
