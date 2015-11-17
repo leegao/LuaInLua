@@ -3,7 +3,6 @@
 
 local opcode = require "bytecode.opcode"
 local reader = require "bytecode.reader"
-local utils = require "common.utils"
 local ir = require 'bytecode.ir'
 
 local chunk = {}
@@ -113,19 +112,9 @@ function chunk.load_function(ctx)
   local constants    = chunk.load_constants(ctx)
   local upvalues     = chunk.load_upvalues(ctx)
   local debug        = chunk.load_debug(ctx)
---  local instructions = generic_list(ctx, function(ctx) return opcode.instruction(reader.int(ctx)) end)
---  local constants    = generic_list(ctx, constant)
---
---  local protos       = generic_list(ctx, func)
---
---  local line_num     = generic_list(ctx, reader.int)
---  local locals       = generic_list(ctx, function(ctx) return setmetatable({ctx:string(), ctx:int(), ctx:int()},
---              {__tostring = function(self) return self[1] end,
---              __eq = function(self, other) return tostring(self) == tostring(other) end}) end)
---  local upvalues     = generic_list(ctx, reader.string)
 
   local ir_context = table.remove(ctx.ir_stack)
-  return {
+  local func = {
     first_line   = first_line,
     last_line    = last_line,
     nparams      = nparams,
@@ -137,6 +126,8 @@ function chunk.load_function(ctx)
     debug        = debug,
     ir_context   = ir_context,
   }
+  ir_context:configure(func)
+  return func
 end
 
 -- Configure the chunk reader for the first time
@@ -160,12 +151,5 @@ function chunk.undump(str_or_function)
   -- TODO: Verify bytecode
   return func
 end
-
--- testing
-local func = chunk.undump(chunk.undump)
-for instruction in utils.loop(func.code) do
-  print(instruction)
-end
-
 
 return chunk

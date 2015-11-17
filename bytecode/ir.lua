@@ -27,7 +27,8 @@ function ir:R(r, pos)
   if self.Registers[r] then return self.Registers[r] end
   local register = setmetatable({r = r, pos = pos, ctx = self}, {__tostring = function()
     if self.Function then
-      local name = (self.Function.debug.locals[r+1] or {}).name
+      local local_ = self.Function.debug.locals[r+1]
+      local name = (local_ or {}).name
       if name and tostring(name):byte(1) ~= 40 then
         return 'r('..tostring(name)..')'
       end
@@ -40,7 +41,7 @@ end
 
 function ir:Kst(r, pos)
   if self.Constants[r] then return self.Constants[r] end
-  local register = setmetatable({k = r, pos = pos, ctx = self}, {__tostring = function(self)
+  local register = setmetatable({k = r, pos = pos, ctx = self}, {__tostring = function()
     if not self.Function then
       return "Kst("..r..")" 
     else 

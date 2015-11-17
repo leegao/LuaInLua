@@ -187,4 +187,17 @@ local function instruction(ctx, int, position)
   return inst
 end
 
+local function make(ctx, op, ...)
+  local inst = setmetatable({op = OPCODES[op]}, OPMT)
+  local arguments = {... }
+  assert(
+    #ARGS[op] == #arguments,
+    "Wrong number of arguments for " .. op .. ", expecting " .. #ARGS[op] .. " but got " .. #arguments .. " instead.")
+  for i, parameter in utils.loop(ARGS[op]) do
+    local type, func = unpack(parameter)
+    inst[type] = func(ctx, arguments[i])
+  end
+  return inst
+end
+
 return {instruction = instruction, OPCODES = OPCODES, ARGS = ARGS, OPMT = OPMT}
