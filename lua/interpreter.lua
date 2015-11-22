@@ -31,9 +31,9 @@ local function new_closure(nparams, is_vararg)
   return closure
 end
 
-local function enter(closure)
+local function enter(nparams, is_vararg)
   local scope = {
-    closure = closure,
+    closure = new_closure(nparams or 0, is_vararg or false),
     local_id = 0,
     constant_id = 1,
     locals = {},
@@ -93,7 +93,7 @@ local function enter(closure)
       return constants[value]
     end
     local id = self.constant_id
-    self.constand_id = id + 1
+    self.constant_id = id + 1
     constants[value] = id
     return id
   end
@@ -102,12 +102,16 @@ local function enter(closure)
     print(...)
   end
 
+  function scope:finalize()
+    error "Finalize is unimplemented"
+  end
+
   push(scope, closures)
   return scope
 end
 
 local function close()
-  return pop(closures)
+  return pop(closures):finalize()
 end
 
 local function latest()
@@ -125,19 +129,48 @@ local BETA = math.max
 -- emit ASTs of bytecodes
 -- closure is the current state, alpha is the register to assign into, beta is the "frontier", and gamma is the number
 -- of values to return
+-- @alphas - optional: either a location to move into or own the object in this field
 -- @gamma - number of expressions to return, 0 if not applicable
 -- @return alphas - the locations of the current expression if applicable
 local interpreter = visitor {
-  on_number = function(self, node, alphas)
+  on_any_constant = function(self, value, alphas)
     local closure = latest()
     local alpha = closure:own_or_propagate(alphas)
-    local k = closure:const(tonumber(node.value))
+    local k = closure:const(value)
     if L(alpha) then
       -- emit loadk, alpha, k
       closure:emit("LOADK", alpha, k)
       return {alpha}
     end
     error "LValue optimization unimplemented"
+  end,
+
+  on_number = function(self, node, alphas)
+    return self:on_any_constant(tonumber(node.value), alphas)
+  end,
+
+  on_string = function(self, node, alphas)
+    return self:on_any_constant(tostring(node.value), alphas)
+  end,
+
+  on_true = function(self, node, alphas)
+    local closure = latest()
+    local alpha = closure:own_or_propagate(alphas)
+    if L(alpha) then
+      closure:emit("LOADBOOL", alpha, 1)
+      return {alpha}
+    end
+    error "LValue optimization unavailable"
+  end,
+
+  on_false = function(self, node, alphas)
+    local closure = latest()
+    local alpha = closure:own_or_propagate(alphas)
+    if L(alpha) then
+      closure:emit("LOADBOOL", alpha, 0)
+      return {alpha}
+    end
+    error "LValue optimization unavailable"
   end,
 
   on_explist = function(self, node, alphas)
@@ -147,11 +180,8 @@ local interpreter = visitor {
       if i > #alphas then
         for alpha in utils.loop(returned_alpha) do closure:free(alpha) end
       end
-      if child == node[#node] then
-        return alphas
-      end
     end
-    error "Impossible"
+    return alphas
   end,
 
   on_localassign = function(self, node)
@@ -177,7 +207,8 @@ local interpreter = visitor {
 }
 
 
-local tree = parser([[local a = 1]])
+local tree = parser([[local a, b = "", 3, true, true]])
 -- main closure
-enter({})
+enter()
 interpreter:accept(tree)
+-- close()
