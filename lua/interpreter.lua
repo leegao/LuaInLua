@@ -87,15 +87,16 @@ local function enter(nparams, is_vararg)
     if not alphas or #alphas == 0 then
       return self:next(), true
     end
-    assert(#alphas == 1)
-    return alphas[1], false
+    if #alphas == 1 then
+      return alphas[1], false
+    else
+      return alphas[1], false, utils.sublist(alphas, 2)
+    end
   end
 
-  function scope:new_local(name)
-    local id = self.local_id
-    self.local_id = self.local_id + 1
+  function scope:bind(name, id)
+    assert(self.reserved_registers[id], "Cannot bind a new local to a non-reserved regiser")
     table.insert(self:block(), {name, id})
-    self:reserve(id)
     return id
   end
 
@@ -122,6 +123,29 @@ local function enter(nparams, is_vararg)
     self.constant_id = id + 1
     constants[value] = id
     return id
+  end
+
+  function scope:null(rest)
+    -- let's see if rest is contiguous
+    local i = 1
+    local last
+    local contiguous = true
+    while true do
+      last = rest[i]
+      i = i + 1
+      if i > #rest then break end
+      if rest[i] ~= last + 1 then
+        contiguous = false
+        break
+      end
+    end
+
+    if contiguous then
+      -- yay
+      self:emit("LOADNIL", rest[1], #rest - 1)
+    else
+      error "Noncontiguous nulling out is not supported yet"
+    end
   end
 
   function scope:emit(...)
@@ -161,12 +185,13 @@ local BETA = math.max
 local interpreter = visitor {
   on_any_constant = function(self, value, alphas)
     local closure = latest()
-    local alpha, mine = closure:own_or_propagate(alphas)
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
     local k = closure:const(value)
     if L(alpha) then
       -- emit loadk, alpha, k
-      closure:emit("LOADK", alpha, k)
+      closure:emit("LOADK", alpha, value)
       if mine then closure:free(alpha) end
+      if rest then closure:null(rest) end
       return {alpha}
     end
     error "LValue optimization unimplemented"
@@ -182,10 +207,11 @@ local interpreter = visitor {
 
   on_true = function(self, node, alphas)
     local closure = latest()
-    local alpha, mine = closure:own_or_propagate(alphas)
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
     if L(alpha) then
       closure:emit("LOADBOOL", alpha, 1)
       if mine then closure:free(alpha) end
+      if rest then closure:null(rest) end
       return {alpha}
     end
     error "LValue optimization unavailable"
@@ -193,10 +219,11 @@ local interpreter = visitor {
 
   on_false = function(self, node, alphas)
     local closure = latest()
-    local alpha, mine = closure:own_or_propagate(alphas)
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
     if L(alpha) then
       closure:emit("LOADBOOL", alpha, 0)
       if mine then closure:free(alpha) end
+      if rest then closure:null(rest) end
       return {alpha}
     end
     error "LValue optimization unavailable"
@@ -205,20 +232,33 @@ local interpreter = visitor {
   on_name = function(self, node, alphas)
     local var = node.value
     local closure = latest()
-    local alpha, mine = closure:own_or_propagate(alphas)
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
     local r = closure:look_for(var)
     if mine then
+      if rest then closure:null(rest) end
       return {r}
     else
       closure:emit("MOVE", alpha, r)
+      if rest then closure:null(rest) end
       return {alpha}
     end
     error "Unimplemented"
   end,
 
+  on_nil = function(self, node, alphas)
+    local closure = latest()
+    closure:null(alphas)
+    return alphas
+  end,
+
   on_explist = function(self, node, alphas)
     for i, child in ipairs(node) do
-      self:accept(child, {alphas[i]})
+      local subalphas = {alphas[i]}
+      if child == node[#node] then
+        subalphas = utils.sublist(alphas, i)
+      end
+
+      self:accept(child, subalphas)
     end
     return alphas
   end,
@@ -228,11 +268,19 @@ local interpreter = visitor {
     local ids = {}
     for name in node.left:children() do
       assert(name.kind == 'name')
-      table.insert(ids, closure:new_local(name.value))
+      table.insert(ids, closure:next())
     end
+
+    if not node.right then
+      closure:null(ids)
+      return STATEMENT
+    end
+
     local alphas = self:accept(node.right, ids)
-    for i, id in ipairs(ids) do
-      assert(alphas[i] == id)
+
+    for i, name in ipairs(node.left) do
+      assert(alphas[i] == ids[i])
+      closure:bind(name.value, ids[i])
     end
     return STATEMENT
   end,
@@ -249,7 +297,7 @@ local interpreter = visitor {
 }
 
 
-local tree = parser([[local a, b = "", 3, true, true, a]])
+local tree = parser([[local a = 1; local b, c = "asdfasdf"; local c = 1, 2, 3; local e, f = c]])
 -- main closure
 enter()
 interpreter:accept(tree)

@@ -152,7 +152,7 @@ function chunk.undump(str_or_function)
   return func
 end
 
-local closure = chunk.undump(function(f, z) while f do if z then break end end end)
+local closure = chunk.undump(function() local a = 1; local a, b = a, 3, 4; local c end)
 for pc, op in ipairs(closure.code) do
   print(pc, op)
 end
