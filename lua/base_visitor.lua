@@ -14,6 +14,18 @@ local base_visitor = ast {
     -- list of leaves of Names
     return node, false
   end,
+  on_name = function(self, node)
+    -- name
+    return node, false
+  end,
+  on_nil = function(self, node) return node, false end,
+  on_true = function(self, node) return node, false end,
+  on_false = function(self, node) return node, false end,
+  on_bop = function(self, node) return node, false end,
+  on_unop = function(self, node) return node, false end,
+  on_number = function(self, node) return node, false end,
+  on_string = function(self, node) return node, false end,
+  on_break = function(self, node) return node, false end,
   on_leaf = function(self, node)
     -- tokens
     return node, false
@@ -108,6 +120,9 @@ local base_visitor = ast {
   end,
 }
 base_visitor.super = base_visitor
+function base_visitor:children()
+  return utils.loop(self)
+end
 
 local mt = utils.copy(getmetatable(base_visitor))
 function mt.__call(self, visitor) 

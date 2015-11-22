@@ -158,19 +158,25 @@ function ast:list(...)
   return self
 end
 
+function ast:children()
+  return utils.loop(self)
+end
+
 local function node(kind)
   return setmetatable({kind = kind}, {__index = ast, __newindex = ast.__newindex})
 end
 
-local function from(token)
+local function from(token, kind)
+  if not kind then kind = 'leaf' end
   if tostring(token) == 'Name' then
     local leaf = node 'name'
     leaf.token = token
-    leaf.name = token[2]
+    leaf.value = token[2]
     return leaf
   end
-  local leaf = node 'leaf'
-  leaf.value = token
+  local leaf = node(kind)
+  leaf.token = token
+  leaf.value = token[2]
   return leaf
 end
 :}
@@ -194,7 +200,7 @@ end
 stat := ';' [: node 'empty' :]
       | $assignment_or_call [: _1 :]
       | $label [: _1 :]
-      | 'break' [: from(_1) :]
+      | 'break' [: node 'break' :]
       | 'goto' Name [: node('goto'):set('label', from(_2)) :]
       | 'do' $block 'end' [: _2 :]
       | 'while' $exp 'do' $block 'end' [: node('while'):set('cond', _2):set('block', _4) :]
@@ -299,12 +305,12 @@ end
 
 // there's a conflict on $binop between reducing the maybe? rule or going into the binop of the exp.
 // luckily for us, since not binds are not as tight as the binary operators, we'd always be reducing the rule
-exp := ('nil' {: from :} 
-      | 'false' {: from :} 
-      | 'true' {: from :} 
-      | Number {: from :} 
-      | String {: from :} 
-      | '...' {: from :} 
+exp := ('nil' [: node 'nil' :]
+      | 'false' [: node 'false' :]
+      | 'true' [: node 'true' :]
+      | Number [: from(_1, 'number') :]
+      | String [: from(_1, 'string') :]
+      | '...' {: node 'vararg' :}
       | $functiondef [: _1 :] 
       | $primaryexp $suffix* {: handle_primary_suffix :} 
       | $tableconstructor [: _1 :] 
@@ -494,8 +500,8 @@ end :}
 
 fieldsep [: {} :] := ',' | ';'
 
-binop [: from(_1) :] := '+' | '-' | '*' | '/' | '^' | '%' | '..' | 
+binop [: from(_1, 'bop') :] := '+' | '-' | '*' | '/' | '^' | '%' | '..' |
   '<' | '<=' | '>' | '>=' | '==' | '~=' | 
   'and' | 'or'
 
-unop [: from(_1) :] := '-' | 'not' | '#'
+unop [: from(_1, 'unop') :] := '-' | 'not' | '#'
