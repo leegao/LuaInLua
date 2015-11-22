@@ -42,6 +42,18 @@ local function enter(nparams, is_vararg)
     reserved_registers = {},
   }
 
+  function scope:enter()
+    push({}, self.locals)
+  end
+
+  function scope:exit()
+    return pop(self.locals)
+  end
+
+  function scope:block()
+    return peek(self.locals)
+  end
+
   function scope:reserve(i)
     assert(not self.reserved_registers[i], "Register " .. i .. " is already reserved")
     self.reserved_registers[i] = true
@@ -73,18 +85,32 @@ local function enter(nparams, is_vararg)
 
   function scope:own_or_propagate(alphas)
     if not alphas or #alphas == 0 then
-      return self:next()
+      return self:next(), true
     end
     assert(#alphas == 1)
-    return alphas[1]
+    return alphas[1], false
   end
 
   function scope:new_local(name)
     local id = self.local_id
     self.local_id = self.local_id + 1
-    table.insert(self.locals, {name, id})
+    table.insert(self:block(), {name, id})
     self:reserve(id)
     return id
+  end
+
+  function scope:look_for(name)
+    for i = #self.locals, 1, -1 do
+      local block = self.locals[i]
+      for j = #block, 1, -1 do
+        local var, id = unpack(block[j])
+        if var == name then
+          return id
+        end
+      end
+    end
+    -- go to the previous closure to look for an upvalue
+    error "Unimplemented"
   end
 
   function scope:const(value)
@@ -135,11 +161,12 @@ local BETA = math.max
 local interpreter = visitor {
   on_any_constant = function(self, value, alphas)
     local closure = latest()
-    local alpha = closure:own_or_propagate(alphas)
+    local alpha, mine = closure:own_or_propagate(alphas)
     local k = closure:const(value)
     if L(alpha) then
       -- emit loadk, alpha, k
       closure:emit("LOADK", alpha, k)
+      if mine then closure:free(alpha) end
       return {alpha}
     end
     error "LValue optimization unimplemented"
@@ -155,9 +182,10 @@ local interpreter = visitor {
 
   on_true = function(self, node, alphas)
     local closure = latest()
-    local alpha = closure:own_or_propagate(alphas)
+    local alpha, mine = closure:own_or_propagate(alphas)
     if L(alpha) then
       closure:emit("LOADBOOL", alpha, 1)
+      if mine then closure:free(alpha) end
       return {alpha}
     end
     error "LValue optimization unavailable"
@@ -165,21 +193,32 @@ local interpreter = visitor {
 
   on_false = function(self, node, alphas)
     local closure = latest()
-    local alpha = closure:own_or_propagate(alphas)
+    local alpha, mine = closure:own_or_propagate(alphas)
     if L(alpha) then
       closure:emit("LOADBOOL", alpha, 0)
+      if mine then closure:free(alpha) end
       return {alpha}
     end
     error "LValue optimization unavailable"
   end,
 
-  on_explist = function(self, node, alphas)
+  on_name = function(self, node, alphas)
+    local var = node.value
     local closure = latest()
+    local alpha, mine = closure:own_or_propagate(alphas)
+    local r = closure:look_for(var)
+    if mine then
+      return {r}
+    else
+      closure:emit("MOVE", alpha, r)
+      return {alpha}
+    end
+    error "Unimplemented"
+  end,
+
+  on_explist = function(self, node, alphas)
     for i, child in ipairs(node) do
-      local returned_alpha = self:accept(child, {alphas[i]})
-      if i > #alphas then
-        for alpha in utils.loop(returned_alpha) do closure:free(alpha) end
-      end
+      self:accept(child, {alphas[i]})
     end
     return alphas
   end,
@@ -188,7 +227,8 @@ local interpreter = visitor {
     local closure = latest()
     local ids = {}
     for name in node.left:children() do
-      table.insert(ids, closure:new_local(name))
+      assert(name.kind == 'name')
+      table.insert(ids, closure:new_local(name.value))
     end
     local alphas = self:accept(node.right, ids)
     for i, id in ipairs(ids) do
@@ -198,16 +238,18 @@ local interpreter = visitor {
   end,
 
   on_block = function(self, node)
-    -- TODO: add block
+    local closure = latest()
+    closure:enter()
     for child in node:children() do
       self:accept(child)
     end
+    closure:exit()
     return STATEMENT
   end,
 }
 
 
-local tree = parser([[local a, b = "", 3, true, true]])
+local tree = parser([[local a, b = "", 3, true, true, a]])
 -- main closure
 enter()
 interpreter:accept(tree)
