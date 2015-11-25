@@ -65,32 +65,33 @@ local function enter(nparams, is_vararg)
     self.reserved_registers[i] = nil
   end
 
-  function scope:next()
-    -- dumb traversal
-    for i=1, MAX_REGISTERS do
-      if not self.reserved_registers[i] then
-        return self:reserve(i)
-      end
-    end
-    error "Ran out of registers to allocate"
-  end
+--  function scope:next()
+--    -- dumb traversal
+--    for i=1, MAX_REGISTERS do
+--      if not self.reserved_registers[i] then
+--        return self:reserve(i)
+--      end
+--    end
+--    error "Ran out of registers to allocate"
+--  end
 
-  function scope:continguous()
+  function scope:next()
     local max = 0
     for key in pairs(self.reserved_registers) do
       if key > max then max = key end
     end
-    return self:reserve(max)
+    return self:reserve(max + 1)
   end
 
   function scope:own_or_propagate(alphas)
-    if not alphas or #alphas == 0 then
+    if not alphas or alphas[2] == 0 then
       return self:next(), true
     end
-    if #alphas == 1 then
-      return alphas[1], false
+    local alpha, num = unpack(alphas)
+    if num == 1 then
+      return alpha, false
     else
-      return alphas[1], false, utils.sublist(alphas, 2)
+      return alpha, false, {alpha + 1, num - 1}
     end
   end
 
@@ -126,26 +127,8 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:null(rest)
-    -- let's see if rest is contiguous
-    local i = 1
-    local last
-    local contiguous = true
-    while true do
-      last = rest[i]
-      i = i + 1
-      if i > #rest then break end
-      if rest[i] ~= last + 1 then
-        contiguous = false
-        break
-      end
-    end
-
-    if contiguous then
-      -- yay
-      self:emit("LOADNIL", rest[1], #rest - 1)
-    else
-      error "Noncontiguous nulling out is not supported yet"
-    end
+    assert(rest[2] > 0)
+    self:emit("LOADNIL", rest[1], rest[2] - 1)
   end
 
   function scope:emit(...)
@@ -187,14 +170,10 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local k = closure:const(value)
-    if L(alpha) then
-      -- emit loadk, alpha, k
-      closure:emit("LOADK", alpha, value)
-      if mine then closure:free(alpha) end
-      if rest then closure:null(rest) end
-      return {alpha}
-    end
-    error "LValue optimization unimplemented"
+    closure:emit("LOADK", alpha, value)
+    if mine then closure:free(alpha) end
+    if rest then closure:null(rest) end
+    return {alpha}
   end,
 
   on_number = function(self, node, alphas)
@@ -205,28 +184,22 @@ local interpreter = visitor {
     return self:on_any_constant(tostring(node.value), alphas)
   end,
 
-  on_true = function(self, node, alphas)
+  on_true = function(self, _, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    if L(alpha) then
-      closure:emit("LOADBOOL", alpha, 1)
-      if mine then closure:free(alpha) end
-      if rest then closure:null(rest) end
-      return {alpha}
-    end
-    error "LValue optimization unavailable"
+    closure:emit("LOADBOOL", alpha, 1)
+    if mine then closure:free(alpha) end
+    if rest then closure:null(rest) end
+    return {alpha}
   end,
 
-  on_false = function(self, node, alphas)
+  on_false = function(self, _, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    if L(alpha) then
-      closure:emit("LOADBOOL", alpha, 0)
-      if mine then closure:free(alpha) end
-      if rest then closure:null(rest) end
-      return {alpha}
-    end
-    error "LValue optimization unavailable"
+    closure:emit("LOADBOOL", alpha, 0)
+    if mine then closure:free(alpha) end
+    if rest then closure:null(rest) end
+    return {alpha}
   end,
 
   on_name = function(self, node, alphas)
@@ -236,29 +209,36 @@ local interpreter = visitor {
     local r = closure:look_for(var)
     if mine then
       if rest then closure:null(rest) end
-      return {r}
+      return {r, 1}
     else
       closure:emit("MOVE", alpha, r)
       if rest then closure:null(rest) end
-      return {alpha}
+      return {alpha, 1}
     end
-    error "Unimplemented"
   end,
 
-  on_nil = function(self, node, alphas)
+  on_nil = function(self, _, alphas)
     local closure = latest()
     closure:null(alphas)
     return alphas
   end,
 
-  on_explist = function(self, node, alphas)
-    for i, child in ipairs(node) do
-      local subalphas = {alphas[i]}
-      if child == node[#node] then
-        subalphas = utils.sublist(alphas, i)
-      end
+  on_unop = function(self, node, alphas)
+    local closure = latest()
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
+    local operator = node.operator.token[1]
+    local operand = self:accept(node.operand, node.operand.kind ~= 'name' and {alpha, 1})
+    local select = {MIN = "UNM", NOT = "NOT", HASH = "LEN"}
+    closure:emit(select[operator], alpha, operand[1])
+    if mine then closure:free(alpha) end
+    if rest then closure:null(rest) end
+    return {alpha}
+  end,
 
-      self:accept(child, subalphas)
+  on_explist = function(self, node, alphas)
+    local alpha, num = unpack(alphas)
+    for i, child in ipairs(node) do
+      self:accept(child, {alpha + i - 1, math.max(0, num - i + 1)})
     end
     return alphas
   end,
@@ -272,14 +252,13 @@ local interpreter = visitor {
     end
 
     if not node.right then
-      closure:null(ids)
+      closure:null({ids[1], #ids})
       return STATEMENT
     end
 
-    local alphas = self:accept(node.right, ids)
+    self:accept(node.right, {ids[1], #ids})
 
     for i, name in ipairs(node.left) do
-      assert(alphas[i] == ids[i])
       closure:bind(name.value, ids[i])
     end
     return STATEMENT
@@ -297,7 +276,7 @@ local interpreter = visitor {
 }
 
 
-local tree = parser([[local a = 1; local b, c = "asdfasdf"; local c = 1, 2, 3; local e, f = c]])
+local tree = parser([[local a = 1; local b, c = "asdfasdf"; local c = 1, 2; local e = not c;]])
 -- main closure
 enter()
 interpreter:accept(tree)
