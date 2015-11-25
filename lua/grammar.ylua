@@ -321,6 +321,7 @@ exp := ('nil' [: node 'nil' :]
               local binop, right = unpack(binops_opt[1] or {})
               if binop then
                 local tree = node 'binop'
+                tree.operator = binop
                 tree.left = left
                 tree.right = right
                 return tree

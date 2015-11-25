@@ -173,7 +173,7 @@ local interpreter = visitor {
     closure:emit("LOADK", alpha, value)
     if mine then closure:free(alpha) end
     if rest then closure:null(rest) end
-    return {alpha}
+    return {alpha, 1}
   end,
 
   on_number = function(self, node, alphas)
@@ -190,7 +190,7 @@ local interpreter = visitor {
     closure:emit("LOADBOOL", alpha, 1)
     if mine then closure:free(alpha) end
     if rest then closure:null(rest) end
-    return {alpha}
+    return {alpha, 1}
   end,
 
   on_false = function(self, _, alphas)
@@ -199,7 +199,7 @@ local interpreter = visitor {
     closure:emit("LOADBOOL", alpha, 0)
     if mine then closure:free(alpha) end
     if rest then closure:null(rest) end
-    return {alpha}
+    return {alpha, 1}
   end,
 
   on_name = function(self, node, alphas)
@@ -232,7 +232,43 @@ local interpreter = visitor {
     closure:emit(select[operator], alpha, operand[1])
     if mine then closure:free(alpha) end
     if rest then closure:null(rest) end
-    return {alpha}
+    return {alpha, 1}
+  end,
+
+  on_binop = function(self, node, alphas)
+    local closure = latest()
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
+    local operator = node.operator.token[1]
+    local left = self:accept(node.left, node.left.kind ~= 'name' and {alpha, 1})
+    local right = self:accept(node.right, node.right.kind ~= 'name' and {alpha + 1, 1})
+    local select = {
+      PLUS = "ADD",
+      MIN = "SUB",
+      MUL = "MUL",
+      DIV = "DIV",
+      POW = "POW",
+      MOD = "MOD",
+      CONCAT = "CONCAT",
+      AND = "AND",
+      OR = "OR",
+    }
+    if select[operator] then
+      closure:emit(select[operator], alpha, left[1], right[1])
+    else
+      error "Unimplemented"
+    end
+    if mine then closure:free(alpha) end
+    if rest then closure:null(rest) end
+    return {alpha, 1}
+  end,
+
+  on_table = function(self, node, alphas)
+    local closure = latest()
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
+    -- get the elements 
+    if mine then closure:free(alpha) end
+    if rest then closure:null(rest) end
+    return {alpha, 1}
   end,
 
   on_explist = function(self, node, alphas)
@@ -276,7 +312,13 @@ local interpreter = visitor {
 }
 
 
-local tree = parser([[local a = 1; local b, c = "asdfasdf"; local c = 1, 2; local e = not c;]])
+local tree = parser([[
+local a = 1;
+local b, c = "asdfasdf";
+local c = 1, 2;
+local e = (not c) + 3;
+local f = {}
+]])
 -- main closure
 enter()
 interpreter:accept(tree)
