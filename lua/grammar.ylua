@@ -368,7 +368,7 @@ exp := ('nil' [: node 'nil' :]
   end
   local function suffix_colon(_, name, args)
     return {
-      index = from(name),
+      index = from(name, "string"),
       args = args,
     }
   end

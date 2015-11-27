@@ -334,6 +334,30 @@ local interpreter = visitor {
     return {alpha, 1}
   end,
 
+  call_imp = function(self, node, call, first, num_in, num_out)
+    local closure = latest()
+    if #node.args ~= 0 then
+      local previous_id = first
+      for arg in node.args:children() do
+        local id = closure:next()
+        assert(id == previous_id + 1)
+        previous_id = id
+        if arg ~= node.args[#node.args] then
+          self:accept(arg, {id, 1})
+        else
+          local _, pack_length = unpack(self:accept(arg, {id, TOP}))
+          closure:emit("CALL", call, from(num_in + #node.args + pack_length), from(num_out + 1))
+          -- time to destroy the previous ids
+          assert(id == first + #node.args)
+          closure:free {first + 1, #node.args}
+          break
+        end
+      end
+    else
+      closure:emit("CALL", call, num_in + 1, from(num_out + 1))
+    end
+  end,
+
   on_call = function(self, node, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
@@ -343,29 +367,31 @@ local interpreter = visitor {
     local num_out = alphas and alphas[2] or TOP
     -- node = call -> target : expr, args : args -> [expr]
     self:accept(node.target, {alpha, 1})
-    if #node.args ~= 0 then
-      local previous_id = alpha
-      for arg in node.args:children() do
-        local id = closure:next()
-        assert(id == previous_id + 1)
-        previous_id = id
-        if arg ~= node.args[#node.args] then
-          self:accept(arg, {id, 1})
-        else
-          local _, pack_length = unpack(self:accept(arg, {id, TOP}))
-          closure:emit("CALL", alpha, from(#node.args + pack_length), from(num_out + 1))
-          -- time to destroy the previous ids
-          assert(id == alpha + #node.args)
-          closure:free {alpha + 1, #node.args }
-          break
-        end
-      end
-    else
-      closure:emit("CALL", alpha, 1, from(num_out + 1))
-    end
+    self:call_imp(node, alpha, alpha, 0, num_out)
     -- next, reserve the output registers again
     if rest then assert(closure:next(rest[2]) == rest[1]) end
 
+    if mine then closure:free(combine(alpha, rest)) end
+    return {alpha, num_out}
+  end,
+
+  on_selfcall = function(self, node, alphas)
+    local closure = latest()
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
+
+    -- first, let's free up rest so the subexpressions can use them
+    if rest then closure:free(rest) end
+    local num_out = alphas and alphas[2] or TOP
+    -- node = selfcall = taget : (index = left : expr, right : name), args
+    self:accept(node.target.left, {alpha, 1})
+    local base = closure:next()
+    assert(base == alpha + 1)
+    self:accept(node.target.right, {base, 1})
+    closure:emit("SELF", alpha, alpha, base)
+    self:call_imp(node, alpha, alpha + 1, 1, num_out)
+    closure:free{base, 1}
+    -- next, reserve the output registers again
+    if rest then assert(closure:next(rest[2]) == rest[1]) end
 
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, num_out}
@@ -425,7 +451,8 @@ local c = 1, 2;
 local e = (not c) + 3;
 local f = {1, e, c, zzz = 5, [3] = 2}
 local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
-local b = z
+local b = z:lol(a)
+local c = b
 ]])
 -- main closure
 enter()
