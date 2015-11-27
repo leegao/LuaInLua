@@ -398,6 +398,20 @@ local interpreter = visitor {
     return {alpha, num_out}
   end,
 
+  on_index = function(self, node, alphas)
+    local closure = latest()
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
+
+    self:accept(node.left, {alpha, 1})
+    local right = closure:next()
+    closure:free(self:accept(node.right, {right, 1}))
+    closure:emit("GETTABLE", alpha, alpha, right)
+
+    if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
+    return {alpha, 1}
+  end,
+
   on_explist = function(self, node, alphas)
     error "Illegal state: explist"
   end,
@@ -455,6 +469,7 @@ local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
 local b = z:lol(a)
 local c = {...}
 local z, x, y = ...
+local g = f[3]
 ]])
 -- main closure
 enter()
