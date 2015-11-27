@@ -167,12 +167,12 @@ local function node(kind)
 end
 
 local function from(token, kind)
-  if not kind then kind = 'leaf' end
-  if tostring(token) == 'Name' then
-    local leaf = node 'name'
-    leaf.token = token
-    leaf.value = token[2]
-    return leaf
+  if not kind then
+    if tostring(token) == 'Name' then
+      kind = 'name'
+    else
+      kind = 'leaf'
+    end
   end
   local leaf = node(kind)
   leaf.token = token
@@ -489,7 +489,7 @@ tableconstructor := '{' $field* '}'
 
 // Conflict resolvers, since the approximation of Lua we're parsing is not LL(1) (but is LL(2))
 field := '[' $exp ']' '=' $exp $fieldsep? [: node('element'):set('index', _2):set('value', _5) :]
-       | <assign> Name '=' $exp $fieldsep? [: node('element'):set('index', from(_1)):set('value', _3) :]
+       | <assign> Name '=' $exp $fieldsep? [: node('element'):set('index', from(_1, 'string')):set('value', _3) :]
        | <exp> $exp $fieldsep? [: node('element'):set('value', _1) :]
 %resolve field Name {: function(self, tokens)
   if tostring(tokens[2]) == 'EQ' then

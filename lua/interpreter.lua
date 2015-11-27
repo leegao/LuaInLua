@@ -7,6 +7,8 @@ local utils = require 'common.utils'
 
 local STATEMENT = {}
 local MAX_REGISTERS = 255
+-- TODO: fix me
+local TOP = -MAX_REGISTERS
 
 local function peek(stack) return stack[#stack] end
 local function pop(stack) return table.remove(stack) end
@@ -54,15 +56,24 @@ local function enter(nparams, is_vararg)
     return peek(self.locals)
   end
 
-  function scope:reserve(i)
-    assert(not self.reserved_registers[i], "Register " .. i .. " is already reserved")
-    self.reserved_registers[i] = true
-    return i
+  function scope:reserve(start, n)
+    for i = start, start + n - 1 do
+      assert(not self.reserved_registers[i], "Register " .. i .. " is already reserved")
+      self.reserved_registers[i] = true
+    end
+    return start
   end
 
-  function scope:free(i)
-    assert(self.reserved_registers[i], "Register " .. i .. " is already free")
-    self.reserved_registers[i] = nil
+  function scope:free(alphas)
+    local start, n = unpack(alphas)
+    assert(self.reserved_registers[start], "Register " .. start .. " is already free")
+    for i = start, start + n - 1 do
+      self.reserved_registers[i] = nil
+    end
+    -- verify that there's no more reserved registers
+    for key in pairs(self.reserved_registers) do
+      assert(key < start)
+    end
   end
 
 --  function scope:next()
@@ -75,16 +86,17 @@ local function enter(nparams, is_vararg)
 --    error "Ran out of registers to allocate"
 --  end
 
-  function scope:next()
+  function scope:next(n)
+    if not n then n = 1 end
     local max = 0
     for key in pairs(self.reserved_registers) do
       if key > max then max = key end
     end
-    return self:reserve(max + 1)
+    return self:reserve(max + 1, n)
   end
 
   function scope:own_or_propagate(alphas)
-    if not alphas or alphas[2] == 0 then
+    if not alphas then
       return self:next(), true
     end
     local alpha, num = unpack(alphas)
@@ -127,6 +139,7 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:null(rest)
+    if rest[2] < 0 then return end
     assert(rest[2] > 0)
     self:emit("LOADNIL", rest[1], rest[2] - 1)
   end
@@ -157,6 +170,20 @@ local function L(number)
   end
 end
 
+local function combine(start, rest)
+  if not rest then return {start, 1} end
+  assert(rest[1] == start + 1)
+  return {start, rest[2] + 1}
+end
+
+local function from(alpha)
+  if alpha < 0 then
+    return 0
+  else
+    return alpha
+  end
+end
+
 local BETA = math.max
 
 -- emit ASTs of bytecodes
@@ -171,8 +198,9 @@ local interpreter = visitor {
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local k = closure:const(value)
     closure:emit("LOADK", alpha, value)
-    if mine then closure:free(alpha) end
+
     if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
 
@@ -188,8 +216,8 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     closure:emit("LOADBOOL", alpha, 1)
-    if mine then closure:free(alpha) end
     if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
 
@@ -197,24 +225,19 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     closure:emit("LOADBOOL", alpha, 0)
-    if mine then closure:free(alpha) end
     if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
 
   on_name = function(self, node, alphas)
-    local var = node.value
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    local r = closure:look_for(var)
-    if mine then
-      if rest then closure:null(rest) end
-      return {r, 1}
-    else
-      closure:emit("MOVE", alpha, r)
-      if rest then closure:null(rest) end
-      return {alpha, 1}
-    end
+    local r = closure:look_for(node.value)
+    closure:emit("MOVE", alpha, r)
+    if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
+    return {alpha, 1}
   end,
 
   on_nil = function(self, _, alphas)
@@ -230,8 +253,8 @@ local interpreter = visitor {
     local operand = self:accept(node.operand, node.operand.kind ~= 'name' and {alpha, 1})
     local select = {MIN = "UNM", NOT = "NOT", HASH = "LEN"}
     closure:emit(select[operator], alpha, operand[1])
-    if mine then closure:free(alpha) end
     if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
 
@@ -240,7 +263,8 @@ local interpreter = visitor {
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local operator = node.operator.token[1]
     local left = self:accept(node.left, node.left.kind ~= 'name' and {alpha, 1})
-    local right = self:accept(node.right, node.right.kind ~= 'name' and {alpha + 1, 1})
+    local id_right = closure:next()
+    local right = self:accept(node.right, node.right.kind ~= 'name' and {id_right, 1})
     local select = {
       PLUS = "ADD",
       MIN = "SUB",
@@ -257,45 +281,75 @@ local interpreter = visitor {
     else
       error "Unimplemented"
     end
-    if mine then closure:free(alpha) end
+    closure:free({id_right, 1})
     if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
 
   on_table = function(self, node, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    -- get the elements 
-    if mine then closure:free(alpha) end
+    closure:emit("NEWTABLE", alpha, 0, 0)
+    -- get the elements
+    local last_index
+    for child in node:children() do if not child.index then last_index = child end end
+    local last = alpha
+    for child in node:children() do
+      if not child.index then
+        local id = closure:next()
+        assert(id == last + 1)
+        last = id
+        if child ~= last_index then
+          self:accept(child.value, {id, 1})
+        else
+          local final = self:accept(child.value, {id, TOP})
+          closure:emit("SETLIST", alpha, from(last - alpha + final[2] - 1), 1)
+          closure:free({alpha + 1, last - alpha})
+          break
+        end
+      end
+    end
+
+    for child in node:children() do
+      if child.index then
+        local index_id = closure:next()
+        local index = self:accept(child.index, {index_id, 1})
+        local value_id = closure:next()
+        local value = self:accept(child.value, {value_id, 1})
+        closure:emit("SETTABLE", alpha, index[1], value[1])
+        assert(value_id == index_id + 1)
+        closure:free({index_id, 2})
+      end
+    end
+
     if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
 
   on_explist = function(self, node, alphas)
-    local alpha, num = unpack(alphas)
-    for i, child in ipairs(node) do
-      self:accept(child, {alpha + i - 1, math.max(0, num - i + 1)})
-    end
-    return alphas
+    error "Explist is unimplemented"
   end,
 
   on_localassign = function(self, node)
     local closure = latest()
-    local ids = {}
-    for name in node.left:children() do
-      assert(name.kind == 'name')
-      table.insert(ids, closure:next())
-    end
-
-    if not node.right then
-      closure:null({ids[1], #ids})
-      return STATEMENT
-    end
-
-    self:accept(node.right, {ids[1], #ids})
-
-    for i, name in ipairs(node.left) do
-      closure:bind(name.value, ids[i])
+    local max = BETA(#node.left, #node.right)
+    for i = 1, max do
+      local name = node.left[i]
+      local exp = node.right[i]
+      if name and exp then
+        local id = closure:next()
+        self:accept(exp, {id, 1})
+        closure:bind(name.value, id)
+      elseif name then
+        local id = closure:next(max - i + 1)
+        local rest = {id, max - i + 1}
+        closure:null(rest)
+        break
+      else
+        self:accept(exp)
+      end
     end
     return STATEMENT
   end,
@@ -317,7 +371,7 @@ local a = 1;
 local b, c = "asdfasdf";
 local c = 1, 2;
 local e = (not c) + 3;
-local f = {}
+local f = {1, e, c, zzz = 5, [3] = 2}
 ]])
 -- main closure
 enter()
