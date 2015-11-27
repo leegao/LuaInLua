@@ -310,7 +310,7 @@ exp := ('nil' [: node 'nil' :]
       | 'true' [: node 'true' :]
       | Number [: from(_1, 'number') :]
       | String [: from(_1, 'string') :]
-      | '...' {: node 'vararg' :}
+      | '...' [: node 'vararg' :]
       | $functiondef [: _1 :] 
       | $primaryexp $suffix* {: handle_primary_suffix :} 
       | $tableconstructor [: _1 :] 

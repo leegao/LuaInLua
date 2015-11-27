@@ -77,16 +77,6 @@ local function enter(nparams, is_vararg)
     end
   end
 
---  function scope:next()
---    -- dumb traversal
---    for i=1, MAX_REGISTERS do
---      if not self.reserved_registers[i] then
---        return self:reserve(i)
---      end
---    end
---    error "Ran out of registers to allocate"
---  end
-
   function scope:next(n)
     if not n then n = 1 end
     local max = 0
@@ -397,8 +387,19 @@ local interpreter = visitor {
     return {alpha, num_out}
   end,
 
+  on_vararg = function(self, node, alphas)
+    local closure = latest()
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
+    local num_out = alphas and alphas[2] or TOP
+
+    closure:emit("VARARG", alpha, from(num_out + 1))
+
+    if mine then closure:free(combine(alpha, rest)) end
+    return {alpha, num_out}
+  end,
+
   on_explist = function(self, node, alphas)
-    error "Explist is unimplemented"
+    error "Illegal state: explist"
   end,
 
   on_localassign = function(self, node)
@@ -452,7 +453,8 @@ local e = (not c) + 3;
 local f = {1, e, c, zzz = 5, [3] = 2}
 local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
 local b = z:lol(a)
-local c = b
+local c = {...}
+local z, x, y = ...
 ]])
 -- main closure
 enter()
