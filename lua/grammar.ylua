@@ -152,7 +152,7 @@ function ast:list(...)
     end
     assert(child.kind, 'List should only be called on child trees.')
     table.insert(self, child)
-    assert(not child.parent, 'Children passed to list(...) should be unowned.')
+    assert(not child.parent or child.parent.kind == 'explist', 'Children passed to list(...) should be unowned.')
     rawset(child, 'parent', self)
   end
   return self
@@ -442,7 +442,7 @@ assignment := ',' $primaryexp $suffix* $assignment
     // varlist := $var (',' $var)*
     // var := Name | $prefixexp ('[' $exp ']' | '.' Name)
 
-args := '(' $explist? ')' [: (#_2 == 0 and node 'args') or node('args'):set('explist', _2[1]) :] 
+args := '(' $explist? ')' [: (#_2 == 0 and node 'args') or node('args'):list(unpack(_2[1])) :]
       | $tableconstructor [: node('args'):list(_1) :]
       | String [: node('args'):list(from(_1)) :]
 

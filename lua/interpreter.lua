@@ -7,7 +7,8 @@ local utils = require 'common.utils'
 
 local STATEMENT = {}
 local MAX_REGISTERS = 255
--- TODO: fix me
+-- TODO: fix me, TOP will only happen immediately before a call, table, or return, so they will never effect the
+-- computation of the actual register stack
 local TOP = -MAX_REGISTERS
 
 local function peek(stack) return stack[#stack] end
@@ -95,15 +96,20 @@ local function enter(nparams, is_vararg)
     return self:reserve(max + 1, n)
   end
 
-  function scope:own_or_propagate(alphas)
+  function scope:own_or_propagate(alphas, n)
+    if not alphas and n then error "Must propagate alphas" end
+    n = n or 1
     if not alphas then
       return self:next(), true
     end
     local alpha, num = unpack(alphas)
-    if num == 1 then
+    if num == n then
+      return alpha, false
+    elseif num < 0 then
       return alpha, false
     else
-      return alpha, false, {alpha + 1, num - 1}
+      assert(num >= n)
+      return alpha, false, {alpha + n, num - n}
     end
   end
 
@@ -328,6 +334,43 @@ local interpreter = visitor {
     return {alpha, 1}
   end,
 
+  on_call = function(self, node, alphas)
+    local closure = latest()
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
+
+    -- first, let's free up rest so the subexpressions can use them
+    if rest then closure:free(rest) end
+    local num_out = alphas and alphas[2] or TOP
+    -- node = call -> target : expr, args : args -> [expr]
+    self:accept(node.target, {alpha, 1})
+    if #node.args ~= 0 then
+      local previous_id = alpha
+      for arg in node.args:children() do
+        local id = closure:next()
+        assert(id == previous_id + 1)
+        previous_id = id
+        if arg ~= node.args[#node.args] then
+          self:accept(arg, {id, 1})
+        else
+          local _, pack_length = unpack(self:accept(arg, {id, TOP}))
+          closure:emit("CALL", alpha, from(#node.args + pack_length), from(num_out + 1))
+          -- time to destroy the previous ids
+          assert(id == alpha + #node.args)
+          closure:free {alpha + 1, #node.args }
+          break
+        end
+      end
+    else
+      closure:emit("CALL", alpha, 1, from(num_out + 1))
+    end
+    -- next, reserve the output registers again
+    if rest then assert(closure:next(rest[2]) == rest[1]) end
+
+
+    if mine then closure:free(combine(alpha, rest)) end
+    return {alpha, num_out}
+  end,
+
   on_explist = function(self, node, alphas)
     error "Explist is unimplemented"
   end,
@@ -338,10 +381,19 @@ local interpreter = visitor {
     for i = 1, max do
       local name = node.left[i]
       local exp = node.right[i]
-      if name and exp then
+      if name and exp and exp ~= node.right[#node.right] then
         local id = closure:next()
         self:accept(exp, {id, 1})
         closure:bind(name.value, id)
+      elseif name and exp and exp == node.right[#node.right] then
+        local len = max - i + 1
+        local id = closure:next(len)
+        local rest = {id, len}
+        self:accept(exp, rest)
+        for j = 0, len - 1 do
+          closure:bind(node.left[i + j].value, id + j)
+        end
+        break
       elseif name then
         local id = closure:next(max - i + 1)
         local rest = {id, max - i + 1}
@@ -372,6 +424,8 @@ local b, c = "asdfasdf";
 local c = 1, 2;
 local e = (not c) + 3;
 local f = {1, e, c, zzz = 5, [3] = 2}
+local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
+local b = z
 ]])
 -- main closure
 enter()
