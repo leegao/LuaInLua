@@ -356,7 +356,7 @@ exp := ('nil' [: node 'nil' :]
 %code {:
   local function suffix_dot(_, name)
     return {
-      index = from(name),
+      index = from(name, "string"),
       args = nil,
     }
   end

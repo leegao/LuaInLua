@@ -469,7 +469,8 @@ local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
 local b = z:lol(a)
 local c = {...}
 local z, x, y = ...
-local g = f[3]
+local g = f[3].c
+local h = g.foo
 ]])
 -- main closure
 enter()
