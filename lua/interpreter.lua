@@ -109,18 +109,38 @@ local function enter(nparams, is_vararg)
     return id
   end
 
+  function scope:get_parent()
+    local last
+    for scope in utils.loop(closures) do
+      if scope == self then
+        return last
+      end
+      last = scope
+    end
+    error "Illegal state"
+  end
+
+  function scope:markupval(location, id)
+    print("Implement me")
+    return location, id
+  end
+
   function scope:look_for(name)
     for i = #self.locals, 1, -1 do
       local block = self.locals[i]
       for j = #block, 1, -1 do
         local var, id = unpack(block[j])
         if var == name then
-          return id
+          return id, self
         end
       end
     end
     -- go to the previous closure to look for an upvalue
-    error "Unimplemented"
+    local parent = self:get_parent()
+    if not parent then
+      error "Unimplemented"
+    end
+    return self:markupval(parent:lookfor(name))
   end
 
   function scope:const(value)
@@ -145,7 +165,7 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:finalize()
-    error "Finalize is unimplemented"
+    print "Finalize is unimplemented"
   end
 
   push(scope, closures)
@@ -475,4 +495,4 @@ local h = g.foo
 -- main closure
 enter()
 interpreter:accept(tree)
--- close()
+close()

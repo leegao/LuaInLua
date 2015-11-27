@@ -60,7 +60,7 @@ end
 
 function chunk.load_code(ctx)
   local ir = ctx:get_ir()
-  local n = ctx:int(size)
+  local n = ctx:int()
   local instructions = {}
   for i = 1, n do
     table.insert(instructions, opcode.instruction(ir, ctx:int(chunk.sizeof_instruction), i))
@@ -152,7 +152,7 @@ function chunk.undump(str_or_function)
   return func
 end
 
-local closure = chunk.undump(function(a, b, c) local f = {1, b, c, zzz = 5, [3] = 2} end)
+local closure = chunk.undump(function() print(chunk) end)
 for pc, op in ipairs(closure.code) do
   print(pc, op)
 end
