@@ -491,6 +491,7 @@ local c = {...}
 local z, x, y = ...
 local g = f[3].c
 local h = g.foo
+local foo = function() end
 ]])
 -- main closure
 enter()
