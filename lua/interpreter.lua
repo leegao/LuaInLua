@@ -476,6 +476,11 @@ local interpreter = visitor {
     closure:exit()
     return STATEMENT
   end,
+
+  on_empty = function(self, node)
+    -- NOP
+    return STATEMENT
+  end,
 }
 
 
