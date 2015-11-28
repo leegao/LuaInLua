@@ -41,6 +41,7 @@ local function enter(nparams, is_vararg)
     constant_id = 1,
     locals = {},
     constants = {},
+    upvalues = {},
 
     reserved_registers = {},
   }
@@ -127,9 +128,20 @@ local function enter(nparams, is_vararg)
     error "Illegal state"
   end
 
-  function scope:markupval(id, scope)
-    print("Implement me, markupval")
-    return id, scope
+  function scope:searchup(id, level)
+    for i, upvalue in ipairs(self.upvalues) do
+      if id == upvalue[1] and level == upvalue[2] then
+        return i
+      end
+    end
+  end
+
+  function scope:markupval(id, other)
+    if not self:searchup(id, other) then
+      table.insert(self.upvalues, {id, other})
+    end
+
+    return id, other
   end
 
   function scope:look_for(name)
@@ -138,7 +150,7 @@ local function enter(nparams, is_vararg)
       for j = #block, 1, -1 do
         local var, id = unpack(block[j])
         if var == name then
-          return id, self
+          return id, self:level()
         end
       end
     end
@@ -178,7 +190,7 @@ local function enter(nparams, is_vararg)
 
   function scope:finalize()
     print "Finalize is unimplemented"
-    return self
+    return self, #closures + 1
   end
 
   push(scope, closures)
@@ -263,14 +275,17 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local r, scope = closure:look_for(node.value)
-    if scope == closure then
+    if scope == closure:level() then
       closure:emit("MOVE", alpha, r)
-      if rest then closure:null(rest) end
-      if mine then closure:free(combine(alpha, rest)) end
-      return {alpha, 1}
     else
-      error "Upvalue unimplemented"
+      local up = closure:searchup(r, scope)
+      assert(up, "Upvalue must have been populated")
+      closure:emit("GETUPVALUE", alpha, up)
     end
+
+    if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
+    return {alpha, 1}
   end,
 
   on_nil = function(self, _, alphas)
@@ -453,18 +468,33 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
 
+    local level = closure:level()
+
     -- node : functiondef = parameters : (parameters = [names], vararg), body : block
     enter()
-    local func = latest()
-    local parameters = node.parameters
-    for name in parameters:children() do
-      func:bind(name.value, func:next())
+    do
+      local func = latest()
+      local parameters = node.parameters
+      for name in parameters:children() do
+        func:bind(name.value, func:next())
+      end
+      -- TODO: vararg
+      self:accept(node.body)
+      func:emit("RETURN", 0, 1)
     end
-    -- TODO: vararg
-    self:accept(node.body)
-    func:emit("RETURN", 0, 1)
-    local prototype = close()
-    print(prototype)
+    local prototype, protolevel = close()
+    closure:emit("CLOSURE", alpha, "id")
+    -- mark upvalues
+    for upvalue in utils.loop(prototype.upvalues) do
+      local register, uplevel = unpack(upvalue)
+      if uplevel == level then
+        -- emit a move
+        closure:emit("MOVE", 0, register, nil, "; upvalue")
+      else
+        -- emit an upvalue
+        closure:emit("GETUPVAL", 0, closure:searchup(register, uplevel), nil, "; upvalue")
+      end
+    end
 
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
@@ -535,7 +565,7 @@ local c = {...}
 local z, x, y = ...
 local g = f[3].c
 local h = g.foo
-local foo = function() local zzz = a end
+local foo = function() local zzz = a, function() local yyy, xxx = zzz, b end end
 ]])
 -- main closure
 enter()
