@@ -127,9 +127,9 @@ local function enter(nparams, is_vararg)
     error "Illegal state"
   end
 
-  function scope:markupval(location, id)
-    print("Implement me")
-    return location, id
+  function scope:markupval(id, scope)
+    print("Implement me, markupval")
+    return id, scope
   end
 
   function scope:look_for(name)
@@ -147,7 +147,7 @@ local function enter(nparams, is_vararg)
     if not parent then
       error "Unimplemented"
     end
-    return self:markupval(parent:lookfor(name))
+    return self:markupval(parent:look_for(name))
   end
 
   function scope:const(value)
@@ -178,6 +178,7 @@ local function enter(nparams, is_vararg)
 
   function scope:finalize()
     print "Finalize is unimplemented"
+    return self
   end
 
   push(scope, closures)
@@ -261,11 +262,15 @@ local interpreter = visitor {
   on_name = function(self, node, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    local r = closure:look_for(node.value)
-    closure:emit("MOVE", alpha, r)
-    if rest then closure:null(rest) end
-    if mine then closure:free(combine(alpha, rest)) end
-    return {alpha, 1}
+    local r, scope = closure:look_for(node.value)
+    if scope == closure then
+      closure:emit("MOVE", alpha, r)
+      if rest then closure:null(rest) end
+      if mine then closure:free(combine(alpha, rest)) end
+      return {alpha, 1}
+    else
+      error "Upvalue unimplemented"
+    end
   end,
 
   on_nil = function(self, _, alphas)
@@ -458,7 +463,8 @@ local interpreter = visitor {
     -- TODO: vararg
     self:accept(node.body)
     func:emit("RETURN", 0, 1)
-    close()
+    local prototype = close()
+    print(prototype)
 
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
@@ -529,7 +535,7 @@ local c = {...}
 local z, x, y = ...
 local g = f[3].c
 local h = g.foo
-local foo = function() end
+local foo = function() local zzz = a end
 ]])
 -- main closure
 enter()
