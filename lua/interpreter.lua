@@ -45,6 +45,13 @@ local function enter(nparams, is_vararg)
     reserved_registers = {},
   }
 
+  function scope:level()
+    for i, scope in ipairs(closures) do
+      if scope == self then return i end
+    end
+    error "Illegal state"
+  end
+
   function scope:enter()
     push({}, self.locals)
   end
@@ -161,7 +168,12 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:emit(...)
-    print(...)
+    local levels = self:level() - 2
+    if levels < 0 then
+      print(...)
+    else
+      print(("    "):rep(levels), ...)
+    end
   end
 
   function scope:finalize()
@@ -426,6 +438,27 @@ local interpreter = visitor {
     local right = closure:next()
     closure:free(self:accept(node.right, {right, 1}))
     closure:emit("GETTABLE", alpha, alpha, right)
+
+    if rest then closure:null(rest) end
+    if mine then closure:free(combine(alpha, rest)) end
+    return {alpha, 1}
+  end,
+
+  on_function = function(self, node, alphas)
+    local closure = latest()
+    local alpha, mine, rest = closure:own_or_propagate(alphas)
+
+    -- node : functiondef = parameters : (parameters = [names], vararg), body : block
+    enter()
+    local func = latest()
+    local parameters = node.parameters
+    for name in parameters:children() do
+      func:bind(name.value, func:next())
+    end
+    -- TODO: vararg
+    self:accept(node.body)
+    func:emit("RETURN", 0, 1)
+    close()
 
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
