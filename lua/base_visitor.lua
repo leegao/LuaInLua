@@ -174,6 +174,11 @@ local base_visitor = ast {
     print("on_" .. node.kind .. " is not implemented!")
     return node, false
   end,
+  on_repeat = function(self, node)
+    -- repeat cond block
+    print("on_" .. node.kind .. " is not implemented!")
+    return node, false
+  end,
 }
 base_visitor.super = base_visitor
 function base_visitor:children()

@@ -753,7 +753,8 @@ local interpreter = visitor {
 --]])
 local tree = parser [[
 --  if foo() then bar() elseif dog() then else foobar() end
-  while bar(f()) do print("hello") end
+--  while bar(f()) do print("hello") end
+  repeat foo() until bar()
 ]]
 -- main closure
 enter()
