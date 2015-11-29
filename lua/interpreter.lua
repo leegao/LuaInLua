@@ -137,6 +137,7 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:markupval(id, other)
+    if not id then return end
     if not self:searchup(id, other) then
       table.insert(self.upvalues, {id, other})
     end
@@ -157,7 +158,7 @@ local function enter(nparams, is_vararg)
     -- go to the previous closure to look for an upvalue
     local parent = self:get_parent()
     if not parent then
-      error "Unimplemented"
+      return
     end
     return self:markupval(parent:look_for(name))
   end
@@ -277,10 +278,14 @@ local interpreter = visitor {
     local r, scope = closure:look_for(node.value)
     if scope == closure:level() then
       closure:emit("MOVE", alpha, r)
-    else
+    elseif scope then
       local up = closure:searchup(r, scope)
       assert(up, "Upvalue must have been populated")
       closure:emit("GETUPVALUE", alpha, up)
+    else
+      -- global
+      local k = closure:const(node.value)
+      closure:emit("GETTABUP", alpha, 0, k, "; " .. node.value)
     end
 
     if rest then closure:null(rest) end
@@ -489,10 +494,10 @@ local interpreter = visitor {
       local register, uplevel = unpack(upvalue)
       if uplevel == level then
         -- emit a move
-        closure:emit("MOVE", 0, register, nil, "; upvalue")
+        closure:emit("MOVE", 0, register, '', "; upvalue")
       else
         -- emit an upvalue
-        closure:emit("GETUPVAL", 0, closure:searchup(register, uplevel), nil, "; upvalue")
+        closure:emit("GETUPVAL", 0, closure:searchup(register, uplevel), '', "; upvalue")
       end
     end
 
@@ -565,7 +570,7 @@ local c = {...}
 local z, x, y = ...
 local g = f[3].c
 local h = g.foo
-local foo = function() local zzz = a, function() local yyy, xxx = zzz, b end end
+local foo = function() local zzz = a, function() local yyy, xxx = zzz, b, aaa end end
 ]])
 -- main closure
 enter()
