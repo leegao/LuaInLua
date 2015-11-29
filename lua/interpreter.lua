@@ -44,9 +44,12 @@ local function enter(nparams, is_vararg)
     constants = {},
     upvalues = {},
     code = {},
+    prototypes = {},
 
     reserved_registers = {},
   }
+
+  scope.id = peek(closures) and #peek(closures).prototypes or 0
 
   function scope:level()
     for i, scope in ipairs(closures) do
@@ -224,6 +227,11 @@ local function enter(nparams, is_vararg)
 
   function scope:finalize()
     print "Finalize is unimplemented"
+    local latest = peek(closures)
+    if latest then
+      table.insert(latest.prototypes, self)
+    end
+
     return self, #closures + 1
   end
 
@@ -517,12 +525,11 @@ local interpreter = visitor {
       for name in parameters:children() do
         func:bind(name.value, func:next())
       end
-      -- TODO: vararg
       self:accept(node.body)
       func:emit("RETURN", 0, 1)
     end
     local prototype, protolevel = close()
-    closure:emit("CLOSURE", alpha, "id") -- TODO: add in the correct id
+    closure:emit("CLOSURE", alpha, prototype.id)
     -- mark upvalues
     for upvalue in utils.loop(prototype.upvalues) do
       local register, uplevel = unpack(upvalue)
@@ -610,7 +617,6 @@ local interpreter = visitor {
     end
   end,
 
-  -- TODO: fixme
   on_assignments = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
@@ -811,7 +817,7 @@ local tree = parser [[
 --  if foo() then bar() elseif dog() then else foobar() end
 --  while bar(f()) do print("hello") end
 --  repeat foo() until bar()
-  for i = 1, 3 do print("hello") end
+--  for i = 1, 3 do print("hello") end
   local f = function() end
 ]]
 -- main closure
