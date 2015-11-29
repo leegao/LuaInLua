@@ -512,7 +512,20 @@ local interpreter = visitor {
 
   on_localassign = function(self, node)
     local closure = latest()
+
     local max = BETA(#node.left, #node.right)
+    if #node.right == 0 then
+      assert(#node.left ~= 0)
+      -- this is only possible if we have `local x, y, z`
+      local id = closure:next(max)
+      local rest = {id, max}
+      closure:null(rest)
+      for j = 1, max do
+        closure:bind(node.left[j].value, id + j - 1)
+      end
+      return STATEMENT
+    end
+
     for i = 1, max do
       local name = node.left[i]
       local exp = node.right[i]
@@ -529,7 +542,34 @@ local interpreter = visitor {
           closure:bind(node.left[i + j].value, id + j)
         end
         break
-      elseif name then
+      else
+        self:accept(assert(not name and exp))
+      end
+    end
+    return STATEMENT
+  end,
+
+  -- TODO: fixme
+  on_assignment = function(self, node)
+    local closure = latest()
+    local max = BETA(#node.left, #node.right)
+    for i = 1, max do
+      local left = node.left[i]
+      local exp = node.right[i]
+      if left and exp and exp ~= node.right[#node.right] then
+        local id = closure:next()
+        self:accept(exp, {id, 1})
+        self:assign(left, id)
+      elseif left and exp and exp == node.right[#node.right] then
+        local len = max - i + 1
+        local id = closure:next(len)
+        local rest = {id, len}
+        self:accept(exp, rest)
+        for j = 0, len - 1 do
+          self:assign(node.left[i + j].value, id + j)
+        end
+        break
+      elseif left then
         local id = closure:next(max - i + 1)
         local rest = {id, max - i + 1}
         closure:null(rest)
