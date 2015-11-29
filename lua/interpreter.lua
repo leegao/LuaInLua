@@ -565,7 +565,14 @@ local interpreter = visitor {
         closure:emit("SETTABUP", 0, k, register, "; " .. left.value)
       end
     else
-      error "Not implemented"
+      assert(left.kind == 'index')
+      local alpha = closure:next()
+      self:accept(left.left, {alpha, 1})
+      local right = closure:next()
+      assert(right == alpha + 1)
+      self:accept(left.right, {right, 1})
+      closure:free({alpha, 2})
+      closure:emit("SETTABLE", alpha, right, register)
     end
   end,
 
@@ -633,6 +640,8 @@ local tree = parser([[
   local foo = function() local zzz = a, function() local yyy, xxx = zzz, b, aaa end end
   foo:bar(1, 2, 3)
   a, b, c, gbl = 3
+  gbl = foo()
+  gbl.x = 3
 ]])
 -- main closure
 enter()
