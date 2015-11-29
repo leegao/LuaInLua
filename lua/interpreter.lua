@@ -239,7 +239,7 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local k = closure:const(value)
-    closure:emit("LOADK", alpha, k, '', ": " .. tostring(k))
+    closure:emit("LOADK", alpha, k, '', "; " .. tostring(k))
 
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
@@ -561,8 +561,7 @@ local interpreter = visitor {
         closure:emit("SETUPVALUE", up, register)
       else
         -- global
-        local k = closure:const(left.value)
-        closure:emit("SETTABUP", 0, k, register, "; " .. left.value)
+        closure:emit("SETTABUP", 0, closure:const(left.value), register, "; " .. left.value)
       end
     else
       assert(left.kind == 'index')
