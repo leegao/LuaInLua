@@ -764,10 +764,20 @@ local interpreter = visitor {
 --  a = abcdefg
 --  a = a + a
 --]])
+--1	LOADK(A=r(1), Bx=1)
+--2	LOADK(A=r(2), Bx=3)
+--3	LOADK(A=r(3), Bx=1)
+--4	FORPREP(A=r(1), sBx=v(3))
+--5	GETTABUP(A=r(5), B=v(0), C=print)
+--6	MOVE(A=r(6), B=r(f))
+--7	CALL(A=r(5), B=v(2), C=v(1))
+--8	FORLOOP(A=r(1), sBx=v(-4))
+--9	RETURN(A=r(f), B=v(1))
 local tree = parser [[
 --  if foo() then bar() elseif dog() then else foobar() end
 --  while bar(f()) do print("hello") end
-  repeat foo() until bar()
+--  repeat foo() until bar()
+  for i = 1, 3 do print("hello") end
 ]]
 -- main closure
 enter()

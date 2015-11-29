@@ -179,6 +179,11 @@ local base_visitor = ast {
     print("on_" .. node.kind .. " is not implemented!")
     return node, false
   end,
+  on_fori = function(self, node)
+    -- node('fori'):set('id', from(_1)):set('start', _3):set('finish', _5):set('step', _6[1]):set('block', _8)
+    print("on_" .. node.kind .. " is not implemented!")
+    return node, false
+  end,
 }
 base_visitor.super = base_visitor
 function base_visitor:children()
