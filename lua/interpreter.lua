@@ -35,6 +35,7 @@ local function new_closure(nparams, is_vararg)
 end
 
 local function enter(nparams, is_vararg)
+  print("Entering closure")
   local scope = {
     closure = new_closure(nparams or 0, is_vararg or false),
     local_id = 0,
@@ -203,7 +204,7 @@ local function enter(nparams, is_vararg)
     if levels < 0 then
       print(#self.code + 1, ...)
     else
-      print(#self.code + 1, ("    "):rep(levels), ...)
+      print(("    "):rep(levels), #self.code + 1, ...)
     end
     table.insert(self.code, {...})
   end
@@ -231,6 +232,7 @@ local function enter(nparams, is_vararg)
 end
 
 local function close()
+  print "Leaving closure"
   return pop(closures):finalize()
 end
 
@@ -508,7 +510,7 @@ local interpreter = visitor {
     local level = closure:level()
 
     -- node : functiondef = parameters : (parameters = [names], vararg), body : block
-    enter()
+    enter(#node.parameters, not not node.parameters.vararg)
     do
       local func = latest()
       local parameters = node.parameters
@@ -810,8 +812,10 @@ local tree = parser [[
 --  while bar(f()) do print("hello") end
 --  repeat foo() until bar()
   for i = 1, 3 do print("hello") end
+  local f = function() end
 ]]
 -- main closure
-enter()
+enter(0, true)
 interpreter:accept(tree)
+latest():emit("RETURN", 0, 1)
 close()
