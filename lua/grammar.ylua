@@ -417,7 +417,7 @@ assignment_or_call := $primaryexp (
                             -- call case
                             local ps = handle_primary_suffix(left, suffixes)
                             assert(ps.kind == 'call' or ps.kind == 'selfcall')
-                            return ps
+                            return node('callstmt'):list(ps)
                           end
                         end
                       :}

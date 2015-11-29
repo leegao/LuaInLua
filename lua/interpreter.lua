@@ -551,6 +551,11 @@ local interpreter = visitor {
     return STATEMENT
   end,
 
+  on_callstmt = function(self, node)
+    self:accept(unpack(node))
+    return STATEMENT
+  end,
+
   on_empty = function(self, node)
     -- NOP
     return STATEMENT
@@ -559,18 +564,19 @@ local interpreter = visitor {
 
 
 local tree = parser([[
-local a = 1;
-local b, c = "asdfasdf";
-local c = 1, 2;
-local e = (not c) + 3;
-local f = {1, e, c, zzz = 5, [3] = 2}
-local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
-local b = z:lol(a)
-local c = {...}
-local z, x, y = ...
-local g = f[3].c
-local h = g.foo
-local foo = function() local zzz = a, function() local yyy, xxx = zzz, b, aaa end end
+  local a = 1;
+  local b, c = "asdfasdf";
+  local c = 1, 2;
+  local e = (not c) + 3;
+  local f = {1, e, c, zzz = 5, [3] = 2}
+  local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
+  local b = z:lol(a)
+  local c = {...}
+  local z, x, y = ...
+  local g = f[3].c
+  local h = g.foo
+  local foo = function() local zzz = a, function() local yyy, xxx = zzz, b, aaa end end
+  foo:bar(1, 2, 3)
 ]])
 -- main closure
 enter()
