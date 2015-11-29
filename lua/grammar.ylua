@@ -409,6 +409,7 @@ assignment_or_call := $primaryexp (
                             assert(ps.kind == 'index' or ps.kind == 'name')
                             local lvals, rvals = unpack(assignment)
                             table.insert(lvals, 1, ps)
+                            lvals = node('lvalues'):list(unpack(lvals))
                             local tree = node 'assignments'
                             tree.left = lvals
                             tree.right = rvals
@@ -425,10 +426,10 @@ assignment := ',' $primaryexp $suffix* $assignment
               {: 
                 function(_, _1, _2, _3) 
                   local left, right = unpack(_3)
-                  left:list(handle_primary_suffix(_1, _2)); 
+                  table.insert(left, 1, handle_primary_suffix(_1, _2));
                   return {left, right}
                 end :}
-            | '=' $explist [: {node 'lvalue', _2} :]
+            | '=' $explist [: {{}, _2} :]
 
     // Hack to get around the fact that one branch of this is always
     // "dead" states that would get killed later on anyways

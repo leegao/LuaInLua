@@ -239,7 +239,7 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local k = closure:const(value)
-    closure:emit("LOADK", alpha, value)
+    closure:emit("LOADK", alpha, k, '', ": " .. tostring(k))
 
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
@@ -549,8 +549,28 @@ local interpreter = visitor {
     return STATEMENT
   end,
 
+  assign = function(self, left, register)
+    local closure = latest()
+    if left.kind == 'name' then
+      local r, scope = closure:look_for(left.value)
+      if scope == closure:level() then
+        closure:emit("MOVE", r, register)
+      elseif scope then
+        local up = closure:searchup(r, scope)
+        assert(up, "Upvalue must have been populated")
+        closure:emit("SETUPVALUE", up, register)
+      else
+        -- global
+        local k = closure:const(left.value)
+        closure:emit("SETTABUP", 0, k, register, "; " .. left.value)
+      end
+    else
+      error "Not implemented"
+    end
+  end,
+
   -- TODO: fixme
-  on_assignment = function(self, node)
+  on_assignments = function(self, node)
     local closure = latest()
     local max = BETA(#node.left, #node.right)
     for i = 1, max do
@@ -566,13 +586,8 @@ local interpreter = visitor {
         local rest = {id, len}
         self:accept(exp, rest)
         for j = 0, len - 1 do
-          self:assign(node.left[i + j].value, id + j)
+          self:assign(node.left[i + j], id + j)
         end
-        break
-      elseif left then
-        local id = closure:next(max - i + 1)
-        local rest = {id, max - i + 1}
-        closure:null(rest)
         break
       else
         self:accept(exp)
@@ -617,6 +632,7 @@ local tree = parser([[
   local h = g.foo
   local foo = function() local zzz = a, function() local yyy, xxx = zzz, b, aaa end end
   foo:bar(1, 2, 3)
+  a, b, c, gbl = 3
 ]])
 -- main closure
 enter()
