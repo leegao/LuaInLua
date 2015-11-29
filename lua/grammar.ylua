@@ -208,7 +208,7 @@ stat := ';' [: node 'empty' :]
       | 'if' $exp 'then' $block 
           ('elseif' $exp 'then' $block [: node('elseif'):set('cond', _2):set('block', _4) :])* 
           ('else' $block [: node('else'):set('block', _2) :])? 'end' 
-              [: node('if'):set('cond', _2):set('block', _4):list(unpack(_5)):set('else', _6[1]) :]
+              [: node('if'):set('cond', _2):set('block', _4):set('elseifs', #_5 >0 and _5 or nil):set('else_', _6[1]) :]
       | 'for' (
           <forcounter> Name '=' $exp ',' $exp (',' $exp [: _2 :])?  'do' $block 'end'
             [: node('fori'):set('id', from(_1)):set('start', _3):set('finish', _5):set('step', _6[1]):set('block', _8) :]

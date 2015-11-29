@@ -91,8 +91,6 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:free_after(start)
-    assert(self.reserved_registers[start], "Register " .. start .. " is already free")
-    -- verify that there's no more reserved registers
     local free_bank = {}
     for key in pairs(self.reserved_registers) do
       if key >= start then
@@ -203,15 +201,23 @@ local function enter(nparams, is_vararg)
   function scope:emit(...)
     local levels = self:level() - 2
     if levels < 0 then
-      print(...)
+      print(#self.code + 1, ...)
     else
-      print(("    "):rep(levels), ...)
+      print(#self.code + 1, ("    "):rep(levels), ...)
     end
     table.insert(self.code, {...})
   end
 
   function scope:pc()
-    return #self.code + 1
+    return #self.code
+  end
+
+  function scope:patch_jmp(start, finish)
+    print("Changing sBx of " .. start .. " to " .. finish - start)
+    local instr = self.code[start]
+    assert(instr[1] == 'JMP')
+    assert(instr[3] == '#')
+    instr[3] = finish
   end
 
   function scope:finalize()
@@ -645,6 +651,39 @@ local interpreter = visitor {
   on_if = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
+    local reg = closure:next()
+    local finishers = {}
+    self:accept(node.cond, {reg, 1})
+    closure:free{reg, 1}
+    closure:emit("TEST", reg, 0)
+    closure:emit("JMP", 0, "#", '', '; TODO: patch in')
+    local hole = closure:pc()
+    -- the block
+    self:accept(node.block)
+    closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
+    table.insert(finishers, closure:pc())
+    -- see if there's an elseif
+    if node.elseifs then
+      for conditional in utils.loop(node.elseifs) do
+        closure:patch_jmp(hole, closure:pc()) -- goto closure:pc() + 1
+        local reg = closure:next()
+        self:accept(conditional.cond, {reg, 1})
+        closure:free{reg, 1}
+        closure:emit("TEST", reg, 0)
+        closure:emit("JMP", 0, "#", '', '; TODO: patch in')
+        hole = closure:pc()
+        self:accept(conditional.block)
+        closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
+        table.insert(finishers, closure:pc())
+      end
+    end
+    closure:patch_jmp(hole, closure:pc())
+    if node.else_ then
+      self:accept(node.else_.block)
+    end
+    for finisher in utils.loop(finishers) do
+      closure:patch_jmp(finisher, closure:pc())
+    end
     return self:statement(start_pc)
   end,
 
@@ -672,30 +711,33 @@ local interpreter = visitor {
 }
 
 
-local tree = parser([[
-  local a = 1;
-  local b, c = "asdfasdf";
-  local c = 1, 2;
-  local e = (not c) + 3;
-  local f = {1, e, c, zzz = 5, [3] = 2}
-  local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
-  local b = z:lol(a)
-  local c = {...}
-  local z, x, y = ...
-  local g = f[3].c
-  local h = g.foo
-  local foo = function() local zzz = a, function() local yyy, xxx = zzz, b, aaa end end
-  foo:bar(1, 2, 3)
-  a, b, c, gbl = 3
-  gbl = foo()
-  gbl.x = 3
-  do
-    local abcdefg = hi
-  end
-  a = abcdefg
-  a = abcdefg
-  a = a + a
-]])
+--local tree = parser([[
+--  local a = 1;
+--  local b, c = "asdfasdf";
+--  local c = 1, 2;
+--  local e = (not c) + 3;
+--  local f = {1, e, c, zzz = 5, [3] = 2}
+--  local x, y, z = a("zzz", a(), "xxx", a(3,c,5))
+--  local b = z:lol(a)
+--  local c = {...}
+--  local z, x, y = ...
+--  local g = f[3].c
+--  local h = g.foo
+--  local foo = function() local zzz = a, function() local yyy, xxx = zzz, b, aaa end end
+--  foo:bar(1, 2, 3)
+--  a, b, c, gbl = 3
+--  gbl = foo()
+--  gbl.x = 3
+--  do
+--    local abcdefg = hi
+--  end
+--  a = abcdefg
+--  a = abcdefg
+--  a = a + a
+--]])
+local tree = parser [[
+  if foo() then bar() end
+]]
 -- main closure
 enter()
 interpreter:accept(tree)
