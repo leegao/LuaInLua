@@ -737,7 +737,8 @@ local interpreter = visitor {
 --  a = a + a
 --]])
 local tree = parser [[
-  if foo() then bar() elseif dog() then else foobar() end
+--  if foo() then bar() elseif dog() then else foobar() end
+  while true do print("hello") end
 ]]
 -- main closure
 enter()
