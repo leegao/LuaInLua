@@ -133,7 +133,7 @@ local ARGS = {
   {{A, R}, {B, R}},
   {{A, R}, {B, R}}, --R(A) := length of R(B)
   {{A, R}, {B, R}, {C, R}}, --R(A) := R(B).. ... ..R(C)
-  {{A, function(ctx, A) if A >= 0 then return R(ctx, A) else V(ctx, 0) end end}, {sBx, V}}, --pc+=sBx; if (A) close all upvalues >= R(A - 1)
+  {{A, V}, {sBx, V}}, --pc+=sBx; if (A) close all upvalues >= R(A - 1)
   {{A, V}, {B, RK}, {C, RK}}, --if ((RK(B) == RK(C)) ~= A) then pc++
   {{A, V}, {B, RK}, {C, RK}},
   {{A, V}, {B, RK}, {C, RK}},

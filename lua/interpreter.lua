@@ -42,6 +42,7 @@ local function enter(nparams, is_vararg)
     locals = {},
     constants = {},
     upvalues = {},
+    code = {},
 
     reserved_registers = {},
   }
@@ -206,6 +207,11 @@ local function enter(nparams, is_vararg)
     else
       print(("    "):rep(levels), ...)
     end
+    table.insert(self.code, {...})
+  end
+
+  function scope:pc()
+    return #self.code + 1
   end
 
   function scope:finalize()
@@ -507,7 +513,7 @@ local interpreter = visitor {
       func:emit("RETURN", 0, 1)
     end
     local prototype, protolevel = close()
-    closure:emit("CLOSURE", alpha, "id")
+    closure:emit("CLOSURE", alpha, "id") -- TODO: add in the correct id
     -- mark upvalues
     for upvalue in utils.loop(prototype.upvalues) do
       local register, uplevel = unpack(upvalue)
@@ -531,6 +537,7 @@ local interpreter = visitor {
 
   on_localassign = function(self, node)
     local closure = latest()
+    local start_pc = closure:pc()
 
     local max = BETA(#node.left, #node.right)
     if #node.right == 0 then
@@ -565,7 +572,7 @@ local interpreter = visitor {
         self:accept(assert(not name and exp))
       end
     end
-    return STATEMENT
+    return self:statement(start_pc)
   end,
 
   assign = function(self, left, register)
@@ -597,6 +604,7 @@ local interpreter = visitor {
   -- TODO: fixme
   on_assignments = function(self, node)
     local closure = latest()
+    local start_pc = closure:pc()
     local max = BETA(#node.left, #node.right)
     for i = 1, max do
       local left = node.left[i]
@@ -620,27 +628,46 @@ local interpreter = visitor {
         self:accept(exp)
       end
     end
-    return STATEMENT
+    return self:statement(start_pc)
   end,
 
   on_block = function(self, node)
     local closure = latest()
+    local start_pc = closure:pc()
     closure:enter()
     for child in node:children() do
       self:accept(child)
     end
     closure:exit()
-    return STATEMENT
+    return self:statement(start_pc)
+  end,
+
+  on_if = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
+    return self:statement(start_pc)
   end,
 
   on_callstmt = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
     self:accept(unpack(node))
-    return STATEMENT
+    return self:statement(start_pc)
   end,
 
   on_empty = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
     -- NOP
-    return STATEMENT
+    return self:statement(start_pc)
+  end,
+
+  statement = function(self, start_pc)
+    return {first = start_pc, last = latest():pc()}
+  end,
+
+  expression = function(self, start_pc, bundle)
+    return {first = start_pc, last = latest():pc(), unpack(bundle)}
   end,
 }
 
