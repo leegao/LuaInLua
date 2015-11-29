@@ -703,6 +703,19 @@ local interpreter = visitor {
     return self:statement(start_pc)
   end,
 
+  on_repeat = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
+    self:accept(node.block)
+
+    local reg = closure:next()
+    self:accept(node.cond, {reg, 1})
+    closure:free{reg, 1}
+    closure:emit("TEST", reg, 0)
+    closure:emit("JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
+    return self:statement(start_pc)
+  end,
+
   on_callstmt = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
