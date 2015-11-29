@@ -215,7 +215,7 @@ local function enter(nparams, is_vararg)
   function scope:patch_jmp(start, finish)
     print("Changing sBx of " .. start .. " to " .. finish - start)
     local instr = self.code[start]
-    assert(instr[1] == 'JMP')
+    assert(instr[1] == 'JMP' or instr[1] == 'FORPREP')
     assert(instr[3] == '#')
     instr[3] = finish
     instr[5] = '; to ' .. (finish + 1)
@@ -716,6 +716,46 @@ local interpreter = visitor {
     return self:statement(start_pc)
   end,
 
+  on_fori = function(self, node)
+    -- node('fori'):set('id', from(_1)):set('start', _3):set('finish', _5):set('step', _6[1]):set('block', _8)
+    --1	LOADK(A=r(1), Bx=start)
+    --2	LOADK(A=r(2), Bx=finish)
+    --3	LOADK(A=r(3), Bx=step)
+    --4	FORPREP(A=r(1), sBx=goto FORLOOP (3))
+    --5	  BLOCK
+    --6	  BLOCK
+    --7	  BLOCK
+    --8	FORLOOP(A=r(1), sBx=goto FORPREP (-4))
+    --9	RETURN(A=r(f), B=v(1))
+    local closure = latest()
+    local start_pc = closure:pc()
+    closure:enter()
+    do -- the for loop outer block
+      local base = closure:next()
+      -- ensure that the next 3 instructions are stored to consecutive ids
+      self:accept(node.start, {base, 1})
+      assert(closure:next() == base + 1)
+      self:accept(node.finish, {base + 1, 1})
+      assert(closure:next() == base + 2)
+      if node.step then
+        self:accept(node.step, {base + 2, 1})
+      else
+        closure:emit("LOADK", base + 2, closure:const(1))
+      end
+      local var = closure:next()
+      assert(var == base + 3)
+      closure:bind(node.id.value, var)
+      closure:emit("FORPREP", base, '#', '', '; TODO: patch with end')
+      local prep_pc = closure:pc()
+      self:accept(node.block)
+      closure:patch_jmp(prep_pc, closure:pc())
+      closure:emit("FORLOOP", base, prep_pc - closure:pc() - 1, '', '; to ' .. (prep_pc + 1))
+      closure:free{base, 4}
+    end
+    closure:exit()
+    return self:statement(start_pc)
+  end,
+
   on_callstmt = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
@@ -764,15 +804,7 @@ local interpreter = visitor {
 --  a = abcdefg
 --  a = a + a
 --]])
---1	LOADK(A=r(1), Bx=1)
---2	LOADK(A=r(2), Bx=3)
---3	LOADK(A=r(3), Bx=1)
---4	FORPREP(A=r(1), sBx=v(3))
---5	GETTABUP(A=r(5), B=v(0), C=print)
---6	MOVE(A=r(6), B=r(f))
---7	CALL(A=r(5), B=v(2), C=v(1))
---8	FORLOOP(A=r(1), sBx=v(-4))
---9	RETURN(A=r(f), B=v(1))
+
 local tree = parser [[
 --  if foo() then bar() elseif dog() then else foobar() end
 --  while bar(f()) do print("hello") end

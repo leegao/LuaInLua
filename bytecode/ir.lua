@@ -30,7 +30,7 @@ function ir:R(r, pos)
       local local_ = self.Function.debug.locals[r+1]
       local name = (local_ or {}).name
       if name and tostring(name):byte(1) ~= 40 then
-        return 'r('..tostring(name)..')'
+        return 'r('..tostring(name)..':' .. r .. ')'
       end
     end 
     return "r("..r..")" 
