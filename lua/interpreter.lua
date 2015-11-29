@@ -218,6 +218,7 @@ local function enter(nparams, is_vararg)
     assert(instr[1] == 'JMP')
     assert(instr[3] == '#')
     instr[3] = finish
+    instr[5] = '; to ' .. (finish + 1)
   end
 
   function scope:finalize()
@@ -736,7 +737,7 @@ local interpreter = visitor {
 --  a = a + a
 --]])
 local tree = parser [[
-  if foo() then bar() end
+  if foo() then bar() elseif dog() then else foobar() end
 ]]
 -- main closure
 enter()
