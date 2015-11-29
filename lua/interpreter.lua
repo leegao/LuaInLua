@@ -688,6 +688,21 @@ local interpreter = visitor {
     return self:statement(start_pc)
   end,
 
+  on_while = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
+    local reg = closure:next()
+    self:accept(node.cond, {reg, 1})
+    closure:free{reg, 1}
+    closure:emit("TEST", reg, 1)
+    closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
+    local hole = closure:pc()
+    self:accept(node.block)
+    closure:emit("JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
+    closure:patch_jmp(hole, closure:pc())
+    return self:statement(start_pc)
+  end,
+
   on_callstmt = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
@@ -738,7 +753,7 @@ local interpreter = visitor {
 --]])
 local tree = parser [[
 --  if foo() then bar() elseif dog() then else foobar() end
-  while true do print("hello") end
+  while bar(f()) do print("hello") end
 ]]
 -- main closure
 enter()
