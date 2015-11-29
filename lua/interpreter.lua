@@ -54,11 +54,15 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:enter()
-    push({}, self.locals)
+    local id = self:next()
+    push({start = id}, self.locals)
+    self:free{id, 1}
   end
 
   function scope:exit()
-    return pop(self.locals)
+    local locals = pop(self.locals)
+    self:free_after(locals.start)
+    return locals
   end
 
   function scope:block()
@@ -82,6 +86,21 @@ local function enter(nparams, is_vararg)
     -- verify that there's no more reserved registers
     for key in pairs(self.reserved_registers) do
       assert(key < start)
+    end
+  end
+
+  function scope:free_after(start)
+    assert(self.reserved_registers[start], "Register " .. start .. " is already free")
+    -- verify that there's no more reserved registers
+    local free_bank = {}
+    for key in pairs(self.reserved_registers) do
+      if key >= start then
+        free_bank[key] = true
+      end
+    end
+
+    for key in pairs(free_bank) do
+      self.reserved_registers[key] = nil
     end
   end
 
@@ -239,7 +258,7 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local k = closure:const(value)
-    closure:emit("LOADK", alpha, k, '', "; " .. tostring(k))
+    closure:emit("LOADK", alpha, k, '', "; " .. tostring(value))
 
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
@@ -586,6 +605,7 @@ local interpreter = visitor {
         local id = closure:next()
         self:accept(exp, {id, 1})
         self:assign(left, id)
+        closure:free{id, 1}
       elseif left and exp and exp == node.right[#node.right] then
         local len = max - i + 1
         local id = closure:next(len)
@@ -594,6 +614,7 @@ local interpreter = visitor {
         for j = 0, len - 1 do
           self:assign(node.left[i + j], id + j)
         end
+        closure:free(rest)
         break
       else
         self:accept(exp)
@@ -641,6 +662,12 @@ local tree = parser([[
   a, b, c, gbl = 3
   gbl = foo()
   gbl.x = 3
+  do
+    local abcdefg = hi
+  end
+  a = abcdefg
+  a = abcdefg
+  a = a + a
 ]])
 -- main closure
 enter()
