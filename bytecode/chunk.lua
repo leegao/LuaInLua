@@ -24,7 +24,7 @@ end
 local function constant(ctx)
   local type = ctx:byte()
   if type == 0 then
-    return nil
+    return {} -- nil
   elseif type == 1 then -- boolean
     return ctx:byte() ~= 0
   elseif type == 3 then

@@ -39,7 +39,7 @@ local function enter(nparams, is_vararg)
   local scope = {
     closure = new_closure(nparams or 0, is_vararg or false),
     local_id = 0,
-    constant_id = 1,
+    constant_id = 0,
     locals = {},
     constants = {},
     upvalues = {},
@@ -266,6 +266,14 @@ local function enter(nparams, is_vararg)
           table.insert(prototype.upvalues, {instack = 1, index = up})
         end
       end
+    end
+
+    for constant, i in pairs(self.constants) do
+      self.closure.constants[i + 1] = constant
+    end
+    -- make sure that everything is there
+    for i = 1, self.constant_id do
+      assert(self.closure.constants[i], i .. ", " .. self.constant_id)
     end
 
     return self, #closures + 1
