@@ -4,6 +4,8 @@ I will be focusing heavier on the parsing aspect of this compiler as that is the
 
 See https://github.com/leegao/Lua-In-Lua/blob/master/lua/grammar.ylua for the grammar, the parser language is written in the same language that the parser parses (yo dawg). Note that Lua's language specification is not LL(n) for any finite n, which means that any oracular lookahead machine will still not be able to parse this without angelicism. To get around this, we use an extremely clever idea: we relax the language to be parsable by LL(3) and we use the semantic action during parse time to restrict valid trees. This mix of "dynamic" and "static" parsing analysis will allow us to get a full Lua parser.
 
+To see the compiler in action, run hello.lua. The output will be a list of opcodes that is generated based on ll1/ll1.lua.
+
 Status Report:
 
 1. Regular expressions recognizer generator: completed!
@@ -27,6 +29,7 @@ Status Report:
 
 In progress:
 
+1. Operator precedence in parser
 1. Lua 5.2 bytecode interpreter
 
 TODO:

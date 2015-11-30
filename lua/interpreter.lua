@@ -1100,24 +1100,22 @@ local interpreter = visitor {
 --  a = a + a
 --]])
 
-local tree = parser [[
---  if foo() then bar() elseif dog() then else foobar() end
---  while bar(f()) do print("hello") end
---  repeat foo() until bar()
---  for i = 1, 3 do print("hello") end
---  local function f() end
---  for i, j, k, e, g in f() do break print(i, j, k, e, g) break end
-  local lol;
-  function lol.y:z() print(self) end
-]]
+--local tree = parser [[
+----  if foo() then bar() elseif dog() then else foobar() end
+----  while bar(f()) do print("hello") end
+----  repeat foo() until bar()
+----  for i = 1, 3 do print("hello") end
+----  local function f() end
+----  for i, j, k, e, g in f() do break print(i, j, k, e, g) break end
+--  local lol;
+--  function lol.y:z() print(self) end
+--]]
 
-local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
--- main closure
-enter(0, true)
-interpreter:accept(tree)
-latest():emit("RETURN", 0, 1)
-local prototype = close().closure
-
-for pc, op in ipairs(prototype.code) do
-  print(pc, op)
+return function(tree)
+  closures = {}
+  enter(0, true)
+  interpreter:accept(tree)
+  latest():emit("RETURN", 0, 1)
+  local closure = close()
+  return closure.closure, closure
 end

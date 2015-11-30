@@ -58,6 +58,9 @@ local re = require 'parsing.re'
 
 local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
 
-local visitor = require 'lua.base_visitor'
+local compiler = require 'lua.interpreter'
 
-visitor:accept(tree)
+local prototype = compiler(tree)
+for pc, instruction in ipairs(prototype.code) do
+  print(pc, instruction)
+end
