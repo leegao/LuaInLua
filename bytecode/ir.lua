@@ -25,7 +25,7 @@ end
 
 function ir:R(r, pos)
   if self.Registers[r] then return self.Registers[r] end
-  local register = setmetatable({r = r, pos = pos, ctx = self}, {__tostring = function()
+  local register = setmetatable({r = r, raw = r, pos = pos, ctx = self}, {__tostring = function()
     if self.Function then
       local local_ = self.Function.debug.locals[r+1]
       local name = (local_ or {}).name
@@ -41,7 +41,7 @@ end
 
 function ir:Kst(r, pos)
   if self.Constants[r] then return self.Constants[r] end
-  local register = setmetatable({k = r, pos = pos, ctx = self}, {__tostring = function()
+  local register = setmetatable({k = r, raw = r, pos = pos, ctx = self}, {__tostring = function()
     if not self.Function then
       return "Kst("..r..")" 
     else 
@@ -53,18 +53,20 @@ function ir:Kst(r, pos)
 end
 
 function ir:RK(r, pos)
+  local result
   if r < 0x100 then
-    local result = self:R(r, pos)
-    return setmetatable({rk = result, rval = r, pos = pos, ctx = self}, {__tostring = function() return tostring(result) .. ':rk' end})
+    result = self:R(r, pos)
   else
-    local result = self:Kst(r-0x100, pos)
-    return setmetatable({rk = result, kval = r, pos = pos, ctx = self}, {__tostring = function() return tostring(result) .. ':rk' end})
+    result = self:Kst(r-0x100, pos)
   end
+  return setmetatable(
+    {rk = result, raw = r, pos = pos, ctx = self},
+    {__tostring = function() return tostring(result) .. ':rk' end})
 end
 
 function ir:V(r, pos)
   if self.Values[r] then return self.Values[r] end
-  local value = setmetatable({v = r, pos = pos, ctx = self}, {__tostring = function() return "v("..r..")" end})
+  local value = setmetatable({v = r, raw = r, pos = pos, ctx = self}, {__tostring = function() return "v("..r..")" end})
   self.Values[r] = value
   return value 
 end

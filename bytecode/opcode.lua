@@ -189,7 +189,22 @@ local function instruction(ctx, int, position)
 end
 
 local function serialize(instruction)
-
+  -- data, pos, ctx
+  local op = OPCODES[instruction.op]
+  local A  = function(int) return bit.lshift(bit.band(int, 0xff), 6) end
+  local C  = function(int) return bit.lshift(bit.band(int, 0x1ff), 6+8) end
+  local B  = function(int) return bit.lshift(bit.band(int, 0x1ff), 6+8+9) end
+  local Ax = function(int) return bit.lshift(int, 6) end
+  local Bx = function(int) return int end
+  local sBx = function(int) return Bx(int) + 131071 end
+  local this = {A = A, B = B, C = C, Ax = Ax, Bx = Bx, sBx = sBx }
+  local serialized_instruction = 0
+  for i, parameter in ipairs(ARGS[op]) do
+    local type = unpack(parameter)
+    local arg = instruction[type]
+    serialized_instruction = bit.lor(serialized_instruction, this[type](arg.raw))
+  end
+  return serialized_instruction
 end
 
 local function make(ctx, pc, name, ...)
