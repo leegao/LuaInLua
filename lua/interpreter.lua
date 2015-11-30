@@ -4,6 +4,7 @@ local visitor = require 'lua.base_visitor'
 local parser = require 'lua.parser'
 local ir = require 'bytecode.ir'
 local utils = require 'common.utils'
+local opcode = require "bytecode.opcode"
 
 local STATEMENT = {}
 local MAX_REGISTERS = 255
@@ -209,12 +210,17 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:emit(...)
-    local levels = self:level() - 2
-    if levels < 0 then
-      print(#self.code + 1, ...)
-    else
-      print(("    "):rep(levels), #self.code + 1, ...)
-    end
+--    local levels = self:level() - 2
+--    if levels < 0 then
+--      print(#self.code + 1, ...)
+--    else
+--      print(("    "):rep(levels), #self.code + 1, ...)
+--    end
+    local instruction = {...}
+    instruction = utils.kfilter(
+      function(_, v) return type(v) == 'number' or #v ~= 0 and v:sub(1,1) ~= ';' end,
+      instruction)
+    assert(opcode.make(ir(), #self.code + 1, unpack(instruction)))
     table.insert(self.code, {...})
   end
 
@@ -278,6 +284,15 @@ local function enter(nparams, is_vararg)
     prototype.constants.functions = {}
     for child_prototype in utils.loop(self.prototypes) do
       table.insert(prototype.constants.functions, child_prototype.closure)
+    end
+
+    local ctx = prototype.ir_context
+    for pc, instruction in ipairs(self.code) do
+      -- let's translate this
+      instruction = utils.kfilter(
+        function(_, v) return type(v) == 'number' or #v ~= 0 and v:sub(1,1) ~= ';' end,
+        instruction)
+      table.insert(prototype.code, opcode.make(ctx, pc, unpack(instruction)))
     end
 
     return self, #closures + 1
@@ -353,7 +368,7 @@ local interpreter = visitor {
   on_true = function(self, _, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    closure:emit("LOADBOOL", alpha, 1)
+    closure:emit("LOADBOOL", alpha, 1, 0)
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
@@ -362,7 +377,7 @@ local interpreter = visitor {
   on_false = function(self, _, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    closure:emit("LOADBOOL", alpha, 0)
+    closure:emit("LOADBOOL", alpha, 0, 0)
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
@@ -377,7 +392,7 @@ local interpreter = visitor {
     elseif scope then
       local up = closure:searchup(r, scope)
       assert(up, "Upvalue must have been populated")
-      closure:emit("GETUPVALUE", alpha, up)
+      closure:emit("GETUPVAL", alpha, up)
     else
       -- global
       local k = closure:const(node.value)
@@ -1101,4 +1116,8 @@ local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
 enter(0, true)
 interpreter:accept(tree)
 latest():emit("RETURN", 0, 1)
-close()
+local prototype = close().closure
+
+for pc, op in ipairs(prototype.code) do
+  print(pc, op)
+end
