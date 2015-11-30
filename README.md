@@ -23,11 +23,11 @@ Status Report:
 1. Add a tokenizer for Lua
 1. Lua 5.2 bytecode deserializer
 1. AST -> Bytecode translation
+2. AST -> Bytecode compiler.
 
 In progress:
 
 1. Lua 5.2 bytecode interpreter
-2. AST -> Bytecode compiler.
 
 TODO:
 
