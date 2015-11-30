@@ -3,6 +3,7 @@ local parser = require 'lua.parser'
 local utils = require 'common.utils'
 local config = ll1.configure(parser.grammar)
 local re = require 'parsing.re'
+local chunk = require 'bytecode.chunk'
 --print(config:pretty())
 --print(utils.to_list(config:follow('block')))
 --print(config:follows():dot())
@@ -55,6 +56,8 @@ local re = require 'parsing.re'
 --  "c")
 
 --local tree = parser 'function graph.vertices(self) end'
+
+chunk.undump(loadfile "ll1/ll1.lua")
 
 local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
 

@@ -63,7 +63,11 @@ function chunk.load_code(ctx)
   local n = ctx:int()
   local instructions = {}
   for i = 1, n do
-    table.insert(instructions, opcode.instruction(ir, ctx:int(chunk.sizeof_instruction), i))
+    local int = ctx:int(chunk.sizeof_instruction)
+    local instruction = opcode.instruction(ir, int, i)
+    local serialized = opcode.serialize(instruction)
+    assert(serialized == int, serialized .. ' versus ' .. int)
+    table.insert(instructions, instruction)
   end
   return instructions
 end
