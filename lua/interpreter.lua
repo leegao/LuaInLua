@@ -66,9 +66,14 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:exit()
-    local locals = pop(self.locals)
-    self:free_after(locals.start)
-    return locals
+    local block = pop(self.locals)
+    self:free_after(block.start)
+    if block.loop then
+      for hole in utils.loop(block.loop) do
+        self:patch_jmp(hole, self:pc())
+      end
+    end
+    return block
   end
 
   function scope:block()
@@ -701,7 +706,7 @@ local interpreter = visitor {
     local closure = latest()
     local start_pc = closure:pc()
     local block = closure:enter()
-    block.loop = true
+    block.loop = {}
     do
       local reg = closure:next()
       self:accept(node.cond, {reg, 1})
@@ -721,7 +726,7 @@ local interpreter = visitor {
     local closure = latest()
     local start_pc = closure:pc()
     local block = closure:enter()
-    block.loop = true
+    block.loop = {}
     do
       self:accept(node.block)
       local reg = closure:next()
@@ -747,7 +752,8 @@ local interpreter = visitor {
     --9	RETURN(A=r(f), B=v(1))
     local closure = latest()
     local start_pc = closure:pc()
-    closure:enter()
+    local block = closure:enter()
+    block.loop = {}
     do -- the for loop outer block
       local base = closure:next()
       -- ensure that the next 3 instructions are stored to consecutive ids
@@ -823,7 +829,7 @@ local interpreter = visitor {
     local closure = latest()
     local start_pc = closure:pc()
     local block = closure:enter()
-    block.loop = true
+    block.loop = {}
     do
       local names = node.names
       -- reserve the first n registers for the loop guards, and an additional n registers for the variables
@@ -847,6 +853,17 @@ local interpreter = visitor {
   on_break = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
+    -- find the closest loop block
+    local loop;
+    for block in utils.loop(closure.locals) do
+      if block.loop then
+        loop = block
+        break
+      end
+    end
+    assert(loop, "Cannot break outside of a loop")
+    closure:emit("JMP", 0, "#", '', '; TODO: patch in after loop is closed')
+    table.insert(loop.loop, closure:pc())
 
     return self:statement(start_pc)
   end,
@@ -913,11 +930,11 @@ local interpreter = visitor {
 
 local tree = parser [[
 --  if foo() then bar() elseif dog() then else foobar() end
-  while bar(f()) do print("hello") end
+--  while bar(f()) do print("hello") end
 --  repeat foo() until bar()
 --  for i = 1, 3 do print("hello") end
-  local function f() end
-  for i, j, k, e, g in f() do print(i, j, k, e, g) end
+--  local function f() end
+  for i, j, k, e, g in f() do break print(i, j, k, e, g) break end
 ]]
 -- main closure
 enter(0, true)

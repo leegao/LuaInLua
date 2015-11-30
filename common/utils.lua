@@ -119,6 +119,14 @@ function utils.uloop(tab)
   return iter
 end
 
+function utils.rloop(tab)
+  local state = #tab
+  return function()
+    local value = tab[state]
+    state = state - 1
+    return value
+  end
+end
 
 local function normal_escape(object)
   return ('\\%03d'):rep(#object):format(object:byte(1, #object))
