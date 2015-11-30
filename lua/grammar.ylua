@@ -215,9 +215,16 @@ stat := ';' [: node 'empty' :]
         | <foreach> $namelist 'in' $explist 'do' $block 'end'
             [: node('foreach'):set('names', _1):set('iterator', _3):set('block', _5) :]) 
               /* Whole action */ [: _2 :]
-      | 'function' $funcname $funcbody 
-          [: node('functiondef'):set('funcname', _2):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2])) :]
-      | 'local' ('function' Name $funcbody 
+      | 'function' $funcname $funcbody {: function(_1, _2, _3)
+          if _2.colon then
+            local name = node 'name'
+            name.value = 'self'
+            table.insert(_3[1], 1, name)
+          end
+          return node('functiondef'):set('funcname', _2):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2]))
+        end
+      :}
+      | 'local' ('function' Name $funcbody
             [: node('localfunctiondef'):set('name', from(_2)):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2])) :]
         | $namelist ('=' $explist [: _2 :])?
             [: node('localassign'):set('left', _1):set('right', _2[1]) :]

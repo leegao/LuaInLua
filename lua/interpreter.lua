@@ -140,7 +140,7 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:bind(name, id)
-    assert(self.reserved_registers[id], "Cannot bind a new local to a non-reserved regiser")
+    assert(self.reserved_registers[id], "Cannot bind a new local to a non-reserved register")
     table.insert(self:block(), {name, id})
     return id
   end
@@ -242,11 +242,13 @@ local function enter(nparams, is_vararg)
   end
 
   push(scope, closures)
+  scope:enter()
   return scope
 end
 
 local function close()
   print "Leaving closure"
+  peek(closures):exit()
   return pop(closures):finalize()
 end
 
@@ -272,6 +274,10 @@ local function from(alpha)
   else
     return alpha
   end
+end
+
+local function rk(k)
+  return k + 256
 end
 
 local BETA = math.max
@@ -561,8 +567,8 @@ local interpreter = visitor {
     local closure = latest()
     local start_pc = closure:pc()
 
-    local max = BETA(#node.left, #node.right)
-    if #node.right == 0 then
+    local max = BETA(#node.left, node.right and #node.right or 0)
+    if not node.right or #node.right == 0 then
       assert(#node.left ~= 0)
       -- this is only possible if we have `local x, y, z`
       local id = closure:next(max)
@@ -880,6 +886,54 @@ local interpreter = visitor {
     return self:statement(start_pc)
   end,
 
+  assign_to_funcname = function(self, names, reg)
+    local closure = latest()
+    if #names == 1 then
+      local left = names[1]
+      local r, scope = closure:look_for(left.value)
+      if scope == closure:level() then
+        closure:emit("MOVE", r, reg)
+      elseif scope then
+        local up = closure:searchup(r, scope)
+        assert(up, "Upvalue must have been populated")
+        closure:emit("SETUPVALUE", up, reg)
+      else
+        -- global
+        closure:emit("SETTABUP", 0, closure:const(left.value), reg, "; " .. left.value)
+      end
+    else
+      local base = closure:next()
+      for name in utils.loop(names) do
+        if name == names[1] then
+          self:accept(name, {base, 1})
+        elseif name == names[#names] then
+          local k = closure:const(name.value)
+          closure:emit("SETTABLE", base, rk(closure:const(name.value)), reg, '; ' .. name.value)
+          closure:free{base, 1}
+          break
+        else
+          local k = closure:const(name.value)
+          closure:emit("GETTABLE", base, base, rk(closure:const(name.value)), '; ' .. name.value)
+        end
+      end
+    end
+  end,
+
+  on_functiondef = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
+    -- node('functiondef')
+    -- -- :set('funcname', _2)
+    -- -- :set('function', node('function'):set('parameters', _3[1]):set('body', _3[2]))
+    local reg = closure:next()
+    self:accept(node['function'], {reg, 1})
+
+    self:assign_to_funcname(node.funcname, reg)
+
+    closure:free{reg, 1}
+    return self:statement(start_pc)
+  end,
+
   on_callstmt = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
@@ -942,7 +996,9 @@ local tree = parser [[
 --  repeat foo() until bar()
 --  for i = 1, 3 do print("hello") end
 --  local function f() end
-  for i, j, k, e, g in f() do break print(i, j, k, e, g) break end
+--  for i, j, k, e, g in f() do break print(i, j, k, e, g) break end
+  local lol;
+  function lol.y:z() print(self) end
 ]]
 -- main closure
 enter(0, true)
