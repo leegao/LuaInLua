@@ -269,11 +269,15 @@ local function enter(nparams, is_vararg)
     end
 
     for constant, i in pairs(self.constants) do
-      self.closure.constants[i + 1] = constant
+      prototype.constants[i + 1] = constant
     end
     -- make sure that everything is there
     for i = 1, self.constant_id do
-      assert(self.closure.constants[i], i .. ", " .. self.constant_id)
+      assert(prototype.constants[i], i .. ", " .. self.constant_id)
+    end
+    prototype.constants.functions = {}
+    for child_prototype in utils.loop(self.prototypes) do
+      table.insert(prototype.constants.functions, child_prototype.closure)
     end
 
     return self, #closures + 1
