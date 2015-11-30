@@ -380,13 +380,39 @@ local interpreter = visitor {
       POW = "POW",
       MOD = "MOD",
       CONCAT = "CONCAT",
-      AND = "AND",
-      OR = "OR",
+    }
+    local logical = {
+      LT = {"LT", 1},
+      LE = {"LE", 1},
+      GT = {"LE", 0},
+      GE = {"LT", 0},
+      EQEQ = {"EQ", 1},
+      NOTEQ = {"EQ", 0},
     }
     if select[operator] then
       closure:emit(select[operator], alpha, left[1], right[1])
+    elseif logical[operator] then
+      --[[
+      1	EQ(A=v(1), B=r(a:1), C=r(b:2))
+      2	JMP(A=v(0), sBx=v(1))
+      3	LOADBOOL(A=r(f:0), B=v(0), C=v(1))
+      4	LOADBOOL(A=r(f:0), B=v(1), C=v(0))
+       ]]
+      local logical_operator = logical[operator]
+      closure:emit(logical_operator[1], logical_operator[2], left[1], right[1], '; ' .. operator)
+      closure:emit("JMP", 0, 1)
+      closure:emit("LOADBOOL", alpha, 0, 1)
+      closure:emit("LOADBOOL", alpha, 1, 0)
     else
-      print "Unimplemented"
+      --[[
+      1	TESTSET(A=r(f:0), B=r(a:1), C=v(0)) C = 0 for and, 1 for or
+      2	JMP(A=v(0), sBx=v(1))
+      3	MOVE(A=r(f:0), B=r(b:2))
+       ]]
+      local c = operator == 'and' and 1 or 0
+      closure:emit("TESTSET", alpha, left[1], c, '; ' .. operator)
+      closure:emit("JMP", 0, 1)
+      closure:emit("MOVE", alpha, right[1])
     end
     closure:free({id_right, 1})
     if rest then closure:null(rest) end
