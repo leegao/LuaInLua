@@ -152,9 +152,23 @@ function chunk.undump(str_or_function)
   return func
 end
 
-local closure = chunk.undump(function(f, a, b) f = a and b end)
+local closure = chunk.undump(function(f, a, b) function lol() local a1, a2, a3 = y, chunk, ir end end)
+print "Top Level"
 for pc, op in ipairs(closure.code) do
   print(pc, op)
 end
+for uc, upvalue in ipairs(closure.upvalues) do
+  print(uc, upvalue.instack, upvalue.index)
+end
+print()
+
+print "Nested"
+for pc, op in ipairs(closure.constants.functions[1].code) do
+  print(pc, op)
+end
+for uc, upvalue in ipairs(closure.constants.functions[1].upvalues) do
+  print(uc, upvalue.instack, upvalue.index)
+end
+
 
 return chunk

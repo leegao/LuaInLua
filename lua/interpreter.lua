@@ -232,10 +232,40 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:finalize()
-    print "Finalize is unimplemented"
     local latest = peek(closures)
     if latest then
       table.insert(latest.prototypes, self)
+    end
+
+    -- Let's compile this
+    --[[
+      local func = {
+        first_line   = first_line,
+        last_line    = last_line,
+        nparams      = nparams,
+        is_vararg    = is_vararg,
+        stack_size   = stack_size,
+        code         = code, -
+        constants    = constants, -
+        upvalues     = upvalues, -
+        debug        = debug,
+        ir_context   = ir_context,
+      }
+     ]]
+    local prototype = self.closure
+    table.insert(prototype.upvalues, {instack = 0, index = 0}) -- global is always 0
+    for i, upvalue in ipairs(self.upvalues) do
+      for upvalue in utils.loop(self.upvalues) do
+        local register, uplevel = unpack(upvalue)
+        if uplevel == #closures then
+          -- emit a move
+          table.insert(prototype.upvalues, {instack = 1, index = register})
+        else
+          -- emit an upvalue
+          local up = latest:searchup(register, uplevel)
+          table.insert(prototype.upvalues, {instack = 1, index = up})
+        end
+      end
     end
 
     return self, #closures + 1
@@ -568,17 +598,17 @@ local interpreter = visitor {
     end
     local prototype, protolevel = close()
     closure:emit("CLOSURE", alpha, prototype.id)
-    -- mark upvalues
-    for upvalue in utils.loop(prototype.upvalues) do
-      local register, uplevel = unpack(upvalue)
-      if uplevel == level then
-        -- emit a move
-        closure:emit("MOVE", 0, register, '', "; upvalue")
-      else
-        -- emit an upvalue
-        closure:emit("GETUPVAL", 0, closure:searchup(register, uplevel), '', "; upvalue")
-      end
-    end
+--    -- mark upvalues
+--    for upvalue in utils.loop(prototype.upvalues) do
+--      local register, uplevel = unpack(upvalue)
+--      if uplevel == level then
+--        -- emit a move
+--        closure:emit("MOVE", 0, register, '', "; upvalue")
+--      else
+--        -- emit an upvalue
+--        closure:emit("GETUPVAL", 0, closure:searchup(register, uplevel), '', "; upvalue")
+--      end
+--    end
 
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
