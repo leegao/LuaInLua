@@ -188,6 +188,10 @@ local function instruction(ctx, int, position)
   return inst
 end
 
+local function serialize(instruction)
+
+end
+
 local function make(ctx, pc, name, ...)
   local op = OPCODES[name]
   local inst = setmetatable({op = OPCODES[op]}, OPMT)

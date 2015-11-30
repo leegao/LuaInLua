@@ -54,11 +54,11 @@ end
 
 function ir:RK(r, pos)
   if r < 0x100 then
-    local result = self:R(r)
-    return result
+    local result = self:R(r, pos)
+    return setmetatable({rk = result, rval = r, pos = pos, ctx = self}, {__tostring = function() return tostring(result) .. ':rk' end})
   else
-    local result = self:Kst(r-0x100)
-    return result
+    local result = self:Kst(r-0x100, pos)
+    return setmetatable({rk = result, kval = r, pos = pos, ctx = self}, {__tostring = function() return tostring(result) .. ':rk' end})
   end
 end
 
