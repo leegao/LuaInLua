@@ -184,6 +184,10 @@ local base_visitor = ast {
     print("on_" .. node.kind .. " is not implemented!")
     return node, false
   end,
+  on_localfunctiondef = function(self, node)
+    print("on_" .. node.kind .. " is not implemented!")
+    return node, false
+  end
 }
 base_visitor.super = base_visitor
 function base_visitor:children()

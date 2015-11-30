@@ -833,6 +833,18 @@ local interpreter = visitor {
     return self:statement(start_pc)
   end,
 
+  on_localfunctiondef = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
+    -- node('localfunctiondef')
+    -- -- :set('name', from(_2))
+    -- -- :set('function', node('function'):set('parameters', _3[1]):set('body', _3[2]))
+    local reg = closure:next()
+    self:accept(node['function'], {reg, 1})
+    closure:bind(node.name.value, reg)
+    return self:statement(start_pc)
+  end,
+
   on_callstmt = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
@@ -886,7 +898,7 @@ local tree = parser [[
 --  while bar(f()) do print("hello") end
 --  repeat foo() until bar()
 --  for i = 1, 3 do print("hello") end
-  local f = function() end
+  local function f() end
   for i, j, k, e, g in f() do print(i, j, k, e, g) end
 ]]
 -- main closure
