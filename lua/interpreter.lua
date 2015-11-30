@@ -960,6 +960,33 @@ local interpreter = visitor {
     return self:statement(start_pc)
   end,
 
+  on_return = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
+
+    if node.explist then
+      local base = closure:next()
+      local id = base
+      for arg in node.explist:children() do
+        if arg ~= node.explist[#node.explist] then
+          self:accept(arg, {id, 1})
+          id = closure:next()
+        else
+          local _, pack_length = unpack(self:accept(arg, {id, TOP}))
+          closure:emit("RETURN", base, from(#node.explist + pack_length))
+          -- time to destroy the previous ids
+          assert(id == base + #node.explist - 1)
+          closure:free {base, #node.explist}
+          break
+        end
+      end
+    else
+      closure:emit("RETURN", 0, 1)
+    end
+
+    return self:statement(start_pc)
+  end,
+
   on_callstmt = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
