@@ -894,6 +894,14 @@ local interpreter = visitor {
     return self:statement(start_pc)
   end,
 
+  on_label = function()
+    error "Labels and gotos are not implemented"
+  end,
+
+  on_goto = function()
+    error "Labels and gotos are not implemented"
+  end,
+
   statement = function(self, start_pc)
     return {first = start_pc, last = latest():pc()}
   end,
