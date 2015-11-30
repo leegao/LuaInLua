@@ -452,7 +452,7 @@ assignment := ',' $primaryexp $suffix* $assignment
 
 args := '(' $explist? ')' [: (#_2 == 0 and node 'args') or node('args'):list(unpack(_2[1])) :]
       | $tableconstructor [: node('args'):list(_1) :]
-      | String [: node('args'):list(from(_1)) :]
+      | String [: node('args'):list(from(_1, 'string')) :]
 
 functiondef := 'function' $funcbody [: node('function'):set('parameters', _2[1]):set('body', _2[2]) :]
 

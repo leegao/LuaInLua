@@ -386,7 +386,7 @@ local interpreter = visitor {
     if select[operator] then
       closure:emit(select[operator], alpha, left[1], right[1])
     else
-      error "Unimplemented"
+      print "Unimplemented"
     end
     closure:free({id_right, 1})
     if rest then closure:null(rest) end
@@ -1000,6 +1000,8 @@ local tree = parser [[
   local lol;
   function lol.y:z() print(self) end
 ]]
+
+local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
 -- main closure
 enter(0, true)
 interpreter:accept(tree)
