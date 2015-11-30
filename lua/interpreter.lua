@@ -453,7 +453,7 @@ local interpreter = visitor {
 
     -- first, let's free up rest so the subexpressions can use them
     if rest then closure:free(rest) end
-    local num_out = alphas and alphas[2] or TOP
+    local num_out = alphas and alphas[2] or 0
     -- node = call -> target : expr, args : args -> [expr]
     self:accept(node.target, {alpha, 1})
     self:call_imp(node, alpha, alpha, 0, num_out)
@@ -470,7 +470,7 @@ local interpreter = visitor {
 
     -- first, let's free up rest so the subexpressions can use them
     if rest then closure:free(rest) end
-    local num_out = alphas and alphas[2] or TOP
+    local num_out = alphas and alphas[2] or 0
     -- node = selfcall = taget : (index = left : expr, right : name), args
     self:accept(node.target.left, {alpha, 1})
     local base = closure:next()
@@ -764,10 +764,79 @@ local interpreter = visitor {
     return self:statement(start_pc)
   end,
 
+  explist = function(self, nodes, alphas)
+    local closure = latest()
+    local start_pc = closure:pc()
+    local base, num = unpack(assert(alphas))
+    local max = BETA(alphas[2], #nodes)
+    if #nodes == 0 then
+      assert(num ~= 0)
+      -- this is only possible if we have `local x, y, z`
+      local rest = {base, max}
+      closure:null(rest)
+    end
+
+    for i = 1, max do
+      local exp = nodes[i]
+      local id = base + i - 1
+      if i <= num and exp and exp ~= nodes[#nodes] then
+        self:accept(exp, {id, 1})
+      elseif i <= num and exp and exp == nodes[#nodes] then
+        local len = max - i + 1
+        local rest = {id, len}
+        self:accept(exp, rest)
+        break
+      else
+        self:accept(assert(i > num and exp))
+      end
+    end
+    return self:statement(start_pc)
+  end,
+
+  on_foreach = function(self, node)
+    --[[
+    --node('foreach'):set('names', _1):set('iterator', _3):set('block', _5)
+    1	MOVE(A=r(1), B=r(f:0))
+    2	CALL(A=r(1), B=v(1), C=v(4))
+    3	JMP(A=v(0), sBx=v(7))
+    4	  GETTABUP(A=r(9), B=v(0), C=print)
+    5	  MOVE(A=r(10), B=r(i:4))
+    6	  MOVE(A=r(11), B=r(j:5))
+    7	  MOVE(A=r(12), B=r(k:6))
+    8	  MOVE(A=r(13), B=r(e:7))
+    9	  MOVE(A=r(14), B=r(g:8))
+   10	  CALL(A=r(9), B=v(6), C=v(1))
+   11	TFORCALL(A=r(1), C=v(5))
+   12	TFORLOOP(A=r(3), sBx=v(-9))
+   13	RETURN(A=r(f:0), B=v(1))
+    --]]
+    local closure = latest()
+    local start_pc = closure:pc()
+    closure:enter()
+    do
+      local names = node.names
+      -- reserve the first n registers for the loop guards, and an additional n registers for the variables
+      local base = closure:next(3)
+      self:explist(node.iterator, {base, 3})
+      closure:emit("JMP", 0, '#', '', '; TODO: jump to forcall')
+      local hole = closure:pc()
+      local vars = closure:next(#names)
+      for i = 1, #names do closure:bind(names[i].value, vars + i - 1) end
+      self:accept(node.block)
+      closure:patch_jmp(hole, closure:pc())
+      closure:emit("TFORCALL", base, #names, '', '; reserve ' .. (base + 3) .. ' to ' .. (base + 2 + #names))
+      closure:emit("TFORLOOP", base + 2, hole - closure:pc() - 1, '', 'to '.. (hole + 1))
+      closure:free{vars, #names}
+      closure:free{base, 3}
+    end
+    closure:exit()
+    return self:statement(start_pc)
+  end,
+
   on_callstmt = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
-    self:accept(unpack(node))
+    self:accept(node[1])
     return self:statement(start_pc)
   end,
 
@@ -786,7 +855,6 @@ local interpreter = visitor {
     return {first = start_pc, last = latest():pc(), unpack(bundle)}
   end,
 }
-
 
 --local tree = parser([[
 --  local a = 1;
@@ -819,6 +887,7 @@ local tree = parser [[
 --  repeat foo() until bar()
 --  for i = 1, 3 do print("hello") end
   local f = function() end
+  for i, j, k, e, g in f() do print(i, j, k, e, g) end
 ]]
 -- main closure
 enter(0, true)
