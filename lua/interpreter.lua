@@ -62,6 +62,7 @@ local function enter(nparams, is_vararg)
     local id = self:next()
     push({start = id}, self.locals)
     self:free{id, 1}
+    return peek(self.locals)
   end
 
   function scope:exit()
@@ -699,28 +700,37 @@ local interpreter = visitor {
   on_while = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
-    local reg = closure:next()
-    self:accept(node.cond, {reg, 1})
-    closure:free{reg, 1}
-    closure:emit("TEST", reg, 1)
-    closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
-    local hole = closure:pc()
-    self:accept(node.block)
-    closure:emit("JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
-    closure:patch_jmp(hole, closure:pc())
+    local block = closure:enter()
+    block.loop = true
+    do
+      local reg = closure:next()
+      self:accept(node.cond, {reg, 1})
+      closure:free{reg, 1}
+      closure:emit("TEST", reg, 1)
+      closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
+      local hole = closure:pc()
+      self:accept(node.block)
+      closure:emit("JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
+      closure:patch_jmp(hole, closure:pc())
+    end
+    closure:exit()
     return self:statement(start_pc)
   end,
 
   on_repeat = function(self, node)
     local closure = latest()
     local start_pc = closure:pc()
-    self:accept(node.block)
-
-    local reg = closure:next()
-    self:accept(node.cond, {reg, 1})
-    closure:free{reg, 1}
-    closure:emit("TEST", reg, 0)
-    closure:emit("JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
+    local block = closure:enter()
+    block.loop = true
+    do
+      self:accept(node.block)
+      local reg = closure:next()
+      self:accept(node.cond, {reg, 1})
+      closure:free{reg, 1}
+      closure:emit("TEST", reg, 0)
+      closure:emit("JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
+    end
+    closure:exit()
     return self:statement(start_pc)
   end,
 
@@ -812,7 +822,8 @@ local interpreter = visitor {
     --]]
     local closure = latest()
     local start_pc = closure:pc()
-    closure:enter()
+    local block = closure:enter()
+    block.loop = true
     do
       local names = node.names
       -- reserve the first n registers for the loop guards, and an additional n registers for the variables
@@ -830,6 +841,13 @@ local interpreter = visitor {
       closure:free{base, 3}
     end
     closure:exit()
+    return self:statement(start_pc)
+  end,
+
+  on_break = function(self, node)
+    local closure = latest()
+    local start_pc = closure:pc()
+
     return self:statement(start_pc)
   end,
 
@@ -895,7 +913,7 @@ local interpreter = visitor {
 
 local tree = parser [[
 --  if foo() then bar() elseif dog() then else foobar() end
---  while bar(f()) do print("hello") end
+  while bar(f()) do print("hello") end
 --  repeat foo() until bar()
 --  for i = 1, 3 do print("hello") end
   local function f() end
