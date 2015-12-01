@@ -59,11 +59,38 @@ local undump = require 'bytecode.undump'
 
 undump.undump(loadfile "ll1/ll1.lua")
 
-local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
+--local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
+--
+--local compiler = require 'lua.interpreter'
+--
+--local prototype = compiler(tree)
+--for pc, instruction in ipairs(prototype.code) do
+--  print(pc, instruction)
+--end
 
+local tree = parser[[
+  local a = 3
+  function foobar()
+    return a
+  end
+  print((a + 2) .. " Hello" .. (" world?"):byte(3) .. foobar())
+]]
 local compiler = require 'lua.interpreter'
-
 local prototype = compiler(tree)
-for pc, instruction in ipairs(prototype.code) do
-  print(pc, instruction)
+for pc, op in ipairs(prototype.code) do
+  print(pc, op)
 end
+print("Constants")
+for id, const in ipairs(prototype.constants) do
+  print(id, const)
+end
+print("Upvalues")
+for id, up in ipairs(prototype.upvalues) do
+  print(id, up.instack, up.index)
+end
+local dump = require "bytecode.dump"
+local original = dump.dump(prototype)
+
+local foo, error = loadstring(tostring(original))
+print(foo, error)
+foo()
