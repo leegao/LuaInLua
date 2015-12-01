@@ -1,9 +1,10 @@
-local ll1 = require 'll1.ll1'
+-- local ll1 = require 'll1.ll1'
 local parser = require 'lua.parser'
 local utils = require 'common.utils'
-local config = ll1.configure(parser.grammar)
 local re = require 'parsing.re'
 local undump = require 'bytecode.undump'
+
+
 --print(config:pretty())
 --print(utils.to_list(config:follow('block')))
 --print(config:follows():dot())
@@ -57,25 +58,24 @@ local undump = require 'bytecode.undump'
 
 --local tree = parser 'function graph.vertices(self) end'
 
-undump.undump(loadfile "ll1/ll1.lua")
+-- undump.undump(loadfile "ll1/ll1.lua")
 
---local tree = parser(io.open('ll1/ll1.lua', 'r'):read('*all'))
---
---local compiler = require 'lua.interpreter'
+local tree = parser(io.open('hello.lua', 'r'):read('*all'))
+
+local compiler = require 'lua.interpreter'
 --
 --local prototype = compiler(tree)
 --for pc, instruction in ipairs(prototype.code) do
 --  print(pc, instruction)
 --end
 
-local tree = parser[[
-  local a = 3
-  function foobar()
-    return a
-  end
-  print((a + 2) .. " Hello" .. (" world?"):byte(3) .. foobar())
-]]
-local compiler = require 'lua.interpreter'
+--local tree = parser[[
+--  local a = 3
+--  function foobar()
+--    return a
+--  end
+--  print((a + 2) .. " Hello" .. (" world?"):byte(3) .. foobar())
+--]]
 local prototype = compiler(tree)
 for pc, op in ipairs(prototype.code) do
   print(pc, op)
