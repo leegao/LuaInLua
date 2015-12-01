@@ -3,7 +3,7 @@
 
 local lex = {}
 local re = require "parsing.re"
-local alphabetical = re.compile("%a")
+local alphabetical = re.compile("[a-zA-Z0-9_]")
 
 local function lexicographical(a, b)
   assert(type(a) == 'string' and type(b) == 'string')
@@ -31,6 +31,7 @@ function context:next()
   -- consume off of the current using the current configuration state
   local action_node = self.configuration[self.state]
   local current = self.current
+  local first = self:position()
   if #current == 0 then return end
 
   -- go through the set of words and see if any of them matches
@@ -38,6 +39,8 @@ function context:next()
     if current:sub(1, #word) == word and boundary(word:sub(-1), peek(current, #word + 1)) then
       -- matched a word, so consume and go on
       self.current = current:sub(#word + 1)
+      local last = self:position()
+      self:set_location(first, last)
       return action_node.word_map[word](word, self)
     end
   end
@@ -47,6 +50,8 @@ function context:next()
     local word, history = automaton:match(current)
     if word then
       self.current = current:sub(#word + 1)
+      local last = self:position()
+      self:set_location(first, last)
       return action_node.automaton_map[automaton.pattern](word, self)
     end
   end
@@ -60,13 +65,43 @@ function context:go(state)
   self.state = state
 end
 
+function context:position()
+  return #self.string - #self.current + 1
+end
+
+function context:set_location(first, last)
+  local first_line = self:get_line_of(first)
+  local last_line = self:get_line_of(last)
+  self.location = {{first, first_line}, {last, last_line}}
+end
+
+function context:get_location()
+  return unpack(self.location)
+end
+
+function context:get_line_of(position)
+  -- TODO: binary search instead
+  for line, stopper in ipairs(self.newlines) do
+    if stopper >= position then return line end
+  end
+  return 1
+end
+
 local function new_context(configuration, str)
   local ctx = {
     configuration = configuration,
     state = 'root',
     string = str,
     current = str,
+    location = {0, 0},
+    newlines = {}
   }
+  -- compute the locations of all of the newlines
+  for i = 1, #str do
+    if str:byte(i) == 10 then
+      table.insert(ctx.newlines, i)
+    end
+  end
   setmetatable(ctx, {__index = context})
   return ctx
 end

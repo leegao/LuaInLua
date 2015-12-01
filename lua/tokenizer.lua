@@ -85,7 +85,7 @@ local EXP = ('[eE][+-]?%s+'):format(DIGIT)
 local FNUM = ('%s+%s%s*|%s%s+|%s+'):format(DIGIT, '[.]', DIGIT, '[.]', DIGIT, DIGIT)
 local FLOAT = ('(%s)(%s)?'):format(FNUM, EXP)
 
-local function id(token) return function(x) return {token, x} end end
+local function id(token) return function(x, lexer) return {token, x, location = lexer:get_location()} end end
 local function ignore(...) return end
 local function pop(stack) return table.remove(stack) end
 local function push(item, stack) table.insert(stack, item) end

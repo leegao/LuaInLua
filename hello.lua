@@ -56,10 +56,14 @@ local undump = require 'bytecode.undump'
 --  "c")
 
 local luac = require "luac"
+local dump = require "bytecode.dump"
 
-local foo, bytecode, prototype, dumper = luac "luac.lua"
-dumper()
-luac2 = foo()
-local foo2 = luac2 "testing/hello_world.lua"
-print(foo2)
-foo2()
+--local compiler, bytecode, prototype, dumper = luac "lua/compiler.lua"
+--dumper()
+--compiler = compiler()
+--local tree = parser(io.open("testing/hello_world.lua", 'r'):read('*all'))
+--local prototype = compiler(tree)
+--local bytecode = dump.dump(prototype)
+--local func, err = loadstring(tostring(bytecode))
+local foo = luac "testing/hello_world.lua"
+foo()

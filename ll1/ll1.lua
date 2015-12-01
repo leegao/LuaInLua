@@ -376,6 +376,10 @@ end
 local function id(...)
   return ...
 end
+local function next100tokens(tokens)
+  print("The next 100 tokens are:")
+  print(unpack(utils.sublist(utils.map(function(x) return "'" .. x[2] .. "'" end, tokens), 1, 100)))
+end
 
 function yacc:parse(tokens, state, trace)
   if not state then state = 'root' end
@@ -385,16 +389,14 @@ function yacc:parse(tokens, state, trace)
   local converted_token = tostring(token)
   local production_index = self[state][converted_token]
   if not production_index then
-    print("The next 100 tokens are:")
-    print(unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
+    next100tokens(tokens)
     print("Error", state, token, "Unknown token")
     return ERROR, trace
   end
   -- check if we have an oracle
   if type(production_index) ~= 'number' then
     if type(production_index) ~= 'table' then
-      print("The next 100 tokens are:")
-      print(unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
+      next100tokens(tokens)
       print("Error", state, production_index, "Unknown oracle")
       return ERROR, trace
     end
@@ -416,8 +418,7 @@ function yacc:parse(tokens, state, trace)
     )
     production_index = self.configuration[state].conflict[tostring(token)](oracle, tokens)
     if not production_index then
-      print("The next 100 tokens are:")
-      print(unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
+      next100tokens(tokens)
       print("Error", state, token, "Unknown token")
       return ERROR, trace
     end
@@ -426,8 +427,7 @@ function yacc:parse(tokens, state, trace)
   -- local local_trace = {state, converted_token, utils.copy(tokens), production}
   -- table.insert(trace, local_trace)
   if production_index == ERROR then
-    print("The next 100 tokens are:")
-    print(unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
+    next100tokens(tokens)
     print("Error", state, tostring(token), "Candidates are:")
     for production in utils.loop(self.configuration[state]) do
       print('', '', table.concat(utils.map(function(x) return (x == '' and 'eps') or tostring(x) end, production), ' '))
@@ -447,8 +447,7 @@ function yacc:parse(tokens, state, trace)
       local token = consume(tokens)
       if not token then token = EOF end
       if node ~= tostring(token) then
-        print("The next 100 tokens are:")
-        print(unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
+        next100tokens(tokens)
         print("ERROR", state, tostring(token), "Expected: " .. tostring(node))
         return ERROR, trace
       end
@@ -459,8 +458,7 @@ function yacc:parse(tokens, state, trace)
     else
       local token = consume(tokens)
       if token then
-        print("The next 100 tokens are:")
-        print(unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
+        next100tokens(tokens)
         print("ERROR", state, tostring(token), "Expected: " .. EOF)
         return ERROR, trace
       end
@@ -469,15 +467,13 @@ function yacc:parse(tokens, state, trace)
   -- table.insert(local_trace, args)
   local success, result = pcall(production.action, unpack(args))
   if not success then
-    print("The next 100 tokens are:")
-    print(unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
+    next100tokens(tokens)
     print("ERROR", "Cannot call action: " .. result)
     print("  From", state, tostring(token), table.concat(utils.map(tostring, production), ' '))
     return ERROR, trace
   end
   if not result then
-    print("The next 100 tokens are:")
-    print(unpack(utils.sublist(utils.map(function(x) return x[2] end, tokens), 1, 100)))
+    next100tokens(tokens)
     local info = debug.getinfo(production.action, "Sl")
     print("ERROR", "Cannot have an action that returns nil", string.format("%s:%d", info.short_src, info.linedefined))
     print("  From", state, tostring(token), table.concat(utils.map(tostring, production), ' '))

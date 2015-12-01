@@ -613,7 +613,7 @@ exp5' := <minus> $level5 $exp6 $exp5' {: start_binop :} | %eps [: {} :]
 exp6 := $exp7 $exp6' {: make_binop :} // left
 exp6' := $level6 $exp7 $exp6' {: start_binop :} | %eps [: {} :]
 
-exp7 := $level7 $exp8 [: node('unop'):set('operator', _1):set('operand', _2) :] | $exp8 [: _1 :] // unary
+exp7 := $level7 $exp7 [: node('unop'):set('operator', _1):set('operand', _2) :] | $exp8 [: _1 :] // unary
 
 exp8 := $exp_stop ($level8 $exp8 {: start_right_binop :})? {: make_right_binop :} // right
 
