@@ -55,6 +55,25 @@ function dump.dump_constants(ctx, constants)
   generic_list(ctx, constants.functions, dump.dump_function)
 end
 
+function dump.dump_upvalues(ctx, upvalues)
+  local out = ctx.writer
+  generic_list(
+    ctx,
+    upvalues,
+    function(_, upvalue) out:byte(upvalue.instack):byte(upvalue.index) end)
+end
+
+function dump.dump_debug(ctx, debug)
+  local out = ctx.writer
+  out:string(debug.source or "")
+  generic_list(ctx, debug.lineinfo or {}, function(_, info) out:int(info) end)
+  generic_list(
+    ctx,
+    debug.locals or {},
+    function(_, object) out:string(object.name, undump.sizeof_sizet):int(object.first_pc):int(object.last_pc) end)
+  generic_list(ctx, debug.upvalues or {}, function(_, name) out:string(name, undump.sizeof_sizet) end)
+end
+
 function dump.dump_function(ctx, closure)
   local out = ctx.writer
   out:int(closure.first_line)
@@ -63,8 +82,8 @@ function dump.dump_function(ctx, closure)
   out:byte(closure.is_vararg and 1 or 0)
   dump.dump_code(ctx, closure.code)
   dump.dump_constants(ctx, closure.constants)
---  dump.dump_upvalues(ctx, closure.upvalues)
---  dump.dump_debug(ctx, closure.debug)
+  dump.dump_upvalues(ctx, closure.upvalues)
+  dump.dump_debug(ctx, closure.debug)
 end
 
 local ctx = {writer = writer.new_writer()}
