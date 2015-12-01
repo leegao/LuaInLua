@@ -57,6 +57,9 @@ local undump = require 'bytecode.undump'
 
 local luac = require "luac"
 
-local foo, bytecode, prototype, dumper = luac "testing/hello_world.lua"
+local foo, bytecode, prototype, dumper = luac "luac.lua"
 dumper()
-foo()
+luac2 = foo()
+local foo2 = luac2 "testing/hello_world.lua"
+print(foo2)
+foo2()
