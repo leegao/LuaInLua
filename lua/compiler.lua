@@ -167,7 +167,6 @@ local function enter(nparams, is_vararg)
   function scope:markupval(name, id, other)
     if not id then return end
     if not self:searchup(id, other) then
-      print(id, other, name, self:level())
       table.insert(self.upvalues, {id, other, name})
     end
 
@@ -263,19 +262,17 @@ local function enter(nparams, is_vararg)
     local prototype = self.closure
     table.insert(prototype.upvalues, {instack = 0, index = 0}) -- global is always 0
     table.insert(prototype.debug.upvalues, "_ENV")
-    for i, upvalue in ipairs(self.upvalues) do
-      for upvalue in utils.loop(self.upvalues) do
-        local register, uplevel, name = unpack(upvalue)
-        if uplevel == #closures then
-          -- emit a move
-          table.insert(prototype.upvalues, {instack = 1, index = register})
-          table.insert(prototype.debug.upvalues, name)
-        else
-          -- emit an upvalue
-          local up = latest:searchup(register, uplevel)
-          table.insert(prototype.upvalues, {instack = 0, index = up})
-          table.insert(prototype.debug.upvalues, name)
-        end
+    for upvalue in utils.loop(self.upvalues) do
+      local register, uplevel, name = unpack(upvalue)
+      if uplevel == #closures then
+        -- emit a move
+        table.insert(prototype.upvalues, {instack = 1, index = register})
+        table.insert(prototype.debug.upvalues, name)
+      else
+        -- emit an upvalue
+        local up = latest:searchup(register, uplevel)
+        table.insert(prototype.upvalues, {instack = 0, index = up})
+        table.insert(prototype.debug.upvalues, name)
       end
     end
 
