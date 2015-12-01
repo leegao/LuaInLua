@@ -15,7 +15,7 @@ local function main(file)
     print(indent .. 'Level ' .. level)
     print(indent .. "Code")
     for pc, op in ipairs(proto.code) do
-      print(indent .. pc, op)
+      print(indent .. pc, '(line ' .. proto.debug.lineinfo[pc] .. ')',  op)
     end
     print("Constants")
     for id, const in ipairs(proto.constants) do

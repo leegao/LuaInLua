@@ -436,8 +436,6 @@ local interpreter = visitor {
     local operator = node.operator.token[1]
     local id_left = closure:next()
     local left = self:accept(node.left, {id_left, 1})
-    local id_right = closure:next()
-    local right = self:accept(node.right, {id_right, 1})
     local select = {
       PLUS = "ADD",
       MIN = "SUB",
@@ -456,6 +454,8 @@ local interpreter = visitor {
       NOTEQ = {"EQ", 0},
     }
     if select[operator] then
+      local id_right = closure:next()
+      local right = self:accept(node.right, {id_right, 1})
       closure:emit(node, select[operator], alpha, id_left, id_right)
     elseif logical[operator] then
       --[[
@@ -465,6 +465,9 @@ local interpreter = visitor {
       4	LOADBOOL(A=r(f:0), B=v(1), C=v(0))
        ]]
       local logical_operator = logical[operator]
+
+      local id_right = closure:next()
+      local right = self:accept(node.right, {id_right, 1})
       closure:emit(node, logical_operator[1], logical_operator[2], left[1], right[1], '; ' .. operator)
       closure:emit(node, "JMP", 0, 1)
       closure:emit(node, "LOADBOOL", alpha, 0, 1)
@@ -477,8 +480,12 @@ local interpreter = visitor {
        ]]
       local c = operator == 'and' and 1 or 0
       closure:emit(node, "TESTSET", alpha, left[1], c, '; ' .. operator)
-      closure:emit(node, "JMP", 0, 1)
+      closure:emit(node, "JMP", 0, '#', '', '; TODO: patch in later')
+      local hole = closure:pc()
+      local id_right = closure:next()
+      local right = self:accept(node.right, {id_right, 1})
       closure:emit(node, "MOVE", alpha, right[1])
+      closure:patch_jmp(hole, closure:pc())
     end
     closure:free{id_left, 2}
     if rest then closure:null(rest, node) end
