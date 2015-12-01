@@ -109,7 +109,7 @@ function undump.load_function(ctx)
   table.insert(ctx.ir_stack, ir())
   local first_line   = ctx:int()
   local last_line    = ctx:int()
-  local nparams      = ctx:byte()
+  local nparams      = ctx:byte() -- 27
   local is_vararg    = ctx:byte()
   local stack_size   = ctx:byte()
   local code         = undump.load_code(ctx)

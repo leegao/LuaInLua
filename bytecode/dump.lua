@@ -47,7 +47,7 @@ function dump.dump_constants(ctx, constants)
         out:byte(object and 1 or 0)
       elseif t == 'string' then
         out:byte(4)
-        out:string(object)
+        out:string(object, undump.sizeof_sizet)
       else
         out:byte(0)
       end
@@ -65,7 +65,7 @@ end
 
 function dump.dump_debug(ctx, debug)
   local out = ctx.writer
-  out:string(debug.source or "")
+  out:string(debug.source or "", undump.sizeof_sizet)
   generic_list(ctx, debug.lineinfo or {}, function(_, info) out:int(info) end)
   generic_list(
     ctx,
@@ -94,7 +94,8 @@ function dump.dump_function(ctx, closure)
   out:int(closure.first_line)
   out:int(closure.last_line)
   out:byte(closure.nparams)
-  out:byte(closure.is_vararg and 1 or 0)
+  out:byte(closure.is_vararg and 0 or 1)
+  out:byte(closure.stack_size)
   dump.dump_code(ctx, closure.code)
   dump.dump_constants(ctx, closure.constants)
   dump.dump_upvalues(ctx, closure.upvalues)
@@ -104,17 +105,26 @@ end
 local ctx = {writer = writer.new_writer()}
 ctx.writer:configure(undump.sizeof_int)
 local tree = parser[[
-  function hello(world)
-    return "Hello " .. world
-  end
   print(hello("World?"))
 ]]
 local compiler = require 'lua.interpreter'
 local prototype = compiler(tree)
+--local original = string.dump(function(world) return "Hello " .. world end)
+--
+--local prototype = undump.undump(original)
 
 dump.dump_header(ctx)
 dump.dump_function(ctx, prototype)
 
-print(ctx.writer)
+print(loadstring(tostring(ctx.writer)))
+
+--local new = tostring(ctx.writer)
+--for i = 1, math.max(#original, #new) do
+--  print(i, original:byte(i), new:byte(i), original:byte(i) == new:byte(i))
+--end
+--
+--print(original == new)
+
+undump.undump(tostring(ctx.writer))
 
 return dump
