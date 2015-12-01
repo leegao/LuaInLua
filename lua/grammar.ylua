@@ -317,6 +317,7 @@ end
 
 // there's a conflict on $binop between reducing the maybe? rule or going into the binop of the exp.
 // luckily for us, since not binds are not as tight as the binary operators, we'd always be reducing the rule
+/*
 exp := (
     'nil' [: node 'nil' :]
   | 'false' [: node 'false' :]
@@ -364,7 +365,7 @@ exp := (
 %resolve exp'group#1'star#1 '[' {: goto_list :}
 %resolve exp'group#1'star#1 String {: goto_list :}
 %resolve exp'group#1'star#1 '{' {: goto_list :}
-%resolve exp'group#1'star#1 '(' {: goto_list :}
+%resolve exp'group#1'star#1 '(' {: goto_list :}*/
 
 %code {:
   local function suffix_dot(_, name)
@@ -517,27 +518,16 @@ end :}
 
 fieldsep [: {} :] := ',' | ';'
 
-/*
- level1 [: from(_1, 'op') :] := 'or'
- level2 [: from(_1, 'op') :] := 'and'
- level3 [: from(_1, 'op') :] := '<'  |  '>'  |  '<=' |  '>='  |  '~='  |  '=='
- level4 [: from(_1, 'op') :] := '..'
- level5 [: from(_1, 'op') :] := '+'  |  '-'
- level6 [: from(_1, 'op') :] := '*'  |  '/'  |  '%'
- level7 [: from(_1, 'op') :] := 'not' |  '#'  |  '-'
- level8 [: from(_1, 'op') :] := '^'
-*/
-
 level1 [: from(_1, 'op') :] := 'or'
 level2 [: from(_1, 'op') :] := 'and'
 level3 [: from(_1, 'op') :] := '<'  |  '>'  |  '<=' |  '>='  |  '~='  |  '=='
 level4 [: from(_1, 'op') :] := '..'
 level5 [: from(_1, 'op') :] := '+'  |  '-'
 level6 [: from(_1, 'op') :] := '*'  |  '/'  |  '%'
-level7 [: from(_1, 'op') :] := 'not' |  '#'  |  '-'
+level7 [: from(_1, 'op') :] := 'not' |  '#'  |  '-' // unary
 level8 [: from(_1, 'op') :] := '^'
 
-exp' :=
+exp_stop :=
     'nil' [: node 'nil' :]
   | 'false' [: node 'false' :]
   | 'true' [: node 'true' :]
@@ -548,8 +538,30 @@ exp' :=
   | $primaryexp $suffix* {: handle_primary_suffix :}
   | $tableconstructor [: _1 :]
 
+%code {: local function goto_list(self) return self:go '#list' end :}
+%resolve exp_stop'star#1 '[' {: goto_list :}
+%resolve exp_stop'star#1 String {: goto_list :}
+%resolve exp_stop'star#1 '{' {: goto_list :}
+%resolve exp_stop'star#1 '(' {: goto_list :}
+
 // not a or b -> (not a) or (b)
-exp1 := $exp' 
+exp := $exp2 $exp'
+exp' := $level1 $exp2 $exp' | %eps
+exp2 := $exp3 $exp2'
+exp2' := $level2 $exp3 $exp2' | %eps
+exp3 := $exp4 $exp3'
+exp3' := $level3 $exp4 $exp3' | %eps
+exp4 := $exp5 ($level4 $exp4)? // right
+exp5 := $exp6 $exp5'
+exp5' := <minus> $level5 $exp6 $exp5' | %eps
+exp6 := $exp7 $exp6'
+exp6' := $level6 $exp7 $exp6' | %eps
+exp7 := $level7 $exp8 | $exp8
+exp8 := $exp_stop ($level8 $exp8)? // right
+
+%resolve exp5' '-' {: function(self, tokens)
+  return self:go 'minus'
+end :}
 
 binop [: from(_1, 'op') :] := '+' | '-' | '*' | '/' | '^' | '%' | '..' |
   '<' | '<=' | '>' | '>=' | '==' | '~=' | 
