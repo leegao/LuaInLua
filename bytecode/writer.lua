@@ -74,7 +74,7 @@ function writer:configure(size)
   self.sizeof_int = size
 end
 
-function writer:new_writer()
+function writer.new_writer()
   return setmetatable(
     {buffer = {}},
     {
