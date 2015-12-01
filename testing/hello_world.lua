@@ -1,6 +1,4 @@
-local i = 1
-if i == 2 then
-  print "Yes"
-else
-  print "No"
+for i = 1, 10 do
+  print(i)
+  if i == 5 then break end
 end
