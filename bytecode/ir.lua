@@ -61,7 +61,7 @@ function ir:RK(r, pos)
   end
   return setmetatable(
     {rk = result, raw = r, pos = pos, ctx = self},
-    {__tostring = function() return tostring(result) .. ':rk' end})
+    {__tostring = function() return tostring(result) .. ':rk(' .. r .. ')' end})
 end
 
 function ir:V(r, pos)

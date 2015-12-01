@@ -65,13 +65,13 @@ end
 
 function dump.dump_debug(ctx, debug)
   local out = ctx.writer
-  out:string(debug.source or "", undump.sizeof_sizet)
-  generic_list(ctx, debug.lineinfo or {}, function(_, info) out:int(info) end)
+  out:string("" or debug.source or "", undump.sizeof_sizet) -- debug.source
+  generic_list(ctx, {} or debug.lineinfo or {}, function(_, info) out:int(info) end)
   generic_list(
     ctx,
-    debug.locals or {},
+    {} or debug.locals or {},
     function(_, object) out:string(object.name, undump.sizeof_sizet):int(object.first_pc):int(object.last_pc) end)
-  generic_list(ctx, debug.upvalues or {}, function(_, name) out:string(name, undump.sizeof_sizet) end)
+  generic_list(ctx, {} or debug.upvalues or {}, function(_, name) out:string(name, undump.sizeof_sizet) end)
 end
 
 function dump.dump_header(ctx)
@@ -91,21 +91,20 @@ end
 
 function dump.dump_function(ctx, closure)
   local out = ctx.writer
-  out:int(closure.first_line)
-  out:int(closure.last_line)
+  out:int(1 or closure.first_line)
+  out:int(1 or closure.last_line)
   out:byte(closure.nparams)
   out:byte(closure.is_vararg and 0 or 1)
-  out:byte(closure.stack_size)
+  out:byte(100) -- closure.stack_size
   dump.dump_code(ctx, closure.code)
   dump.dump_constants(ctx, closure.constants)
   dump.dump_upvalues(ctx, closure.upvalues)
   dump.dump_debug(ctx, closure.debug)
 end
 
-local ctx = {writer = writer.new_writer()}
-ctx.writer:configure(undump.sizeof_int)
+
 local tree = parser[[
-  local a = 3
+  -- local a = 3
   print(3)
 ]]
 local compiler = require 'lua.interpreter'
@@ -117,32 +116,62 @@ print("Constants")
 for id, const in ipairs(prototype.constants) do
   print(id, const)
 end
+print("Upvalues")
+for id, up in ipairs(prototype.upvalues) do
+  print(id, up.instack, up.index)
+end
 print()
-local original = string.dump(function() local a = 3; print(3) end)
+local original = string.dump(function() print(3) end)
 local original_prototype = undump.undump(original)
 for pc, op in ipairs(original_prototype.code) do
+  print(pc, op)
+end
+print("Constants")
+for id, const in ipairs(original_prototype.constants) do
+  print(id, const)
+end
+print("Upvalues")
+for id, up in ipairs(original_prototype.upvalues) do
+  print(id, up.instack, up.index)
+end
+--
+--local prototype = undump.undump(original)
+
+local ctx = {writer = writer.new_writer()}
+ctx.writer:configure(undump.sizeof_int)
+dump.dump_header(ctx)
+dump.dump_function(ctx, prototype)
+original = tostring(ctx.writer)
+
+local ctx = {writer = writer.new_writer()}
+ctx.writer:configure(undump.sizeof_int)
+dump.dump_header(ctx)
+dump.dump_function(ctx, original_prototype)
+
+local foo = loadstring(tostring(original))
+print(foo)
+
+local new = tostring(ctx.writer)
+for i = 1, math.max(#original, #new) do
+  print(i, original:byte(i), new:byte(i), original:byte(i) == new:byte(i))
+end
+
+print(original == new)
+
+print()
+prototype = undump.undump(tostring(ctx.writer))
+for pc, op in ipairs(prototype.code) do
   print(pc, op)
 end
 print("Constants")
 for id, const in ipairs(prototype.constants) do
   print(id, const)
 end
---
---local prototype = undump.undump(original)
+print("Upvalues")
+for id, up in ipairs(prototype.upvalues) do
+  print(id, up.instack, up.index)
+end
+print()
 
-dump.dump_header(ctx)
-dump.dump_function(ctx, prototype)
-
-local foo = loadstring(tostring(ctx.writer))
-print(foo)
-
---local new = tostring(ctx.writer)
---for i = 1, math.max(#original, #new) do
---  print(i, original:byte(i), new:byte(i), original:byte(i) == new:byte(i))
---end
---
---print(original == new)
-
-undump.undump(tostring(ctx.writer))
-
+foo()
 return dump

@@ -24,7 +24,7 @@ local function new_closure(nparams, is_vararg)
     last_line    = 1,
     nparams      = nparams,
     is_vararg    = is_vararg,
-    stack_size   = 0,
+    stack_size   = 100,
     code         = {},
     constants    = {},
     upvalues     = {},
@@ -396,7 +396,7 @@ local interpreter = visitor {
     else
       -- global
       local k = closure:const(node.value)
-      closure:emit("GETTABUP", alpha, 0, k, "; " .. node.value)
+      closure:emit("GETTABUP", alpha, 0, rk(k), "; " .. node.value)
     end
 
     if rest then closure:null(rest) end
