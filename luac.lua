@@ -1,6 +1,6 @@
 -- Compiles and loads a piece of lua code
 local parser = require 'lua.parser'
-local compiler = require 'lua.interpreter'
+local compiler = require 'lua.compiler'
 local dump = require 'bytecode.dump'
 local utils = require 'common.utils'
 
@@ -9,22 +9,7 @@ local function main(file)
   local prototype = compiler(tree)
   local bytecode = dump.dump(prototype)
   local func, err = loadstring(tostring(bytecode))
-  if err then
-    print("Error during bytecode loading, dumping state...")
-    print("Code")
-    for pc, op in ipairs(prototype.code) do
-      print(pc, op)
-    end
-    print("Constants")
-    for id, const in ipairs(prototype.constants) do
-      print(id, const)
-    end
-    print("Upvalues")
-    for id, up in ipairs(prototype.upvalues) do
-      print(id, up.instack, up.index)
-    end
-    error(err)
-  end
+
   local function dumper_(proto, level)
     local indent = ('   '):rep(level)
     print(indent .. 'Level ' .. level)
@@ -46,6 +31,12 @@ local function main(file)
   end
   local function dumper()
     dumper_(prototype, 0)
+  end
+
+  if err then
+    print("Error during bytecode loading, dumping state...")
+    dumper()
+    error(err)
   end
   return func, bytecode, prototype, dumper
 end
