@@ -17,13 +17,13 @@ local function main(file)
     for pc, op in ipairs(proto.code) do
       print(indent .. pc, '(line ' .. proto.debug.lineinfo[pc] .. ')',  op)
     end
-    print("Constants")
+    print(indent .. "Constants")
     for id, const in ipairs(proto.constants) do
       print(indent .. id, const)
     end
-    print("Upvalues")
+    print(indent .. "Upvalues")
     for id, up in ipairs(proto.upvalues) do
-      print(indent .. id, up.instack, up.index)
+      print(indent .. id - 1, proto.debug.upvalues[id], up.instack == 1 and 'local' or 'upval', up.index)
     end
     for func in utils.loop(proto.constants.functions) do
       dumper_(func, level + 1)

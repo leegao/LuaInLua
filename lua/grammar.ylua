@@ -480,7 +480,7 @@ funcbody := '(' $parlist? ')' $block 'end'
 %code {:
   local function parlist_namelist(namelist, trail)
     local parameters = node(namelist[1] and namelist[1].location or trail.location, 'parameters')
-    for name in utils.loop(parameters) do
+    for name in utils.loop(namelist) do
       parameters:list(from(name))
     end
     if trail[1] == 'DOTS' then

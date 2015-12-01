@@ -28,7 +28,7 @@ local function new_closure(nparams, is_vararg)
     code         = {},
     constants    = {},
     upvalues     = {},
-    debug        = {lineinfo = {}},
+    debug        = {lineinfo = {}, upvalues = {}},
     ir_context   = ir(),
   }
 
@@ -164,10 +164,11 @@ local function enter(nparams, is_vararg)
     end
   end
 
-  function scope:markupval(id, other)
+  function scope:markupval(name, id, other)
     if not id then return end
     if not self:searchup(id, other) then
-      table.insert(self.upvalues, {id, other})
+      print(id, other, name, self:level())
+      table.insert(self.upvalues, {id, other, name})
     end
 
     return id, other
@@ -188,7 +189,7 @@ local function enter(nparams, is_vararg)
     if not parent then
       return
     end
-    return self:markupval(parent:look_for(name))
+    return self:markupval(name, parent:look_for(name))
   end
 
   function scope:const(value)
@@ -261,16 +262,19 @@ local function enter(nparams, is_vararg)
      ]]
     local prototype = self.closure
     table.insert(prototype.upvalues, {instack = 0, index = 0}) -- global is always 0
+    table.insert(prototype.debug.upvalues, "_ENV")
     for i, upvalue in ipairs(self.upvalues) do
       for upvalue in utils.loop(self.upvalues) do
-        local register, uplevel = unpack(upvalue)
+        local register, uplevel, name = unpack(upvalue)
         if uplevel == #closures then
           -- emit a move
           table.insert(prototype.upvalues, {instack = 1, index = register})
+          table.insert(prototype.debug.upvalues, name)
         else
           -- emit an upvalue
           local up = latest:searchup(register, uplevel)
           table.insert(prototype.upvalues, {instack = 1, index = up})
+          table.insert(prototype.debug.upvalues, name)
         end
       end
     end
@@ -711,7 +715,7 @@ local interpreter = visitor {
         closure:emit(left, "MOVE", r, register)
       elseif scope then
         local up = closure:searchup(r, scope)
-        print("Assignup", up)
+--        print("Assignup", up)
         assert(up, "Upvalue must have been populated")
         closure:emit(left, "SETUPVAL", register, up)
       else

@@ -63,7 +63,7 @@ dumper()
 compiler = compiler()
 local tree = parser(io.open("testing/hello_world.lua", 'r'):read('*all'))
 local prototype = compiler(tree)
-local bytecode = dump.dump(prototype)
-local func, err = loadstring(tostring(bytecode))
-local foo = luac "testing/hello_world.lua"
-foo()
+--local bytecode = dump.dump(prototype)
+--local func, err = loadstring(tostring(bytecode))
+--local foo = luac "testing/hello_world.lua"
+--foo()
