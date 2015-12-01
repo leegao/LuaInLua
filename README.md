@@ -26,6 +26,7 @@ Status Report:
 1. Lua 5.2 bytecode deserializer
 1. AST -> Bytecode translation
 2. AST -> Bytecode compiler.
+1. Able to compile Hello World!
 
 In progress:
 
