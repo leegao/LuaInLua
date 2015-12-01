@@ -74,6 +74,21 @@ function dump.dump_debug(ctx, debug)
   generic_list(ctx, debug.upvalues or {}, function(_, name) out:string(name, undump.sizeof_sizet) end)
 end
 
+function dump.dump_header(ctx)
+  local out = ctx.writer
+  out:int(0x61754c1b)
+     :byte(0x52)
+     :byte(0)
+     :byte(1)
+     :byte(undump.sizeof_int)
+     :byte(undump.sizeof_sizet)
+     :byte(undump.sizeof_instruction)
+     :byte(undump.sizeof_number)
+     :byte(0)
+     :int(0x0a0d9319)
+     :short(0x0a1a)
+end
+
 function dump.dump_function(ctx, closure)
   local out = ctx.writer
   out:int(closure.first_line)
@@ -97,6 +112,9 @@ local tree = parser[[
 local compiler = require 'lua.interpreter'
 local prototype = compiler(tree)
 
+dump.dump_header(ctx)
 dump.dump_function(ctx, prototype)
+
+print(ctx.writer)
 
 return dump
