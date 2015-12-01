@@ -273,7 +273,7 @@ local function enter(nparams, is_vararg)
         else
           -- emit an upvalue
           local up = latest:searchup(register, uplevel)
-          table.insert(prototype.upvalues, {instack = 1, index = up})
+          table.insert(prototype.upvalues, {instack = 0, index = up})
           table.insert(prototype.debug.upvalues, name)
         end
       end
