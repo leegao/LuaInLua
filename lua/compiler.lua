@@ -202,25 +202,28 @@ local function enter(nparams, is_vararg)
     return id
   end
 
-  function scope:null(rest)
+  function scope:null(rest, node)
     if rest[2] < 0 then return end
     assert(rest[2] > 0)
-    self:emit("LOADNIL", rest[1], rest[2] - 1)
+    self:emit(node, "LOADNIL", rest[1], rest[2] - 1)
   end
 
-  function scope:emit(...)
+  function scope:emit(tree, ...)
 --    local levels = self:level() - 2
 --    if levels < 0 then
 --      print(#self.code + 1, ...)
 --    else
 --      print(("    "):rep(levels), #self.code + 1, ...)
 --    end
-    local instruction = {...}
+    local instruction = {location = tree.location, ...}
     instruction = utils.kfilter(
-      function(_, v) return type(v) == 'number' or #v ~= 0 and v:sub(1,1) ~= ';' end,
+      function(k, v)
+        if type(k) ~= 'number' then return false end
+        return type(v) == 'number' or #v ~= 0 and v:sub(1,1) ~= ';'
+      end,
       instruction)
     assert(opcode.make(ir(), #self.code + 1, unpack(instruction)))
-    table.insert(self.code, {...})
+    table.insert(self.code, {location = tree.location, ...})
   end
 
   function scope:pc()
@@ -288,7 +291,10 @@ local function enter(nparams, is_vararg)
     for pc, instruction in ipairs(self.code) do
       -- let's translate this
       instruction = utils.kfilter(
-        function(_, v) return type(v) == 'number' or #v ~= 0 and v:sub(1,1) ~= ';' end,
+        function(k, v)
+          if type(k) ~= 'number' then return false end
+          return type(v) == 'number' or #v ~= 0 and v:sub(1,1) ~= ';'
+        end,
         instruction)
       table.insert(prototype.code, opcode.make(ctx, pc, unpack(instruction)))
     end
@@ -343,11 +349,11 @@ local BETA = math.max
 -- @gamma - number of expressions to return, 0 if not applicable
 -- @return alphas - the locations of the current expression if applicable
 local interpreter = visitor {
-  on_any_constant = function(self, value, alphas)
+  on_any_constant = function(self, value, alphas, tree)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local k = closure:const(value)
-    closure:emit("LOADK", alpha, k, '', "; " .. tostring(value))
+    closure:emit(tree, "LOADK", alpha, k, '', "; " .. tostring(value))
 
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
@@ -355,27 +361,27 @@ local interpreter = visitor {
   end,
 
   on_number = function(self, node, alphas)
-    return self:on_any_constant(tonumber(node.value), alphas)
+    return self:on_any_constant(tonumber(node.value), alphas, node)
   end,
 
   on_string = function(self, node, alphas)
-    return self:on_any_constant(tostring(node.value), alphas)
+    return self:on_any_constant(tostring(node.value), alphas, node)
   end,
 
-  on_true = function(self, _, alphas)
+  on_true = function(self, node, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    closure:emit("LOADBOOL", alpha, 1, 0)
-    if rest then closure:null(rest) end
+    closure:emit(node, "LOADBOOL", alpha, 1, 0)
+    if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
 
-  on_false = function(self, _, alphas)
+  on_false = function(self, node, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    closure:emit("LOADBOOL", alpha, 0, 0)
-    if rest then closure:null(rest) end
+    closure:emit(node, "LOADBOOL", alpha, 0, 0)
+    if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
@@ -385,25 +391,25 @@ local interpreter = visitor {
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local r, scope = closure:look_for(node.value)
     if scope == closure:level() then
-      closure:emit("MOVE", alpha, r)
+      closure:emit(node, "MOVE", alpha, r)
     elseif scope then
       local up = closure:searchup(r, scope)
       assert(up, "Upvalue must have been populated")
-      closure:emit("GETUPVAL", alpha, up)
+      closure:emit(node, "GETUPVAL", alpha, up)
     else
       -- global
       local k = closure:const(node.value)
-      closure:emit("GETTABUP", alpha, 0, rk(k), "; " .. node.value)
+      closure:emit(node, "GETTABUP", alpha, 0, rk(k), "; " .. node.value)
     end
 
-    if rest then closure:null(rest) end
+    if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
 
-  on_nil = function(self, _, alphas)
+  on_nil = function(self, node, alphas)
     local closure = latest()
-    closure:null(alphas)
+    closure:null(alphas, node)
     return alphas
   end,
 
@@ -413,8 +419,8 @@ local interpreter = visitor {
     local operator = node.operator.token[1]
     local operand = self:accept(node.operand, {alpha, 1})
     local select = {MIN = "UNM", NOT = "NOT", HASH = "LEN"}
-    closure:emit(select[operator], alpha, operand[1])
-    if rest then closure:null(rest) end
+    closure:emit(node, select[operator], alpha, operand[1])
+    if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
@@ -445,7 +451,7 @@ local interpreter = visitor {
       NOTEQ = {"EQ", 0},
     }
     if select[operator] then
-      closure:emit(select[operator], alpha, id_left, id_right)
+      closure:emit(node, select[operator], alpha, id_left, id_right)
     elseif logical[operator] then
       --[[
       1	EQ(A=v(1), B=r(a:1), C=r(b:2))
@@ -454,10 +460,10 @@ local interpreter = visitor {
       4	LOADBOOL(A=r(f:0), B=v(1), C=v(0))
        ]]
       local logical_operator = logical[operator]
-      closure:emit(logical_operator[1], logical_operator[2], left[1], right[1], '; ' .. operator)
-      closure:emit("JMP", 0, 1)
-      closure:emit("LOADBOOL", alpha, 0, 1)
-      closure:emit("LOADBOOL", alpha, 1, 0)
+      closure:emit(node, logical_operator[1], logical_operator[2], left[1], right[1], '; ' .. operator)
+      closure:emit(node, "JMP", 0, 1)
+      closure:emit(node, "LOADBOOL", alpha, 0, 1)
+      closure:emit(node, "LOADBOOL", alpha, 1, 0)
     else
       --[[
       1	TESTSET(A=r(f:0), B=r(a:1), C=v(0)) C = 0 for and, 1 for or
@@ -465,12 +471,12 @@ local interpreter = visitor {
       3	MOVE(A=r(f:0), B=r(b:2))
        ]]
       local c = operator == 'and' and 1 or 0
-      closure:emit("TESTSET", alpha, left[1], c, '; ' .. operator)
-      closure:emit("JMP", 0, 1)
-      closure:emit("MOVE", alpha, right[1])
+      closure:emit(node, "TESTSET", alpha, left[1], c, '; ' .. operator)
+      closure:emit(node, "JMP", 0, 1)
+      closure:emit(node, "MOVE", alpha, right[1])
     end
     closure:free{id_left, 2}
-    if rest then closure:null(rest) end
+    if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
@@ -478,7 +484,7 @@ local interpreter = visitor {
   on_table = function(self, node, alphas)
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
-    closure:emit("NEWTABLE", alpha, 0, 0)
+    closure:emit(node, "NEWTABLE", alpha, 0, 0)
     -- get the elements
     local last_index
     for child in node:children() do if not child.index then last_index = child end end
@@ -492,7 +498,7 @@ local interpreter = visitor {
           self:accept(child.value, {id, 1})
         else
           local final = self:accept(child.value, {id, TOP})
-          closure:emit("SETLIST", alpha, from(last - alpha + final[2] - 1), 1)
+          closure:emit(child, "SETLIST", alpha, from(last - alpha + final[2] - 1), 1)
           closure:free({alpha + 1, last - alpha})
           break
         end
@@ -505,13 +511,13 @@ local interpreter = visitor {
         local index = self:accept(child.index, {index_id, 1})
         local value_id = closure:next()
         local value = self:accept(child.value, {value_id, 1})
-        closure:emit("SETTABLE", alpha, index[1], value[1])
+        closure:emit(child, "SETTABLE", alpha, index[1], value[1])
         assert(value_id == index_id + 1)
         closure:free({index_id, 2})
       end
     end
 
-    if rest then closure:null(rest) end
+    if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
@@ -528,7 +534,7 @@ local interpreter = visitor {
           self:accept(arg, {id, 1})
         else
           local _, pack_length = unpack(self:accept(arg, {id, TOP}))
-          closure:emit("CALL", call, from(num_in + #node.args + pack_length), from(num_out + 1))
+          closure:emit(arg, "CALL", call, from(num_in + #node.args + pack_length), from(num_out + 1))
           -- time to destroy the previous ids
           assert(id == first + #node.args)
           closure:free {first + 1, #node.args}
@@ -536,7 +542,7 @@ local interpreter = visitor {
         end
       end
     else
-      closure:emit("CALL", call, num_in + 1, from(num_out + 1))
+      closure:emit(node, "CALL", call, num_in + 1, from(num_out + 1))
     end
   end,
 
@@ -570,7 +576,7 @@ local interpreter = visitor {
     assert(base == alpha + 1)
     assert(node.target.right.kind == 'string')
     local field = node.target.right.value
-    closure:emit("SELF", alpha, alpha, rk(closure:const(field)))
+    closure:emit(node, "SELF", alpha, alpha, rk(closure:const(field)))
     self:call_imp(node, alpha, alpha + 1, 1, num_out)
     closure:free{base, 1}
     -- next, reserve the output registers again
@@ -585,7 +591,7 @@ local interpreter = visitor {
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local num_out = alphas and alphas[2] or TOP
 
-    closure:emit("VARARG", alpha, from(num_out + 1))
+    closure:emit(node, "VARARG", alpha, from(num_out + 1))
 
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, num_out}
@@ -598,9 +604,9 @@ local interpreter = visitor {
     self:accept(node.left, {alpha, 1})
     local right = closure:next()
     closure:free(self:accept(node.right, {right, 1}))
-    closure:emit("GETTABLE", alpha, alpha, right)
+    closure:emit(node, "GETTABLE", alpha, alpha, right)
 
-    if rest then closure:null(rest) end
+    if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
@@ -620,10 +626,10 @@ local interpreter = visitor {
         func:bind(name.value, func:next())
       end
       self:accept(node.body)
-      func:emit("RETURN", 0, 1)
+      func:emit(node.body, "RETURN", 0, 1)
     end
     local prototype, protolevel = close()
-    closure:emit("CLOSURE", alpha, prototype.id)
+    closure:emit(node.body, "CLOSURE", alpha, prototype.id)
 --    -- mark upvalues
 --    for upvalue in utils.loop(prototype.upvalues) do
 --      local register, uplevel = unpack(upvalue)
@@ -636,7 +642,7 @@ local interpreter = visitor {
 --      end
 --    end
 
-    if rest then closure:null(rest) end
+    if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
   end,
@@ -655,7 +661,7 @@ local interpreter = visitor {
       -- this is only possible if we have `local x, y, z`
       local id = closure:next(max)
       local rest = {id, max}
-      closure:null(rest)
+      closure:null(rest, node)
       for j = 1, max do
         closure:bind(node.left[j].value, id + j - 1)
       end
@@ -690,15 +696,15 @@ local interpreter = visitor {
     if left.kind == 'name' then
       local r, scope = closure:look_for(left.value)
       if scope == closure:level() then
-        closure:emit("MOVE", r, register)
+        closure:emit(left, "MOVE", r, register)
       elseif scope then
         local up = closure:searchup(r, scope)
         print("Assignup", up)
         assert(up, "Upvalue must have been populated")
-        closure:emit("SETUPVAL", register, up)
+        closure:emit(left, "SETUPVAL", register, up)
       else
         -- global
-        closure:emit("SETTABUP", 0, rk(closure:const(left.value)), register, "; " .. left.value)
+        closure:emit(left, "SETTABUP", 0, rk(closure:const(left.value)), register, "; " .. left.value)
       end
     else
       assert(left.kind == 'index')
@@ -708,7 +714,7 @@ local interpreter = visitor {
       assert(right == alpha + 1)
       self:accept(left.right, {right, 1})
       closure:free({alpha, 2})
-      closure:emit("SETTABLE", alpha, right, register)
+      closure:emit(left, "SETTABLE", alpha, right, register)
     end
   end,
 
@@ -759,12 +765,12 @@ local interpreter = visitor {
     local finishers = {}
     self:accept(node.cond, {reg, 1})
     closure:free{reg, 1}
-    closure:emit("TEST", reg, 0)
-    closure:emit("JMP", 0, "#", '', '; TODO: patch in')
+    closure:emit(node.cond, "TEST", reg, 0)
+    closure:emit(node.cond, "JMP", 0, "#", '', '; TODO: patch in')
     local hole = closure:pc()
     -- the block
     self:accept(node.block)
-    closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
+    closure:emit(node, "JMP", 0, "#", '', '; TODO: patch in end')
     table.insert(finishers, closure:pc())
     -- see if there's an elseif
     if node.elseifs then
@@ -773,11 +779,11 @@ local interpreter = visitor {
         local reg = closure:next()
         self:accept(conditional.cond, {reg, 1})
         closure:free{reg, 1}
-        closure:emit("TEST", reg, 0)
-        closure:emit("JMP", 0, "#", '', '; TODO: patch in')
+        closure:emit(conditional.cond, "TEST", reg, 0)
+        closure:emit(conditional.cond, "JMP", 0, "#", '', '; TODO: patch in')
         hole = closure:pc()
         self:accept(conditional.block)
-        closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
+        closure:emit(conditional, "JMP", 0, "#", '', '; TODO: patch in end')
         table.insert(finishers, closure:pc())
       end
     end
@@ -800,11 +806,11 @@ local interpreter = visitor {
       local reg = closure:next()
       self:accept(node.cond, {reg, 1})
       closure:free{reg, 1}
-      closure:emit("TEST", reg, 0)
-      closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
+      closure:emit(node.cond, "TEST", reg, 0)
+      closure:emit(node.cond, "JMP", 0, "#", '', '; TODO: patch in end')
       local hole = closure:pc()
       self:accept(node.block)
-      closure:emit("JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
+      closure:emit(node, "JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
       closure:patch_jmp(hole, closure:pc())
     end
     closure:exit()
@@ -821,8 +827,8 @@ local interpreter = visitor {
       local reg = closure:next()
       self:accept(node.cond, {reg, 1})
       closure:free{reg, 1}
-      closure:emit("TEST", reg, 0)
-      closure:emit("JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
+      closure:emit(node.cond, "TEST", reg, 0)
+      closure:emit(node.cond, "JMP", 0, start_pc - closure:pc() - 1, '', '; to ' .. (start_pc + 1))
     end
     closure:exit()
     return self:statement(start_pc)
@@ -853,16 +859,16 @@ local interpreter = visitor {
       if node.step then
         self:accept(node.step, {base + 2, 1})
       else
-        closure:emit("LOADK", base + 2, closure:const(1))
+        closure:emit(node, "LOADK", base + 2, closure:const(1))
       end
       local var = closure:next()
       assert(var == base + 3)
       closure:bind(node.id.value, var)
-      closure:emit("FORPREP", base, '#', '', '; TODO: patch with end')
+      closure:emit(node, "FORPREP", base, '#', '', '; TODO: patch with end')
       local prep_pc = closure:pc()
       self:accept(node.block)
       closure:patch_jmp(prep_pc, closure:pc())
-      closure:emit("FORLOOP", base, prep_pc - closure:pc() - 1, '', '; to ' .. (prep_pc + 1))
+      closure:emit(node, "FORLOOP", base, prep_pc - closure:pc() - 1, '', '; to ' .. (prep_pc + 1))
       closure:free{base, 4}
     end
     closure:exit()
@@ -878,7 +884,7 @@ local interpreter = visitor {
       assert(num ~= 0)
       -- this is only possible if we have `local x, y, z`
       local rest = {base, max}
-      closure:null(rest)
+      closure:null(rest, node)
     end
 
     for i = 1, max do
@@ -924,14 +930,14 @@ local interpreter = visitor {
       -- reserve the first n registers for the loop guards, and an additional n registers for the variables
       local base = closure:next(3)
       self:explist(node.iterator, {base, 3})
-      closure:emit("JMP", 0, '#', '', '; TODO: jump to forcall')
+      closure:emit(node, "JMP", 0, '#', '', '; TODO: jump to forcall')
       local hole = closure:pc()
       local vars = closure:next(#names)
       for i = 1, #names do closure:bind(names[i].value, vars + i - 1) end
       self:accept(node.block)
       closure:patch_jmp(hole, closure:pc())
-      closure:emit("TFORCALL", base, #names, '', '; reserve ' .. (base + 3) .. ' to ' .. (base + 2 + #names))
-      closure:emit("TFORLOOP", base + 2, hole - closure:pc() - 1, '', 'to '.. (hole + 1))
+      closure:emit(node, "TFORCALL", base, #names, '', '; reserve ' .. (base + 3) .. ' to ' .. (base + 2 + #names))
+      closure:emit(node, "TFORLOOP", base + 2, hole - closure:pc() - 1, '', 'to '.. (hole + 1))
       closure:free{vars, #names}
       closure:free{base, 3}
     end
@@ -951,7 +957,7 @@ local interpreter = visitor {
       end
     end
     assert(loop, "Cannot break outside of a loop")
-    closure:emit("JMP", 0, "#", '', '; TODO: patch in after loop is closed')
+    closure:emit(node, "JMP", 0, "#", '', '; TODO: patch in after loop is closed')
     table.insert(loop.loop, closure:pc())
 
     return self:statement(start_pc)
@@ -975,14 +981,14 @@ local interpreter = visitor {
       local left = names[1]
       local r, scope = closure:look_for(left.value)
       if scope == closure:level() then
-        closure:emit("MOVE", r, reg)
+        closure:emit(left, "MOVE", r, reg)
       elseif scope then
         local up = closure:searchup(r, scope)
         assert(up, "Upvalue must have been populated")
-        closure:emit("SETUPVAL", reg, up)
+        closure:emit(left, "SETUPVAL", reg, up)
       else
         -- global
-        closure:emit("SETTABUP", 0, rk(closure:const(left.value)), reg, "; " .. left.value)
+        closure:emit(left, "SETTABUP", 0, rk(closure:const(left.value)), reg, "; " .. left.value)
       end
     else
       local base = closure:next()
@@ -991,12 +997,12 @@ local interpreter = visitor {
           self:accept(name, {base, 1})
         elseif name == names[#names] then
           local k = closure:const(name.value)
-          closure:emit("SETTABLE", base, rk(closure:const(name.value)), reg, '; ' .. name.value)
+          closure:emit(name, "SETTABLE", base, rk(closure:const(name.value)), reg, '; ' .. name.value)
           closure:free{base, 1}
           break
         else
           local k = closure:const(name.value)
-          closure:emit("GETTABLE", base, base, rk(closure:const(name.value)), '; ' .. name.value)
+          closure:emit(name, "GETTABLE", base, base, rk(closure:const(name.value)), '; ' .. name.value)
         end
       end
     end
@@ -1030,7 +1036,7 @@ local interpreter = visitor {
           id = closure:next()
         else
           local _, pack_length = unpack(self:accept(arg, {id, TOP}))
-          closure:emit("RETURN", base, from(#node.explist + pack_length))
+          closure:emit(node, "RETURN", base, from(#node.explist + pack_length))
           -- time to destroy the previous ids
           assert(id == base + #node.explist - 1)
           closure:free {base, #node.explist}
@@ -1038,7 +1044,7 @@ local interpreter = visitor {
         end
       end
     else
-      closure:emit("RETURN", 0, 1)
+      closure:emit(node, "RETURN", 0, 1)
     end
 
     return self:statement(start_pc)
@@ -1115,7 +1121,7 @@ return function(tree)
   closures = {}
   enter(0, true)
   interpreter:accept(tree)
-  latest():emit("RETURN", 0, 1)
+  latest():emit(tree, "RETURN", 0, 1)
   local closure = close()
   return closure.closure, closure
 end

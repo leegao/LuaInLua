@@ -58,7 +58,7 @@ end
 function dump.dump_debug(ctx, debug)
   local out = ctx.writer
   out:string("" or debug.source or "", undump.sizeof_sizet) -- debug.source
-  generic_list(ctx, {} or debug.lineinfo or {}, function(_, info) out:int(info) end)
+  generic_list(ctx, debug.lineinfo or {}, function(_, info) out:int(info) end)
   generic_list(
     ctx,
     {} or debug.locals or {},
