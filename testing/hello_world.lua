@@ -1,4 +1,6 @@
-for i = 1, 10 do
-  print(i)
-  if i == 5 then break end
-end
+local j = 1
+print(j)
+print(j)
+(function() print(111) return j end)(1,2)
+
+local k = j

@@ -694,7 +694,7 @@ local interpreter = visitor {
       elseif scope then
         local up = closure:searchup(r, scope)
         assert(up, "Upvalue must have been populated")
-        closure:emit("SETUPVALUE", up, register)
+        closure:emit("SETUPVAL", up, register)
       else
         -- global
         closure:emit("SETTABUP", 0, rk(closure:const(left.value)), register, "; " .. left.value)
@@ -978,7 +978,7 @@ local interpreter = visitor {
       elseif scope then
         local up = closure:searchup(r, scope)
         assert(up, "Upvalue must have been populated")
-        closure:emit("SETUPVALUE", up, reg)
+        closure:emit("SETUPVAL", up, reg)
       else
         -- global
         closure:emit("SETTABUP", 0, rk(closure:const(left.value)), reg, "; " .. left.value)
