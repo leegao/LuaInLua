@@ -4,7 +4,6 @@ local utils = require 'common.utils'
 local re = require 'parsing.re'
 local undump = require 'bytecode.undump'
 
-
 --print(config:pretty())
 --print(utils.to_list(config:follow('block')))
 --print(config:follows():dot())
@@ -56,41 +55,7 @@ local undump = require 'bytecode.undump'
 --  end, 
 --  "c")
 
---local tree = parser 'function graph.vertices(self) end'
+local luac = require "luac"
 
--- undump.undump(loadfile "ll1/ll1.lua")
-
-local tree = parser(io.open('hello.lua', 'r'):read('*all'))
-
-local compiler = require 'lua.interpreter'
---
---local prototype = compiler(tree)
---for pc, instruction in ipairs(prototype.code) do
---  print(pc, instruction)
---end
-
---local tree = parser[[
---  local a = 3
---  function foobar()
---    return a
---  end
---  print((a + 2) .. " Hello" .. (" world?"):byte(3) .. foobar())
---]]
-local prototype = compiler(tree)
-for pc, op in ipairs(prototype.code) do
-  print(pc, op)
-end
-print("Constants")
-for id, const in ipairs(prototype.constants) do
-  print(id, const)
-end
-print("Upvalues")
-for id, up in ipairs(prototype.upvalues) do
-  print(id, up.instack, up.index)
-end
-local dump = require "bytecode.dump"
-local original = dump.dump(prototype)
-
-local foo, error = loadstring(tostring(original))
-print(foo, error)
+local foo = luac "ll1/ll1.lua"
 foo()
