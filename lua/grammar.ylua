@@ -139,6 +139,9 @@ end
 
 function ast:set(key, val)
   if not key or not val then return self end
+  if not val.kind then
+    print(debug.traceback())
+  end
   assert(val.kind, 'Set should only be called on child trees.')
   self[key] = val
   return self
@@ -212,14 +215,14 @@ stat :=
       [: node(_1.location, 'if')
           :set('cond', _2)
           :set('block', _4)
-          :set('elseifs', #_5 > 0 and node('elseif'):list(unpack(_5)) or nil)
+          :set('elseifs', #_5 > 0 and node(_5[1].location, 'elseif'):list(unpack(_5)) or nil)
           :set('else_', _6[1]) :]
   | 'for' (
       <forcounter> Name '=' $exp ',' $exp (',' $exp [: _2 :])?  'do' $block 'end'
-        [: node({}, 'fori'):set('id', from(_1)):set('start', _3):set('finish', _5):set('step', _6[1]):set('block', _8) :]
+        [: node(_1.location, 'fori'):set('id', from(_1)):set('start', _3):set('finish', _5):set('step', _6[1]):set('block', _8) :]
     | <foreach> $namelist 'in' $explist 'do' $block 'end'
-        [: node({}, 'foreach'):set('names', _1):set('iterator', _3):set('block', _5) :])
-          /* Whole action */ {: function(_1, _2) _2.location = _1.location return _2 end :}
+        [: node(_1.location, 'foreach'):set('names', _1):set('iterator', _3):set('block', _5) :])
+          /* Whole action */ {: function(_1, _2) return _2 end :}
   | 'function' $funcname $funcbody {: function(_1, _2, _3)
       if _2.colon then
         local name = node(_3[1].location, 'name')
@@ -250,7 +253,7 @@ label := '::' Name '::' [: node(_1.location, 'label'):set('name', from(_2)) :]
 
 funcname := Name ('.' Name [: from(_2) :])* (':' Name [: from(_2) :])? {:
   function(name, names, colon)
-    local tree = node(_1.location, 'funcnames')
+    local tree = node(name.location, 'funcnames')
     colon = colon[1]
     tree:list(from(name))
     tree:list(unpack(names))
