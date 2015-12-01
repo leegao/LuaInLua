@@ -1,5 +1,3 @@
 local j = 1
 print(j);
-local new = (function() j = j + 1; return j end)(1,2)
-
-print(new, j)
+for i in function() if j == 100 then return end j = j + 1; return j end do print(i, j) end
