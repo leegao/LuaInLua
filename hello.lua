@@ -59,4 +59,4 @@ local luac = require "luac"
 
 local foo, bytecode, prototype, dumper = luac "testing/hello_world.lua"
 dumper()
--- foo()
+foo()

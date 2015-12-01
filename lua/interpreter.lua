@@ -693,8 +693,9 @@ local interpreter = visitor {
         closure:emit("MOVE", r, register)
       elseif scope then
         local up = closure:searchup(r, scope)
+        print("Assignup", up)
         assert(up, "Upvalue must have been populated")
-        closure:emit("SETUPVAL", up, register)
+        closure:emit("SETUPVAL", register, up)
       else
         -- global
         closure:emit("SETTABUP", 0, rk(closure:const(left.value)), register, "; " .. left.value)
@@ -978,7 +979,7 @@ local interpreter = visitor {
       elseif scope then
         local up = closure:searchup(r, scope)
         assert(up, "Upvalue must have been populated")
-        closure:emit("SETUPVAL", up, reg)
+        closure:emit("SETUPVAL", reg, up)
       else
         -- global
         closure:emit("SETTABUP", 0, rk(closure:const(left.value)), reg, "; " .. left.value)
