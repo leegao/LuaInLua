@@ -571,8 +571,9 @@ local interpreter = visitor {
     self:accept(node.target.left, {alpha, 1})
     local base = closure:next()
     assert(base == alpha + 1)
-    self:accept(node.target.right, {base, 1})
-    closure:emit("SELF", alpha, alpha, base)
+    assert(node.target.right.kind == 'string')
+    local field = node.target.right.value
+    closure:emit("SELF", alpha, alpha, rk(closure:const(field)))
     self:call_imp(node, alpha, alpha + 1, 1, num_out)
     closure:free{base, 1}
     -- next, reserve the output registers again

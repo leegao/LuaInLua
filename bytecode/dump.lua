@@ -108,7 +108,7 @@ local tree = parser[[
   function foobar()
     return a
   end
-  print((a + 2) .. " Hello" .. " world?" .. foobar())
+  print((a + 2) .. " Hello" .. (" world?"):byte(3) .. foobar())
 ]]
 local compiler = require 'lua.interpreter'
 local prototype = compiler(tree)
@@ -142,5 +142,4 @@ print(foo)
 --print(original == new)
 
 foo()
-print(foobar())
 return dump
