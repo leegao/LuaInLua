@@ -30,6 +30,7 @@ end
 local function double(str, i)
   local lo, i = int(str, i, 4)
   local hi, i = int(str, i, 4)
+  if lo == 0 and hi == 0 then return 0 end
   -- 1 11 52
   -- hi:63    - sign
   -- hi:62-52 - exp

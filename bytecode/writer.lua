@@ -37,6 +37,7 @@ local function mantissa_to_bytes(m)
 end
 
 local function double(ctx, number)
+  if number == 0 then int(ctx, 0, 8) return end
   local m, e = math.frexp(number)
   m = 2*m
   e = e - 1
