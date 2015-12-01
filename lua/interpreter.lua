@@ -414,7 +414,7 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local operator = node.operator.token[1]
-    local operand = self:accept(node.operand, node.operand.kind ~= 'name' and {alpha, 1})
+    local operand = self:accept(node.operand, {alpha, 1})
     local select = {MIN = "UNM", NOT = "NOT", HASH = "LEN"}
     closure:emit(select[operator], alpha, operand[1])
     if rest then closure:null(rest) end
@@ -426,9 +426,10 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local operator = node.operator.token[1]
-    local left = self:accept(node.left, node.left.kind ~= 'name' and {alpha, 1})
+    local id_left = closure:next()
+    local left = self:accept(node.left, {id_left, 1})
     local id_right = closure:next()
-    local right = self:accept(node.right, node.right.kind ~= 'name' and {id_right, 1})
+    local right = self:accept(node.right, {id_right, 1})
     local select = {
       PLUS = "ADD",
       MIN = "SUB",
@@ -447,7 +448,7 @@ local interpreter = visitor {
       NOTEQ = {"EQ", 0},
     }
     if select[operator] then
-      closure:emit(select[operator], alpha, left[1], right[1])
+      closure:emit(select[operator], alpha, id_left, id_right)
     elseif logical[operator] then
       --[[
       1	EQ(A=v(1), B=r(a:1), C=r(b:2))
@@ -471,7 +472,7 @@ local interpreter = visitor {
       closure:emit("JMP", 0, 1)
       closure:emit("MOVE", alpha, right[1])
     end
-    closure:free({id_right, 1})
+    closure:free{id_left, 2}
     if rest then closure:null(rest) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
@@ -698,7 +699,7 @@ local interpreter = visitor {
         closure:emit("SETUPVALUE", up, register)
       else
         -- global
-        closure:emit("SETTABUP", 0, closure:const(left.value), register, "; " .. left.value)
+        closure:emit("SETTABUP", 0, rk(closure:const(left.value)), register, "; " .. left.value)
       end
     else
       assert(left.kind == 'index')
@@ -982,7 +983,7 @@ local interpreter = visitor {
         closure:emit("SETUPVALUE", up, reg)
       else
         -- global
-        closure:emit("SETTABUP", 0, closure:const(left.value), reg, "; " .. left.value)
+        closure:emit("SETTABUP", 0, rk(closure:const(left.value)), reg, "; " .. left.value)
       end
     else
       local base = closure:next()

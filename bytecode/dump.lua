@@ -104,8 +104,11 @@ end
 
 
 local tree = parser[[
-  -- local a = 3
-  print(3)
+  local a = 3
+  function foobar()
+    return a
+  end
+  print((a + 2) .. " Hello" .. " world?" .. foobar())
 ]]
 local compiler = require 'lua.interpreter'
 local prototype = compiler(tree)
@@ -120,21 +123,6 @@ print("Upvalues")
 for id, up in ipairs(prototype.upvalues) do
   print(id, up.instack, up.index)
 end
-print()
-local original = string.dump(function() print(3) end)
-local original_prototype = undump.undump(original)
-for pc, op in ipairs(original_prototype.code) do
-  print(pc, op)
-end
-print("Constants")
-for id, const in ipairs(original_prototype.constants) do
-  print(id, const)
-end
-print("Upvalues")
-for id, up in ipairs(original_prototype.upvalues) do
-  print(id, up.instack, up.index)
-end
---
 --local prototype = undump.undump(original)
 
 local ctx = {writer = writer.new_writer()}
@@ -143,35 +131,16 @@ dump.dump_header(ctx)
 dump.dump_function(ctx, prototype)
 original = tostring(ctx.writer)
 
-local ctx = {writer = writer.new_writer()}
-ctx.writer:configure(undump.sizeof_int)
-dump.dump_header(ctx)
-dump.dump_function(ctx, original_prototype)
-
 local foo = loadstring(tostring(original))
 print(foo)
 
-local new = tostring(ctx.writer)
-for i = 1, math.max(#original, #new) do
-  print(i, original:byte(i), new:byte(i), original:byte(i) == new:byte(i))
-end
-
-print(original == new)
-
-print()
-prototype = undump.undump(tostring(ctx.writer))
-for pc, op in ipairs(prototype.code) do
-  print(pc, op)
-end
-print("Constants")
-for id, const in ipairs(prototype.constants) do
-  print(id, const)
-end
-print("Upvalues")
-for id, up in ipairs(prototype.upvalues) do
-  print(id, up.instack, up.index)
-end
-print()
+--local new = tostring(ctx.writer)
+--for i = 1, math.max(#original, #new) do
+--  print(i, original:byte(i), new:byte(i), original:byte(i) == new:byte(i))
+--end
+--
+--print(original == new)
 
 foo()
+print(foobar())
 return dump
