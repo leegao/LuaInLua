@@ -105,18 +105,36 @@ end
 local ctx = {writer = writer.new_writer()}
 ctx.writer:configure(undump.sizeof_int)
 local tree = parser[[
-  print(hello("World?"))
+  local a = 3
+  print(3)
 ]]
 local compiler = require 'lua.interpreter'
 local prototype = compiler(tree)
---local original = string.dump(function(world) return "Hello " .. world end)
+for pc, op in ipairs(prototype.code) do
+  print(pc, op)
+end
+print("Constants")
+for id, const in ipairs(prototype.constants) do
+  print(id, const)
+end
+print()
+local original = string.dump(function() local a = 3; print(3) end)
+local original_prototype = undump.undump(original)
+for pc, op in ipairs(original_prototype.code) do
+  print(pc, op)
+end
+print("Constants")
+for id, const in ipairs(prototype.constants) do
+  print(id, const)
+end
 --
 --local prototype = undump.undump(original)
 
 dump.dump_header(ctx)
 dump.dump_function(ctx, prototype)
 
-print(loadstring(tostring(ctx.writer)))
+local foo = loadstring(tostring(ctx.writer))
+print(foo)
 
 --local new = tostring(ctx.writer)
 --for i = 1, math.max(#original, #new) do

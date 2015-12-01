@@ -20,8 +20,8 @@ local closures = {}
 
 local function new_closure(nparams, is_vararg)
   local closure = {
-    first_line   = -1,
-    last_line    = -1,
+    first_line   = 1,
+    last_line    = 1,
     nparams      = nparams,
     is_vararg    = is_vararg,
     stack_size   = 0,
@@ -116,7 +116,7 @@ local function enter(nparams, is_vararg)
 
   function scope:next(n)
     if not n then n = 1 end
-    local max = 0
+    local max = -1
     for key in pairs(self.reserved_registers) do
       if key > max then max = key end
     end

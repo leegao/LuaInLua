@@ -43,9 +43,9 @@ function ir:Kst(r, pos)
   if self.Constants[r] then return self.Constants[r] end
   local register = setmetatable({k = r, raw = r, pos = pos, ctx = self}, {__tostring = function()
     if not self.Function then
-      return "Kst("..r..")" 
+      return "Kst("..r..")"
     else 
-      return ''..tostring(self.Function.constants[r+1])..''
+      return ''..tostring(self.Function.constants[r+1])..':' .. r
     end 
   end})
   self.Constants[r] = register
