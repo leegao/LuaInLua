@@ -544,20 +544,78 @@ exp_stop :=
 %resolve exp_stop'star#1 '{' {: goto_list :}
 %resolve exp_stop'star#1 '(' {: goto_list :}
 
-// not a or b -> (not a) or (b)
-exp := $exp2 $exp'
-exp' := $level1 $exp2 $exp' | %eps
-exp2 := $exp3 $exp2'
-exp2' := $level2 $exp3 $exp2' | %eps
-exp3 := $exp4 $exp3'
-exp3' := $level3 $exp4 $exp3' | %eps
-exp4 := $exp5 ($level4 $exp4)? // right
-exp5 := $exp6 $exp5'
-exp5' := <minus> $level5 $exp6 $exp5' | %eps
-exp6 := $exp7 $exp6'
-exp6' := $level6 $exp7 $exp6' | %eps
-exp7 := $level7 $exp8 | $exp8
-exp8 := $exp_stop ($level8 $exp8)? // right
+%code {:
+  local make_binop = function(left, rest)
+    if #rest == 0 then
+      return left
+    end
+    assert(#rest == 2 and rest[1].kind == 'binop' and not rest[1].left)
+    local hole, binop = unpack(rest)
+    hole.left = left
+    return binop
+  end
+
+  local start_binop = function(bop, right, rest)
+    -- In ocaml style pseduocode
+    -- let start (+) e_r rest =
+    --   let o = hole() in
+    --   match rest with
+    --   | None -> o, (o (+) e_r)
+    --   | Some(., e_l' (*) e_r' as e') ->
+    --     let e'' = fill(e', ., (o (+) e_r) in
+    --     o, e''
+    -- Invariant: expn' is always "holed" and expn is always whole
+    -- Invariant: immediately holed expn' is always holey on the left
+    local hole = node 'binop'
+    hole.operator = bop
+    hole.right = right
+    -- implicit: hole.left is the hole
+    if #rest == 0 then
+      return {hole, hole}
+    end
+    assert(#rest == 2 and rest[1].kind == 'binop' and not rest[1].left)
+    rest[1].left = hole
+    return {hole, rest[2]}
+  end
+
+  local function start_right_binop(bop, right)
+    -- invariant: right is whole, return is immediately holed
+    local hole = node 'binop'
+    hole.operator = bop
+    hole.right = right
+    return hole
+  end
+
+  local function make_right_binop(left, binop_opt)
+    local binop = binop_opt[1]
+    if not binop then return left end
+    assert(binop.kind == 'binop' and not binop.left)
+    binop.left = left
+    return binop
+  end
+:}
+
+
+exp := $exp2 $exp' {: make_binop :} // left
+exp' := $level1 $exp2 $exp' {: start_binop :} | %eps [: {} :]
+
+exp2 := $exp3 $exp2' {: make_binop :} // left
+exp2' := $level2 $exp3 $exp2' {: start_binop :} | %eps [: {} :]
+
+exp3 := $exp4 $exp3' {: make_binop :} // left
+exp3' := $level3 $exp4 $exp3' {: start_binop :} | %eps [: {} :]
+
+exp4 := $exp5 ($level4 $exp4 {: start_right_binop :})? {: make_right_binop :} // right
+
+exp5 := $exp6 $exp5' {: make_binop :} // left
+exp5' := <minus> $level5 $exp6 $exp5' {: start_binop :} | %eps [: {} :]
+
+exp6 := $exp7 $exp6' {: make_binop :} // left
+exp6' := $level6 $exp7 $exp6' {: start_binop :} | %eps [: {} :]
+
+exp7 := $level7 $exp8 [: node('unop'):set('operator', _1):set('operand', _2) :] | $exp8 [: _1 :] // unary
+
+exp8 := $exp_stop ($level8 $exp8 {: start_right_binop :})? {: make_right_binop :} // right
 
 %resolve exp5' '-' {: function(self, tokens)
   return self:go 'minus'
