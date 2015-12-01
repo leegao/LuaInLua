@@ -55,18 +55,35 @@ local function double(ctx, number)
   int(ctx, hi, 4)
 end
 
-local reader = require "bytecode.reader"
+local function contexualize(f)
+  return function(ctx, object, ...)
+    f(ctx, object, ... or ctx.sizeof_int)
+    return ctx
+  end
+end
 
-local function new_writer()
+local writer = {
+  int = contexualize(int),
+  short = contexualize(short),
+  byte = contexualize(byte),
+  string = contexualize(string),
+  double = contexualize(double),
+}
+
+function writer:configure(size)
+  self.sizeof_int = size
+end
+
+function writer:new_writer()
   return setmetatable(
     {buffer = {}},
-    {__tostring = function(self)
-      return table.concat(self.buffer)
-    end})
+    {
+      __tostring = function(self)
+        return table.concat(self.buffer)
+      end,
+      __index = utils.copy(writer),
+    }
+  )
 end
-local ctx = new_writer()
-local n = 10234.23423425
-double(ctx, n)
 
-local x = reader.new_reader(tostring(ctx)):double()
-print(x, n , x == n)
+return writer
