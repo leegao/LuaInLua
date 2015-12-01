@@ -197,38 +197,43 @@ block := $stat* $retstat? {: function(stats, ret)
 end
 :}
 
-stat := ';' [: node 'empty' :]
-      | $assignment_or_call [: _1 :]
-      | $label [: _1 :]
-      | 'break' [: node 'break' :]
-      | 'goto' Name [: node('goto'):set('label', from(_2)) :]
-      | 'do' $block 'end' [: _2 :]
-      | 'while' $exp 'do' $block 'end' [: node('while'):set('cond', _2):set('block', _4) :]
-      | 'repeat' $block 'until' $exp [: node('repeat'):set('cond', _4):set('block', _2) :]
-      | 'if' $exp 'then' $block 
-          ('elseif' $exp 'then' $block [: node('elseif'):set('cond', _2):set('block', _4) :])* 
-          ('else' $block [: node('else'):set('block', _2) :])? 'end' 
-              [: node('if'):set('cond', _2):set('block', _4):set('elseifs', #_5 > 0 and node('elseif'):list(unpack(_5)) or nil):set('else_', _6[1]) :]
-      | 'for' (
-          <forcounter> Name '=' $exp ',' $exp (',' $exp [: _2 :])?  'do' $block 'end'
-            [: node('fori'):set('id', from(_1)):set('start', _3):set('finish', _5):set('step', _6[1]):set('block', _8) :]
-        | <foreach> $namelist 'in' $explist 'do' $block 'end'
-            [: node('foreach'):set('names', _1):set('iterator', _3):set('block', _5) :]) 
-              /* Whole action */ [: _2 :]
-      | 'function' $funcname $funcbody {: function(_1, _2, _3)
-          if _2.colon then
-            local name = node 'name'
-            name.value = 'self'
-            table.insert(_3[1], 1, name)
-          end
-          return node('functiondef'):set('funcname', _2):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2]))
-        end
-      :}
-      | 'local' ('function' Name $funcbody
-            [: node('localfunctiondef'):set('name', from(_2)):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2])) :]
-        | $namelist ('=' $explist [: _2 :])?
-            [: node('localassign'):set('left', _1):set('right', _2[1]) :]
-            ) [: _2 :]
+stat :=
+    ';' [: node 'empty' :]
+  | $assignment_or_call [: _1 :]
+  | $label [: _1 :]
+  | 'break' [: node 'break' :]
+  | 'goto' Name [: node('goto'):set('label', from(_2)) :]
+  | 'do' $block 'end' [: _2 :]
+  | 'while' $exp 'do' $block 'end' [: node('while'):set('cond', _2):set('block', _4) :]
+  | 'repeat' $block 'until' $exp [: node('repeat'):set('cond', _4):set('block', _2) :]
+  | 'if' $exp 'then' $block
+      ('elseif' $exp 'then' $block [: node('elseif'):set('cond', _2):set('block', _4) :])*
+      ('else' $block [: node('else'):set('block', _2) :])? 'end'
+      [: node('if')
+          :set('cond', _2)
+          :set('block', _4)
+          :set('elseifs', #_5 > 0 and node('elseif'):list(unpack(_5)) or nil)
+          :set('else_', _6[1]) :]
+  | 'for' (
+      <forcounter> Name '=' $exp ',' $exp (',' $exp [: _2 :])?  'do' $block 'end'
+        [: node('fori'):set('id', from(_1)):set('start', _3):set('finish', _5):set('step', _6[1]):set('block', _8) :]
+    | <foreach> $namelist 'in' $explist 'do' $block 'end'
+        [: node('foreach'):set('names', _1):set('iterator', _3):set('block', _5) :])
+          /* Whole action */ [: _2 :]
+  | 'function' $funcname $funcbody {: function(_1, _2, _3)
+      if _2.colon then
+        local name = node 'name'
+        name.value = 'self'
+        table.insert(_3[1], 1, name)
+      end
+      return node('functiondef'):set('funcname', _2):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2]))
+    end
+  :}
+  | 'local' ('function' Name $funcbody
+        [: node('localfunctiondef'):set('name', from(_2)):set('function', node('function'):set('parameters', _3[1]):set('body', _3[2])) :]
+    | $namelist ('=' $explist [: _2 :])?
+        [: node('localassign'):set('left', _1):set('right', _2[1]) :]
+        ) [: _2 :]
 
 %resolve stat'group#2 Name {: function(self, tokens)
   if tostring(tokens[2]) == 'EQ' then
@@ -312,30 +317,31 @@ end
 
 // there's a conflict on $binop between reducing the maybe? rule or going into the binop of the exp.
 // luckily for us, since not binds are not as tight as the binary operators, we'd always be reducing the rule
-exp := ('nil' [: node 'nil' :]
-      | 'false' [: node 'false' :]
-      | 'true' [: node 'true' :]
-      | Number [: from(_1, 'number') :]
-      | String [: from(_1, 'string') :]
-      | '...' [: node 'vararg' :]
-      | $functiondef [: _1 :] 
-      | $primaryexp $suffix* {: handle_primary_suffix :} 
-      | $tableconstructor [: _1 :] 
-      | $unop $exp [: node('unop'):set('operator', _1):set('operand', _2) :]
-        ) ($binop $exp [: {_1, _2} :])? // TODO: resolve conflict @ suffix*
-          {:
-            function(left, binops_opt)
-              local binop, right = unpack(binops_opt[1] or {})
-              if binop then
-                local tree = node 'binop'
-                tree.operator = binop
-                tree.left = left
-                tree.right = right
-                return tree
-              end
-              return left
-            end
-          :}
+exp := (
+    'nil' [: node 'nil' :]
+  | 'false' [: node 'false' :]
+  | 'true' [: node 'true' :]
+  | Number [: from(_1, 'number') :]
+  | String [: from(_1, 'string') :]
+  | '...' [: node 'vararg' :]
+  | $functiondef [: _1 :]
+  | $primaryexp $suffix* {: handle_primary_suffix :}
+  | $tableconstructor [: _1 :]
+  | $unop $exp [: node('unop'):set('operator', _1):set('operand', _2) :]
+  ) ($binop $exp [: {_1, _2} :])? // TODO: resolve conflict @ suffix*
+  {:
+    function(left, binops_opt)
+      local binop, right = unpack(binops_opt[1] or {})
+      if binop then
+        local tree = node 'binop'
+        tree.operator = binop
+        tree.left = left
+        tree.right = right
+        return tree
+      end
+      return left
+    end
+  :}
 
 %code {: local function goto_present(self) return self:go '#present' end :}
 %resolve exp'maybe#1 '^' {: goto_present :}
@@ -393,62 +399,64 @@ primaryexp := Name [: from(_1) :] | '(' $exp ')' [: _2 :]
 // %eps is func, the other 2 are assignments
 // let's rule out the possibility of f() = x
 
-assignment_or_call := $primaryexp (
-                          '.' Name {: suffix_dot :}
-                        | '[' $exp ']' {: suffix_bracket :}
-                        | ':' Name $args {: suffix_colon :}
-                        | <call> $args {: suffix_args :})* $assignment?
-                      {:
-                        function(left, suffixes, assignment_opt)
-                          local assignment = #assignment_opt == 0 and {} or assignment_opt[1]
-                          -- let's reduce to call or assignment
-                          if (#suffixes == 0 or not suffixes[#suffixes].args) and #assignment == 0 then
-                            error('Parser error: you can only specify a call or an assignment here')
-                          end
-                          if #suffixes ~= 0 and #assignment ~= 0 and suffixes[#suffixes].args then
-                            error 'Parser error: you cannot assign to a call'
-                          end
-                          
-                          if #assignment ~= 0 then
-                            -- assignment case
-                            -- assignment is a list of subsequent assignments
-                            local ps = handle_primary_suffix(left, suffixes)
-                            assert(ps.kind == 'index' or ps.kind == 'name')
-                            local lvals, rvals = unpack(assignment)
-                            table.insert(lvals, 1, ps)
-                            lvals = node('lvalues'):list(unpack(lvals))
-                            local tree = node 'assignments'
-                            tree.left = lvals
-                            tree.right = rvals
-                            return tree
-                          else
-                            -- call case
-                            local ps = handle_primary_suffix(left, suffixes)
-                            assert(ps.kind == 'call' or ps.kind == 'selfcall')
-                            return node('callstmt'):list(ps)
-                          end
-                        end
-                      :}
+assignment_or_call :=
+    $primaryexp (
+      '.' Name {: suffix_dot :}
+    | '[' $exp ']' {: suffix_bracket :}
+    | ':' Name $args {: suffix_colon :}
+    | <call> $args {: suffix_args :})* $assignment?
+  {:
+    function(left, suffixes, assignment_opt)
+      local assignment = #assignment_opt == 0 and {} or assignment_opt[1]
+      -- let's reduce to call or assignment
+      if (#suffixes == 0 or not suffixes[#suffixes].args) and #assignment == 0 then
+        error('Parser error: you can only specify a call or an assignment here')
+      end
+      if #suffixes ~= 0 and #assignment ~= 0 and suffixes[#suffixes].args then
+        error 'Parser error: you cannot assign to a call'
+      end
+
+      if #assignment ~= 0 then
+        -- assignment case
+        -- assignment is a list of subsequent assignments
+        local ps = handle_primary_suffix(left, suffixes)
+        assert(ps.kind == 'index' or ps.kind == 'name')
+        local lvals, rvals = unpack(assignment)
+        table.insert(lvals, 1, ps)
+        lvals = node('lvalues'):list(unpack(lvals))
+        local tree = node 'assignments'
+        tree.left = lvals
+        tree.right = rvals
+        return tree
+      else
+        -- call case
+        local ps = handle_primary_suffix(left, suffixes)
+        assert(ps.kind == 'call' or ps.kind == 'selfcall')
+        return node('callstmt'):list(ps)
+      end
+    end
+  :}
+
 assignment := ',' $primaryexp $suffix* $assignment 
-              {: 
-                function(_, _1, _2, _3) 
-                  local left, right = unpack(_3)
-                  table.insert(left, 1, handle_primary_suffix(_1, _2));
-                  return {left, right}
-                end :}
-            | '=' $explist [: {{}, _2} :]
+      {:
+        function(_, _1, _2, _3)
+          local left, right = unpack(_3)
+          table.insert(left, 1, handle_primary_suffix(_1, _2));
+          return {left, right}
+        end :}
+    | '=' $explist [: {{}, _2} :]
 
-    // Hack to get around the fact that one branch of this is always
-    // "dead" states that would get killed later on anyways
-    %resolve assignment_or_call'star#1 '(' {: function(self, tokens)
-      -- always reduce to call
-      return self:go '#list'
-    end :}
+// Hack to get around the fact that one branch of this is always
+// "dead" states that would get killed later on anyways
+%resolve assignment_or_call'star#1 '(' {: function(self, tokens)
+  -- always reduce to call
+  return self:go '#list'
+end :}
 
-    // prefixexp := $var | $functioncall | '(' $exp ')'
-    // functioncall := $prefixexp ($args | ':' Name $args)
-    // varlist := $var (',' $var)*
-    // var := Name | $prefixexp ('[' $exp ']' | '.' Name)
+// prefixexp := $var | $functioncall | '(' $exp ')'
+// functioncall := $prefixexp ($args | ':' Name $args)
+// varlist := $var (',' $var)*
+// var := Name | $prefixexp ('[' $exp ']' | '.' Name)
 
 args := '(' $explist? ')' [: (#_2 == 0 and node 'args') or node('args'):list(unpack(_2[1])) :]
       | $tableconstructor [: node('args'):list(_1) :]
@@ -457,39 +465,39 @@ args := '(' $explist? ')' [: (#_2 == 0 and node 'args') or node('args'):list(unp
 functiondef := 'function' $funcbody [: node('function'):set('parameters', _2[1]):set('body', _2[2]) :]
 
 funcbody := '(' $parlist? ')' $block 'end'
-          {: 
-            function(_, parameters_opt, _, block)
-              local parameters = parameters_opt[1] or node 'parameters'
-              return {parameters, block}
-            end 
-          :}
+  {:
+    function(_, parameters_opt, _, block)
+      local parameters = parameters_opt[1] or node 'parameters'
+      return {parameters, block}
+    end
+  :}
 
-    // resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
-    %code {:
-      local function parlist_namelist(namelist, trail)
-        local parameters = node 'parameters'
-        for name in utils.loop(parameters) do
-          parameters:list(from(name))
-        end
-        if trail[1] == 'DOTS' then
-          parameters.vararg = from(trail)
-        else
-          parameters:list(from(trail))
-        end
-        return parameters
-      end
-    :}
+// resolve conflict for parlist := (Name ',')+ Name; based on tokens[2] being , or not
+%code {:
+  local function parlist_namelist(namelist, trail)
+    local parameters = node 'parameters'
+    for name in utils.loop(parameters) do
+      parameters:list(from(name))
+    end
+    if trail[1] == 'DOTS' then
+      parameters.vararg = from(trail)
+    else
+      parameters:list(from(trail))
+    end
+    return parameters
+  end
+:}
 
 parlist := (<namelist> Name ',' [: _1 :])* (Name [: _1 :] | '...' [: _1 :]) 
-            {: parlist_namelist :}
+  {: parlist_namelist :}
 
-        %resolve parlist'star#1 Name {: function(self, tokens)
-          if tostring(tokens[2]) == 'COMMA' then
-            return self:go '#list'
-          else
-            return self:go ''
-          end
-        end :}
+%resolve parlist'star#1 Name {: function(self, tokens)
+  if tostring(tokens[2]) == 'COMMA' then
+    return self:go '#list'
+  else
+    return self:go ''
+  end
+end :}
 
 // TODO: ensure that only the last $field has an optional $fieldsep
 tableconstructor := '{' $field* '}' 
@@ -497,8 +505,8 @@ tableconstructor := '{' $field* '}'
 
 // Conflict resolvers, since the approximation of Lua we're parsing is not LL(1) (but is LL(2))
 field := '[' $exp ']' '=' $exp $fieldsep? [: node('element'):set('index', _2):set('value', _5) :]
-       | <assign> Name '=' $exp $fieldsep? [: node('element'):set('index', from(_1, 'string')):set('value', _3) :]
-       | <exp> $exp $fieldsep? [: node('element'):set('value', _1) :]
+   | <assign> Name '=' $exp $fieldsep? [: node('element'):set('index', from(_1, 'string')):set('value', _3) :]
+   | <exp> $exp $fieldsep? [: node('element'):set('value', _1) :]
 %resolve field Name {: function(self, tokens)
   if tostring(tokens[2]) == 'EQ' then
     return self:go 'assign'
@@ -508,6 +516,40 @@ field := '[' $exp ']' '=' $exp $fieldsep? [: node('element'):set('index', _2):se
 end :}
 
 fieldsep [: {} :] := ',' | ';'
+
+/*
+ level1 [: from(_1, 'op') :] := 'or'
+ level2 [: from(_1, 'op') :] := 'and'
+ level3 [: from(_1, 'op') :] := '<'  |  '>'  |  '<=' |  '>='  |  '~='  |  '=='
+ level4 [: from(_1, 'op') :] := '..'
+ level5 [: from(_1, 'op') :] := '+'  |  '-'
+ level6 [: from(_1, 'op') :] := '*'  |  '/'  |  '%'
+ level7 [: from(_1, 'op') :] := 'not' |  '#'  |  '-'
+ level8 [: from(_1, 'op') :] := '^'
+*/
+
+level1 [: from(_1, 'op') :] := 'or'
+level2 [: from(_1, 'op') :] := 'and'
+level3 [: from(_1, 'op') :] := '<'  |  '>'  |  '<=' |  '>='  |  '~='  |  '=='
+level4 [: from(_1, 'op') :] := '..'
+level5 [: from(_1, 'op') :] := '+'  |  '-'
+level6 [: from(_1, 'op') :] := '*'  |  '/'  |  '%'
+level7 [: from(_1, 'op') :] := 'not' |  '#'  |  '-'
+level8 [: from(_1, 'op') :] := '^'
+
+exp' :=
+    'nil' [: node 'nil' :]
+  | 'false' [: node 'false' :]
+  | 'true' [: node 'true' :]
+  | Number [: from(_1, 'number') :]
+  | String [: from(_1, 'string') :]
+  | '...' [: node 'vararg' :]
+  | $functiondef [: _1 :]
+  | $primaryexp $suffix* {: handle_primary_suffix :}
+  | $tableconstructor [: _1 :]
+
+// not a or b -> (not a) or (b)
+exp1 := $exp' 
 
 binop [: from(_1, 'op') :] := '+' | '-' | '*' | '/' | '^' | '%' | '..' |
   '<' | '<=' | '>' | '>=' | '==' | '~=' | 
