@@ -24,7 +24,20 @@ local function main(file)
     end
     error(err)
   end
-  return func, bytecode, prototype
+  return func, bytecode, prototype, function()
+    print("Code")
+    for pc, op in ipairs(prototype.code) do
+      print(pc, op)
+    end
+    print("Constants")
+    for id, const in ipairs(prototype.constants) do
+      print(id, const)
+    end
+    print("Upvalues")
+    for id, up in ipairs(prototype.upvalues) do
+      print(id, up.instack, up.index)
+    end
+  end
 end
 
 return main

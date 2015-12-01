@@ -36,7 +36,6 @@ local function new_closure(nparams, is_vararg)
 end
 
 local function enter(nparams, is_vararg)
-  print("Entering closure")
   local scope = {
     closure = new_closure(nparams or 0, is_vararg or false),
     local_id = 0,
@@ -229,11 +228,10 @@ local function enter(nparams, is_vararg)
   end
 
   function scope:patch_jmp(start, finish)
-    print("Changing sBx of " .. start .. " to " .. finish - start)
     local instr = self.code[start]
     assert(instr[1] == 'JMP' or instr[1] == 'FORPREP')
     assert(instr[3] == '#')
-    instr[3] = finish
+    instr[3] = finish - start
     instr[5] = '; to ' .. (finish + 1)
   end
 
@@ -304,7 +302,6 @@ local function enter(nparams, is_vararg)
 end
 
 local function close()
-  print "Leaving closure"
   peek(closures):exit()
   return pop(closures):finalize()
 end
