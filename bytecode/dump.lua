@@ -57,13 +57,13 @@ end
 
 function dump.dump_debug(ctx, debug)
   local out = ctx.writer
-  out:string("" or debug.source or "", undump.sizeof_sizet) -- debug.source
+  out:string(debug.source or "", undump.sizeof_sizet) -- debug.source
   generic_list(ctx, debug.lineinfo or {}, function(_, info) out:int(info) end)
   generic_list(
     ctx,
-    {} or debug.locals or {},
+    debug.locals or {},
     function(_, object) out:string(object.name, undump.sizeof_sizet):int(object.first_pc):int(object.last_pc) end)
-  generic_list(ctx, {} or debug.upvalues or {}, function(_, name) out:string(name, undump.sizeof_sizet) end)
+  generic_list(ctx, debug.upvalues or {}, function(_, name) out:string(name, undump.sizeof_sizet) end)
 end
 
 function dump.dump_header(ctx)

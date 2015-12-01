@@ -41,6 +41,7 @@ function context:next()
       self.current = current:sub(#word + 1)
       local last = self:position()
       self:set_location(first, last)
+--      print(word, first, last, self:get_location()[1][2], self:get_location()[2][2])
       return action_node.word_map[word](word, self)
     end
   end
@@ -52,6 +53,7 @@ function context:next()
       self.current = current:sub(#word + 1)
       local last = self:position()
       self:set_location(first, last)
+--      print(word, first, last, self:get_location()[1][2], self:get_location()[2][2])
       return action_node.automaton_map[automaton.pattern](word, self)
     end
   end
@@ -76,7 +78,7 @@ function context:set_location(first, last)
 end
 
 function context:get_location()
-  return unpack(self.location)
+  return self.location
 end
 
 function context:get_line_of(position)
@@ -102,6 +104,7 @@ local function new_context(configuration, str)
       table.insert(ctx.newlines, i)
     end
   end
+  table.insert(ctx.newlines, #str)
   setmetatable(ctx, {__index = context})
   return ctx
 end

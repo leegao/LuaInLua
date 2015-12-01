@@ -28,7 +28,7 @@ local function new_closure(nparams, is_vararg)
     code         = {},
     constants    = {},
     upvalues     = {},
-    debug        = {},
+    debug        = {lineinfo = {}},
     ir_context   = ir(),
   }
 
@@ -292,11 +292,16 @@ local function enter(nparams, is_vararg)
       -- let's translate this
       instruction = utils.kfilter(
         function(k, v)
-          if type(k) ~= 'number' then return false end
+          if type(k) ~= 'number' then return true end
           return type(v) == 'number' or #v ~= 0 and v:sub(1,1) ~= ';'
         end,
         instruction)
       table.insert(prototype.code, opcode.make(ctx, pc, unpack(instruction)))
+      if not instruction.location then
+        print("Cannot generate lineinfo", pc, prototype.code[#prototype.code])
+      end
+
+      table.insert(prototype.debug.lineinfo, instruction.location and instruction.location[1][2] or 0)
     end
 
     return self, #closures + 1
@@ -534,7 +539,7 @@ local interpreter = visitor {
           self:accept(arg, {id, 1})
         else
           local _, pack_length = unpack(self:accept(arg, {id, TOP}))
-          closure:emit(arg, "CALL", call, from(num_in + #node.args + pack_length), from(num_out + 1))
+          closure:emit(node, "CALL", call, from(num_in + #node.args + pack_length), from(num_out + 1))
           -- time to destroy the previous ids
           assert(id == first + #node.args)
           closure:free {first + 1, #node.args}

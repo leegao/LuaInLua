@@ -63,6 +63,7 @@ local longstringprefix
 local longstring
 local str_prefix
 local str
+local start_position
 
 --[[
 | < NUMBER: <HEX> | <FLOAT> >
@@ -145,15 +146,15 @@ return lex.lex {
     
     {re '--[[', function(_, lexer) lexer:go 'longcomment' end},
     {re '--[=[', function(_, lexer) lexer:go 'longcomment1' end},
-    {re '--[==+[', function(piece, lexer) longcomment = piece; lexer:go 'longcommentn' end},
+    {re '--[==+[', function(piece, lexer) start_position = lexer:get_location()[1]; longcomment = piece; lexer:go 'longcommentn' end},
     {re '--[^\n]*', ignore},
-    {re '[[', function(_, lexer) longstring = ''; lexer:go 'longstring' end},
-    {re '[=[', function(_, lexer) longstring = ''; lexer:go 'longstring1' end},
-    {re '[==+[', function(piece, lexer) longstring = ''; longstringprefix = piece; lexer:go 'longstringn' end},
+    {re '[[', function(_, lexer) start_position = lexer:get_location()[1]; longstring = ''; lexer:go 'longstring' end},
+    {re '[=[', function(_, lexer) start_position = lexer:get_location()[1]; longstring = ''; lexer:go 'longstring1' end},
+    {re '[==+[', function(piece, lexer) start_position = lexer:get_location()[1]; longstring = ''; longstringprefix = piece; lexer:go 'longstringn' end},
     {re '-', id 'MIN'},
     {re '[', id 'LBRACK'},
     
-    {re '"|\'', function(piece, lexer) str_prefix = piece; str = ''; lexer:go 'string' end},
+    {re '"|\'', function(piece, lexer) start_position = lexer:get_location()[1]; str_prefix = piece; str = ''; lexer:go 'string' end},
 
     {re(('(%s)|(%s)'):format(HEX, FLOAT)), id 'Number'},
   },
@@ -164,7 +165,7 @@ return lex.lex {
       function(piece, lexer)
         if piece == str_prefix then
           lexer:go 'root'
-          return {'String', str}
+          return {'String', str, location = {start_position, lexer:get_location()[2]}}
         else
           str = str .. piece
         end
@@ -190,18 +191,18 @@ return lex.lex {
   },
   longstring = {
     {re '.', function(c) longstring = longstring .. c end},
-    {']]', function(_, lexer) lexer:go 'root'; return {'String', longstring} end},
+    {']]', function(_, lexer) lexer:go 'root'; return {'String', longstring, location = {start_position, lexer:get_location()[2]}} end},
   },
   longstring1 = {
     {re '.', function(c) longstring = longstring .. c end},
-    {']=]', function(_, lexer) lexer:go 'root'; return {'String', longstring} end},
+    {']=]', function(_, lexer) lexer:go 'root'; return {'String', longstring, location = {start_position, lexer:get_location()[2]}} end},
   },
   longstringn = {
     {re ']==+]', 
       function(piece, lexer)
         if #piece == #longstringprefix then
           lexer:go 'root'
-          return {'String', longstring}
+          return {'String', longstring, location = {start_position, lexer:get_location()[2]}}
         end
       end},
     {re '.', function(c) longstring = longstring .. c end},
