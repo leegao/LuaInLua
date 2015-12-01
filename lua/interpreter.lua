@@ -799,7 +799,7 @@ local interpreter = visitor {
       local reg = closure:next()
       self:accept(node.cond, {reg, 1})
       closure:free{reg, 1}
-      closure:emit("TEST", reg, 1)
+      closure:emit("TEST", reg, 0)
       closure:emit("JMP", 0, "#", '', '; TODO: patch in end')
       local hole = closure:pc()
       self:accept(node.block)
