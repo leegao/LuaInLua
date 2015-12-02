@@ -83,10 +83,10 @@ end
 
 function dump.dump_function(ctx, closure)
   local out = ctx.writer
-  out:int(1 or closure.first_line)
-  out:int(1 or closure.last_line)
+  out:int(closure.first_line)
+  out:int(closure.last_line)
   out:byte(closure.nparams)
-  out:byte(closure.is_vararg and 0 or 1)
+  out:byte(closure.is_vararg and 1 or 0)
   out:byte(100) -- closure.stack_size
   dump.dump_code(ctx, closure.code)
   dump.dump_constants(ctx, closure.constants)

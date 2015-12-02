@@ -59,10 +59,14 @@ local luac = require "luac"
 local dump = require "bytecode.dump"
 local undump = require "bytecode.undump"
 
-local prototype = undump.undump(function() return a() and b() end)
-for pc, op in ipairs(prototype.code) do
-  print(pc, op)
-end
+--local prototype = undump.undump(function(...) print(...) end)
+--for pc, op in ipairs(prototype.code) do
+--  print(pc, op)
+--end
+--
+--local foo, bytecode, prototype, dumper = luac "testing/hello_world.lua"
+--dumper()
+--foo()
 
 local compiler, bytecode, prototype, dumper = luac "lua/compiler.lua"
 dumper()

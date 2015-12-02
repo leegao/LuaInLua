@@ -210,7 +210,7 @@ end
 
 local function make(ctx, pc, name, ...)
   local op = OPCODES[name]
-  assert(ARGS[op], tostring(name) .. ' versus ' .. tostring(op))
+  assert(ARGS[op], tostring(name))
   local inst = setmetatable({op = OPCODES[op]}, OPMT)
   local arguments = {...}
   assert(

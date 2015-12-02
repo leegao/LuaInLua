@@ -215,7 +215,7 @@ local function enter(nparams, is_vararg)
 --    else
 --      print(("    "):rep(levels), #self.code + 1, ...)
 --    end
-    local instruction = {location = tree.location, ...}
+    local instruction = {location = tree.location, ... }
     instruction = utils.kfilter(
       function(k, v)
         if type(k) ~= 'number' then return false end
@@ -605,7 +605,7 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local num_out = alphas and alphas[2] or TOP
-
+    assert(closure.closure.is_vararg)
     closure:emit(node, "VARARG", alpha, from(num_out + 1))
 
     if mine then closure:free(combine(alpha, rest)) end

@@ -484,7 +484,7 @@ funcbody := '(' $parlist? ')' $block 'end'
       parameters:list(from(name))
     end
     if trail[1] == 'DOTS' then
-      parameters.vararg = from(trail)
+      rawset(parameters, 'vararg', from(trail))
     else
       parameters:list(from(trail))
     end
