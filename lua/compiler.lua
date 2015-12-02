@@ -435,8 +435,6 @@ local interpreter = visitor {
     local closure = latest()
     local alpha, mine, rest = closure:own_or_propagate(alphas)
     local operator = node.operator.token[1]
-    local id_left = closure:next()
-    local left = self:accept(node.left, {id_left, 1})
     local select = {
       PLUS = "ADD",
       MIN = "SUB",
@@ -455,9 +453,12 @@ local interpreter = visitor {
       NOTEQ = {"EQ", 0},
     }
     if select[operator] then
+      local id_left = closure:next()
+      local left = self:accept(node.left, {id_left, 1})
       local id_right = closure:next()
       local right = self:accept(node.right, {id_right, 1})
       closure:emit(node, select[operator], alpha, id_left, id_right)
+      closure:free{id_left, 2}
     elseif logical[operator] then
       --[[
       1	EQ(A=v(1), B=r(a:1), C=r(b:2))
@@ -467,28 +468,29 @@ local interpreter = visitor {
        ]]
       local logical_operator = logical[operator]
 
+      local id_left = closure:next()
+      local left = self:accept(node.left, {id_left, 1})
       local id_right = closure:next()
       local right = self:accept(node.right, {id_right, 1})
       closure:emit(node, logical_operator[1], logical_operator[2], left[1], right[1], '; ' .. operator)
       closure:emit(node, "JMP", 0, 1)
       closure:emit(node, "LOADBOOL", alpha, 0, 1)
       closure:emit(node, "LOADBOOL", alpha, 1, 0)
+      closure:free{id_left, 2}
     else
       --[[
       1	TESTSET(A=r(f:0), B=r(a:1), C=v(0)) C = 0 for and, 1 for or
       2	JMP(A=v(0), sBx=v(1))
       3	MOVE(A=r(f:0), B=r(b:2))
        ]]
-      local c = operator == 'and' and 1 or 0
-      closure:emit(node, "TESTSET", alpha, left[1], c, '; ' .. operator)
+      local c = operator == 'AND' and 0 or 1
+      self:accept(node.left, {alpha, 1})
+      closure:emit(node, "TEST", alpha, c, '; ' .. operator)
       closure:emit(node, "JMP", 0, '#', '', '; TODO: patch in later')
       local hole = closure:pc()
-      local id_right = closure:next()
-      local right = self:accept(node.right, {id_right, 1})
-      closure:emit(node, "MOVE", alpha, right[1])
+      self:accept(node.right, {alpha, 1})
       closure:patch_jmp(hole, closure:pc())
     end
-    closure:free{id_left, 2}
     if rest then closure:null(rest, node) end
     if mine then closure:free(combine(alpha, rest)) end
     return {alpha, 1}
@@ -541,7 +543,7 @@ local interpreter = visitor {
       local previous_id = first
       for arg in node.args:children() do
         local id = closure:next()
-        assert(id == previous_id + 1)
+        assert(id == previous_id + 1, previous_id .. ' versus ' .. id .. ' at ' .. node.location[1][2])
         previous_id = id
         if arg ~= node.args[#node.args] then
           self:accept(arg, {id, 1})
