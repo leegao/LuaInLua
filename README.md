@@ -1,45 +1,9 @@
-Let's build a Lua compiler from the ground up in Lua. Here, we will be developing our own tools from scratch along the way, which is great because Lua doesn't come with much in terms of its standard library so we get to do a lot platforming work as well :)
+Welcome to Lua, in Lua!
+===================
 
-I will be focusing heavier on the parsing aspect of this compiler as that is the low-hanging fruit aspect of compiler construction that I haven't had a chance to explore deeply yet.
 
-See https://github.com/leegao/Lua-In-Lua/blob/master/lua/grammar.ylua for the grammar, the parser language is written in the same language that the parser parses (yo dawg). Note that Lua's language specification is not LL(n) for any finite n, which means that any oracular lookahead machine will still not be able to parse this without angelicism. To get around this, we use an extremely clever idea: we relax the language to be parsable by LL(3) and we use the semantic action during parse time to restrict valid trees. This mix of "dynamic" and "static" parsing analysis will allow us to get a full Lua parser.
+Hey! I'm glad you've found me. I hope to become a full implementation of the [Lua 5.2.4](http://lua.org/) one day, but more than that, I hope that I can become a useful guide for those who are interested in language implementation.
 
-To see the compiler in action, run hello.lua. The output will be a list of opcodes that is generated based on ll1/ll1.lua.
+I grew out of a [month-long sprint](https://github.com/leegao/Lua-SideProjectMonth) from an initiative to complete a side-project within the span of the November of 2015, but I wanted to keep tredding on.
 
-Status Report:
-
-1. Regular expressions recognizer generator: completed!
-2. Lexer generator: backend completed, pending Parser to self-host the frontend as well.
-3. LL(1) Parser generator: completed, which will use the graph reduction to efficiently compute the fixed point.
-4. Add nullable elimination transformation - (grammar cannot have inherent nullables anymore)
-2. Eliminate production cycles (A ⩲> A)
-3. Eliminte immediate left recursion
-4. Create left-recursion folding mechanism
-5. Create left-factor elimination
-5. Self-hosting the Lexer.
-6. Self-hosting the Parser.
-6. Added support for extende BNF grammars
-7. Added support for oracular lookaheads
-1. Create a lua parser in LL(1)
-1. Add semantic actions to the lua parser
-1. Add a tokenizer for Lua
-1. Lua 5.2 bytecode deserializer
-1. AST -> Bytecode translation
-2. AST -> Bytecode compiler.
-1. Able to compile Hello World!
-
-In progress:
-
-1. Operator precedence in parser
-1. Lua 5.2 bytecode interpreter
-
-TODO:
-
-11. Standard library
-12. Self-host the toolchain (5.2 compatibility)
-
-Stretch:
-
-4. LR(0-1) Parser, which will also use a similar mechanism
-7. Type-induction.
-8. Type inferencing.
+----------
