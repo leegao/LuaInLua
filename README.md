@@ -19,4 +19,4 @@ So this is my sell for my grand ambition of getting free labor. Lua turns out to
 
 ----------
 
-![Lua](http://i.imgur.com/Mo5lv.jpg)
+![Lua](http://www.lua.org/images/logo.gif)
