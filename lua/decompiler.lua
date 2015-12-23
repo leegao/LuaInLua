@@ -62,7 +62,7 @@ local puzzles = {}
 
 -- OP_RETURN,/*  A B    return R(A), ... ,R(A+B-2)  (see note)  */
 function puzzles.RETURN(ctx, instruction)
-  
+
 end
 
 

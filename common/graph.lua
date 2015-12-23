@@ -2,6 +2,8 @@
 -- For now, let's just go with tagged nodes and edges, with some helper functions for 
 -- forward and reverse traversal
 
+local utils = require 'common.utils'
+
 local graph = {}
 graph.__index = graph
 
@@ -55,6 +57,46 @@ function graph.edge(self, left, right, tag, use_list)
     self.reverse[right[1]][left[1]][tag] = true
   end
   return self
+end
+
+function graph.remove_vertex(self, node)
+  assert(self.nodes[node])
+  self.nodes[node] = nil
+  local bad_edges = {}
+  for from, to in self:edges() do
+    if from == node or to == node then
+      table.insert(bad_edges, {from, to})
+    end
+  end
+  for edge in utils.loop(bad_edges) do
+    self:remove_edge(unpack(edge))
+  end
+  self.forward_tags[node] = nil
+  self.reverse_tags[node] = nil
+  self.forward[node] = nil
+  self.reverse[node] = nil
+end
+
+function graph.remove_edge(self, from, to)
+  local tags = self.forward[from][to]
+  self.forward[from][to] = nil
+  self.reverse[to][from] = nil
+  for tag in pairs(tags) do
+    -- remove to from self.forward_tags[from][tag]
+    for i, val in ipairs(self.forward_tags[from][tag]) do
+      if val == to then
+        table.remove(self.forward_tags[from][tag], i)
+        break
+      end
+    end
+    -- remove to from self.reverse_tags[to][tag]
+    for i, val in ipairs(self.reverse_tags[to][tag]) do
+      if val == from then
+        table.remove(self.reverse_tags[to][tag], i)
+        break
+      end
+    end
+  end
 end
 
 -- returns an iterator for each node, its actions, and a map of forward and reverse transitions
