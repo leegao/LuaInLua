@@ -318,58 +318,6 @@ local function handle_primary_suffix(left, suffixlist)
 end
 :}
 
-// there's a conflict on $binop between reducing the maybe? rule or going into the binop of the exp.
-// luckily for us, since not binds are not as tight as the binary operators, we'd always be reducing the rule
-/*
-exp := (
-    'nil' [: node(_1.location, 'nil') :]
-  | 'false' [: node(_1.location, 'false') :]
-  | 'true' [: node 'true' :]
-  | Number [: from(_1, 'number') :]
-  | String [: from(_1, 'string') :]
-  | '...' [: node 'vararg' :]
-  | $functiondef [: _1 :]
-  | $primaryexp $suffix* {: handle_primary_suffix :}
-  | $tableconstructor [: _1 :]
-  | $unop $exp [: node('unop'):set('operator', _1):set('operand', _2) :]
-  ) ($binop $exp [: {_1, _2} :])? // TODO: resolve conflict @ suffix*
-  {:
-    function(left, binops_opt)
-      local binop, right = unpack(binops_opt[1] or {})
-      if binop then
-        local tree = node 'binop'
-        tree.operator = binop
-        tree.left = left
-        tree.right = right
-        return tree
-      end
-      return left
-    end
-  :}
-
-%code {: local function goto_present(self) return self:go '#present' end :}
-%resolve exp'maybe#1 '^' {: goto_present :}
-%resolve exp'maybe#1 '==' {: goto_present :}
-%resolve exp'maybe#1 '>=' {: goto_present :}
-%resolve exp'maybe#1 '~=' {: goto_present :}
-%resolve exp'maybe#1 '<=' {: goto_present :}
-%resolve exp'maybe#1 '*' {: goto_present :}
-%resolve exp'maybe#1 '>' {: goto_present :}
-%resolve exp'maybe#1 '..' {: goto_present :}
-%resolve exp'maybe#1 'and' {: goto_present :}
-%resolve exp'maybe#1 'or' {: goto_present :}
-%resolve exp'maybe#1 '/' {: goto_present :}
-%resolve exp'maybe#1 '-' {: goto_present :}
-%resolve exp'maybe#1 '+' {: goto_present :}
-%resolve exp'maybe#1 '<' {: goto_present :}
-%resolve exp'maybe#1 '%' {: goto_present :}
-
-%code {: local function goto_list(self) return self:go '#list' end :}
-%resolve exp'group#1'star#1 '[' {: goto_list :}
-%resolve exp'group#1'star#1 String {: goto_list :}
-%resolve exp'group#1'star#1 '{' {: goto_list :}
-%resolve exp'group#1'star#1 '(' {: goto_list :}*/
-
 %code {:
   local function suffix_dot(_, name)
     return {
