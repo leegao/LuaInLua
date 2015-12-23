@@ -53,7 +53,7 @@ local long_jump_ops = {
   "TFORLOOP",     --if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }
 }
 
-local function build(closure)
+function cfg.build(closure)
   local g = graph()
   g:vertex(0, "START")
   g:set_root(0)
@@ -75,7 +75,7 @@ local function build(closure)
 
   function v.JMP(pc, instr)
     g:vertex(pc, instr)
-    set_successors(pc, pc + instr.sBx.raw + 1, true)
+    set_successors(pc, pc + instr.sBx.raw + 1, 'jump')
   end
 
   for op in utils.loop(simple_ops) do
@@ -89,7 +89,7 @@ local function build(closure)
     v[op] = function(pc, instr)
       g:vertex(pc, instr)
       set_successors(pc, pc + 1)
-      set_successors(pc, pc + 2, true)
+      set_successors(pc, pc + 2, 'jump')
     end
   end
 
@@ -97,7 +97,7 @@ local function build(closure)
     v[op] = function(pc, instr)
       g:vertex(pc, instr)
       set_successors(pc, pc + 1)
-      set_successors(pc, pc + instr.sBx.raw + 1, true)
+      set_successors(pc, pc + instr.sBx.raw + 1, 'jump')
     end
   end
 
@@ -132,10 +132,20 @@ local function build(closure)
   return g
 end
 
-local closure = undump.undump(function(a) return a and b end)
+function cfg.coalesce(g)
+  
+end
 
-local g = build(closure)
+function cfg.tostring(g)
+  return g:dot(
+    function(node, self) return " [label=\"" .. tostring(self.nodes[node]) .. "\"]" end,
+    function(c) return c == true and '' or tostring(c) end)
+end
 
-print(g:dot(function(node, self) return " [label=\"" .. tostring(self.nodes[node]) .. "\"]" end))
+local closure = undump.undump(cfg.build)
+
+local g = cfg.build(closure)
+
+print(cfg.tostring(g))
 
 return cfg

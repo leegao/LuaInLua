@@ -30,7 +30,7 @@ end
 local function double(str, i)
   local lo, i = int(str, i, 4)
   local hi, i = int(str, i, 4)
-  if lo == 0 and hi == 0 then return 0 end
+  if lo == 0 and hi == 0 then return 0, i end
   -- 1 11 52
   -- hi:63    - sign
   -- hi:62-52 - exp
@@ -39,9 +39,9 @@ local function double(str, i)
   local e = 2^(bit.rshift(bit.band(hi,0x7ff00000),20)-1023)
   --print(bit.tohex(hi),bit.tohex(lo), e)
   local m = 1
-  for i=1,52 do
+  for k=1,52 do
     local c = 0
-    local n, j = lo, i-1
+    local n, j = lo, k-1
     if j >= 32 then
       n, j = hi, j-32
     end
