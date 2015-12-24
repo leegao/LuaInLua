@@ -5,6 +5,8 @@ local cfg = require 'cfg.cfg'
 local undump = require 'bytecode.undump'
 local worklist = require 'common.worklist'
 
+local TOP = 'TOP'
+
 local liveness = {}
 
 local woot = function(n) n = unpack(n) return n > 255 and {} or {n} end
@@ -12,11 +14,21 @@ local woot = function(n) n = unpack(n) return n > 255 and {} or {n} end
 local A = function(instr) return woot {instr.A.raw} end
 local B = function(instr) return woot {instr.B.raw} end
 local C = function(instr) return woot {instr.C.raw} end
+local function top(number)
+  return function(instr)
+    local x = unpack(number(instr))
+    if x == 0 then
+      return {TOP}
+    end
+    return {x}
+  end
+end
 local function range(from, number)
   return function(instr)
     local left = unpack(from(instr))
     local num = unpack(number(instr))
     local registers = {}
+    if num == TOP then return {left} end
     for i = 0, num do
       table.insert(registers, left + i)
     end
@@ -27,6 +39,7 @@ local function offset(start, amount, invert)
   return function(instr)
     local left = unpack(start(instr))
     local off = unpack(amount(instr))
+    if left == TOP then return {TOP} end
     return {invert and (left - off) or (left + off)}
   end
 end
@@ -35,7 +48,7 @@ local function constant(n)
 end
 
 
-local function dataflow()
+local function solve(g, closure)
   local solutions = {
     pc_to_before = {},
     pc_to_after = {},
@@ -99,10 +112,10 @@ local function dataflow()
     {"TEST", kill(), use(A)},                                           --if not (R(A) <=> C) then pc++
     {"TESTSET", kill(A), use(B)},                                       --if (R(B) <=> C) then R(A) := R(B) else pc++
     {"CALL",
-      kill(range(A, offset(C, constant(-2)))),
-      use(range(A, offset(B, constant(-1))))},                          --R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
-    {"TAILCALL", kill(), use(range(A, offset(B, constant(-1))))},       --return R(A)(R(A+1), ... ,R(A+B-1))
-    {"RETURN", kill(), use(range(A, offset(B, constant(-2))))},         --return R(A), ... ,R(A+B-2)(see note)
+      kill(range(A, offset(top(C), constant(-2)))),
+      use(range(A, offset(top(B), constant(-1))))},                          --R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
+    {"TAILCALL", kill(), use(range(A, offset(top(B), constant(-1))))},       --return R(A)(R(A+1), ... ,R(A+B-1))
+    {"RETURN", kill(), use(range(A, offset(top(B), constant(-2))))},         --return R(A), ... ,R(A+B-2)(see note)
     {"FORLOOP",
       kill(A, offset(A, constant(1)), offset(A, constant(2)), offset(A, constant(3))),
       use()},                                                           --R(A)+=R(A+2);
@@ -114,7 +127,7 @@ local function dataflow()
       kill(range(offset(A, constant(3)), offset(C, constant(-1)))),
       use(A, offset(A, constant(1)), offset(A, constant(2)))},          --R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));
     {"TFORLOOP", kill(A), use(offset(A, constant(1)))},                 --if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }
-    {"SETLIST", kill(), use(range(A, B))},                              --R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
+    {"SETLIST", kill(), use(range(A, top(B)))},                              --R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
     {"CLOSURE", kill(A), use()},                                        --R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))
     {"VARARG", kill(range(A, offset(B, constant(-1)))), use()},                           --R(A), R(A+1), ..., R(A+B-1) = vararg
     {"EXTRAARG", kill(), use()},                                        --extra (larger) argument for previous opcode
@@ -189,7 +202,7 @@ local function dataflow()
       end
     }
   }
-  return dataflow
+  return dataflow:reverse(g)
 end
 
 local closure = undump.undump(function(x, y) for i = 1,2,4 do foo(i) end end)
@@ -198,7 +211,7 @@ local g = cfg.make(closure)
 
 print(cfg.tostring(g))
 
-local solution = dataflow():reverse(g)
+local solution = solve(g, closure)
 
 for pc, instr in ipairs(closure.code) do
   print(pc, instr, utils.to_list(solution:before(pc)), '->', utils.to_list(solution:after(pc)))
