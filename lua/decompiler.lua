@@ -70,7 +70,7 @@ end
 local context = {}
 
 
-local closure = undump.undump(cfg.build)
+local closure = undump.undump(function(x, y) for i = 1,2,4 do foo() end end)
 
 local g = cfg.make(closure)
 

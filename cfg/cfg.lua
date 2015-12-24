@@ -31,8 +31,7 @@ local simple_ops = {
   "CONCAT",       --R(A) := R(B).. ... ..R(C)
   "CALL",         --R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
   "TAILCALL",     --return R(A)(R(A+1), ... ,R(A+B-1))
-  "FORLOOP",      --R(A)+=R(A+2);
-  "TFORCALL",     --R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));
+
   "SETLIST",      --R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
   "CLOSURE",      --R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))
   "VARARG",       --R(A), R(A+1), ..., R(A+B-1) = vararg
@@ -51,6 +50,8 @@ local jump_ops = {
 local long_jump_ops = {
   "FORPREP",      --R(A)-=R(A+2); pc+=sBx
   "TFORLOOP",     --if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }
+  "FORLOOP",      --R(A)+=R(A+2);
+  "TFORCALL",     --R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));
 }
 
 function cfg.build(closure)
