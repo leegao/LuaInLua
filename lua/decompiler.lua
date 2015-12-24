@@ -2,6 +2,7 @@
 
 local utils = require 'common.utils'
 local undump = require 'bytecode.undump'
+local cfg = require 'cfg.cfg'
 
 local decompiler = {}
 
@@ -68,10 +69,11 @@ end
 
 local context = {}
 
-local closure = undump.undump(function(a) return a end)
-context.closure = closure
-for instruction in utils.loop(closure.code) do
-  print(instruction)
-end
+
+local closure = undump.undump(cfg.build)
+
+local g = cfg.make(closure)
+
+print(cfg.tostring(g))
 
 return decompiler

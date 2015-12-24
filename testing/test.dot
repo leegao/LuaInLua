@@ -1,202 +1,152 @@
 digraph {
-  rankdir=LR;
   size="8,5"
   node[shape=circle,label=""];
-  1 [label="GETUPVAL(A=r(g:1), B=v(0))"];
-  2 [label="CALL(A=r(g:1), B=v(1), C=v(2))"];
-  3 [label="SELF(A=r(v:2), B=r(g:1):rk(1), C=vertex:0:rk(256))"];
-  4 [label="LOADK(A=r(get_predecessors:4), Bx=0:1)"];
-  5 [label="LOADK(A=r(set_successors:5), Bx=START:2)"];
-  6 [label="CALL(A=r(v:2), B=v(4), C=v(1))"];
-  7 [label="SELF(A=r(v:2), B=r(g:1):rk(1), C=set_root:3:rk(259))"];
-  8 [label="LOADK(A=r(get_predecessors:4), Bx=0:1)"];
-  9 [label="CALL(A=r(v:2), B=v(3), C=v(1))"];
-  10 [label="NEWTABLE(A=r(v:2), B=v(0), C=v(0))"];
-  11 [label="NEWTABLE(A=r(predeccessors_map:3), B=v(0), C=v(1))"];
-  12 [label="NEWTABLE(A=r(get_predecessors:4), B=v(1), C=v(0))"];
-  13 [label="NEWTABLE(A=r(set_successors:5), B=v(1), C=v(0))"];
-  14 [label="LOADK(A=r(6), Bx=0:1)"];
-  15 [label="SETLIST(A=r(set_successors:5), B=v(1), C=v(1))"];
-  16 [label="SETLIST(A=r(get_predecessors:4), B=v(1), C=v(1))"];
-  17 [label="SETTABLE(A=r(predeccessors_map:3), B=1:4:rk(260), C=r(get_predecessors:4):rk(4))"];
-  18 [label="CLOSURE(A=r(get_predecessors:4), Bx=v(0))"];
-  19 [label="CLOSURE(A=r(set_successors:5), Bx=v(1))"];
-  20 [label="CLOSURE(A=r(6), Bx=v(2))"];
-  21 [label="SETTABLE(A=r(v:2), B=RETURN:5:rk(261), C=r(6):rk(6))"];
-  22 [label="CLOSURE(A=r(6), Bx=v(3))"];
-  23 [label="SETTABLE(A=r(v:2), B=JMP:6:rk(262), C=r(6):rk(6))"];
-  24 [label="GETTABUP(A=r(6), B=v(2), C=loop:7:rk(263))"];
-  25 [label="GETUPVAL(A=r(7), B=v(3))"];
-  26 [label="CALL(A=r(6), B=v(2), C=v(4))"];
-  27 [label="JMP(A=v(0), sBx=v(2))"];
-  28 [label="CLOSURE(A=r(10), Bx=v(4))"];
-  29 [label="SETTABLE(A=r(v:2), B=r(op:9):rk(9), C=r(10):rk(10))"];
-  30 [label="TFORCALL(A=r(6), C=v(1))"];
-  31 [label="TFORLOOP(A=r(8), sBx=v(-4))"];
-  32 [label="GETTABUP(A=r(6), B=v(2), C=loop:7:rk(263))"];
-  33 [label="GETUPVAL(A=r(7), B=v(4))"];
-  34 [label="CALL(A=r(6), B=v(2), C=v(4))"];
-  35 [label="JMP(A=v(0), sBx=v(2))"];
-  36 [label="CLOSURE(A=r(10), Bx=v(5))"];
-  37 [label="SETTABLE(A=r(v:2), B=r(op:9):rk(9), C=r(10):rk(10))"];
-  38 [label="TFORCALL(A=r(6), C=v(1))"];
-  39 [label="TFORLOOP(A=r(8), sBx=v(-4))"];
-  40 [label="GETTABUP(A=r(6), B=v(2), C=loop:7:rk(263))"];
-  41 [label="GETUPVAL(A=r(7), B=v(5))"];
-  42 [label="CALL(A=r(6), B=v(2), C=v(4))"];
-  43 [label="JMP(A=v(0), sBx=v(2))"];
-  44 [label="CLOSURE(A=r(10), Bx=v(6))"];
-  45 [label="SETTABLE(A=r(v:2), B=r(op:9):rk(9), C=r(10):rk(10))"];
-  46 [label="TFORCALL(A=r(6), C=v(1))"];
-  47 [label="TFORLOOP(A=r(8), sBx=v(-4))"];
-  48 [label="GETTABUP(A=r(6), B=v(1), C=ipairs:8:rk(264))"];
-  49 [label="GETTABLE(A=r(7), B=r(closure:0), C=code:9:rk(265))"];
-  50 [label="CALL(A=r(6), B=v(2), C=v(4))"];
-  51 [label="JMP(A=v(0), sBx=v(5))"];
-  52 [label="GETTABLE(A=r(11), B=r(10), C=op:10:rk(266))"];
-  53 [label="GETTABLE(A=r(11), B=r(v:2), C=r(11):rk(11))"];
-  54 [label="MOVE(A=r(12), B=r(op:9))"];
-  55 [label="MOVE(A=r(op:13), B=r(10))"];
-  56 [label="CALL(A=r(11), B=v(3), C=v(1))"];
-  57 [label="TFORCALL(A=r(6), C=v(2))"];
-  58 [label="TFORLOOP(A=r(8), sBx=v(-7))"];
-  59 [label="GETTABUP(A=r(6), B=v(1), C=pairs:11:rk(267))"];
-  60 [label="MOVE(A=r(7), B=r(predeccessors_map:3))"];
-  61 [label="CALL(A=r(6), B=v(2), C=v(4))"];
-  62 [label="JMP(A=v(0), sBx=v(14))"];
-  63 [label="GETTABUP(A=r(11), B=v(2), C=loop:7:rk(263))"];
-  64 [label="MOVE(A=r(12), B=r(10))"];
-  65 [label="CALL(A=r(11), B=v(2), C=v(4))"];
-  66 [label="JMP(A=v(0), sBx=v(8))"];
-  67 [label="GETTABUP(A=r(15), B=v(1), C=unpack:12:rk(268))"];
-  68 [label="MOVE(A=r(16), B=r(14))"];
-  69 [label="CALL(A=r(15), B=v(2), C=v(3))"];
-  70 [label="SELF(A=r(op:17), B=r(g:1):rk(1), C=edge:13:rk(269))"];
-  71 [label="MOVE(A=r(19), B=r(15))"];
-  72 [label="MOVE(A=r(20), B=r(op:9))"];
-  73 [label="MOVE(A=r(pc:21), B=r(16))"];
-  74 [label="CALL(A=r(op:17), B=v(5), C=v(1))"];
-  75 [label="TFORCALL(A=r(11), C=v(1))"];
-  76 [label="TFORLOOP(A=r(op:13), sBx=v(-10))"];
-  77 [label="TFORCALL(A=r(6), C=v(2))"];
-  78 [label="TFORLOOP(A=r(8), sBx=v(-16))"];
-  79 [label="CLOSURE(A=r(6), Bx=v(7))"];
-  80 [label="MOVE(A=r(7), B=r(6))"];
-  81 [label="CALL(A=r(7), B=v(1), C=v(2))"];
-  82 [label="NEWTABLE(A=r(8), B=v(0), C=v(0))"];
-  83 [label="SELF(A=r(op:9), B=r(g:1):rk(1), C=vertices:14:rk(270))"];
-  84 [label="CALL(A=r(op:9), B=v(2), C=v(4))"];
-  85 [label="JMP(A=v(0), sBx=v(6))"];
-  86 [label="GETTABLE(A=r(op:13), B=r(7), C=r(12):rk(12))"];
-  87 [label="TEST(A=r(op:13), C=v(1))"];
-  88 [label="JMP(A=v(0), sBx=v(3))"];
-  89 [label="SELF(A=r(op:13), B=r(g:1):rk(1), C=remove_vertex:15:rk(271))"];
-  90 [label="MOVE(A=r(15), B=r(12))"];
-  91 [label="CALL(A=r(op:13), B=v(3), C=v(1))"];
-  92 [label="TFORCALL(A=r(op:9), C=v(1))"];
-  93 [label="TFORLOOP(A=r(11), sBx=v(-8))"];
-  94 [label="RETURN(A=r(g:1), B=v(2))"];
-  0 [label="START"];
-  1 -> 2[label=""];
-  2 -> 3[label=""];
-  3 -> 4[label=""];
-  4 -> 5[label=""];
-  5 -> 6[label=""];
-  6 -> 7[label=""];
-  7 -> 8[label=""];
-  8 -> 9[label=""];
-  9 -> 10[label=""];
-  10 -> 11[label=""];
-  11 -> 12[label=""];
-  12 -> 13[label=""];
-  13 -> 14[label=""];
-  14 -> 15[label=""];
-  15 -> 16[label=""];
-  16 -> 17[label=""];
-  17 -> 18[label=""];
-  18 -> 19[label=""];
-  19 -> 20[label=""];
-  20 -> 21[label=""];
-  21 -> 22[label=""];
-  22 -> 23[label=""];
-  23 -> 24[label=""];
-  24 -> 25[label=""];
-  25 -> 26[label=""];
-  26 -> 27[label=""];
-  27 -> 30[label="jump"];
-  28 -> 29[label=""];
-  29 -> 30[label=""];
-  30 -> 31[label=""];
-  31 -> 28[label="jump"];
-  31 -> 32[label=""];
-  32 -> 33[label=""];
-  33 -> 34[label=""];
-  34 -> 35[label=""];
-  35 -> 38[label="jump"];
-  36 -> 37[label=""];
-  37 -> 38[label=""];
-  38 -> 39[label=""];
-  39 -> 36[label="jump"];
-  39 -> 40[label=""];
-  40 -> 41[label=""];
-  41 -> 42[label=""];
-  42 -> 43[label=""];
-  43 -> 46[label="jump"];
-  44 -> 45[label=""];
-  45 -> 46[label=""];
-  46 -> 47[label=""];
-  47 -> 44[label="jump"];
-  47 -> 48[label=""];
-  48 -> 49[label=""];
-  49 -> 50[label=""];
-  50 -> 51[label=""];
-  51 -> 57[label="jump"];
-  52 -> 53[label=""];
-  53 -> 54[label=""];
-  54 -> 55[label=""];
-  55 -> 56[label=""];
-  56 -> 57[label=""];
-  57 -> 58[label=""];
-  58 -> 52[label="jump"];
-  58 -> 59[label=""];
-  59 -> 60[label=""];
-  60 -> 61[label=""];
-  61 -> 62[label=""];
-  62 -> 77[label="jump"];
-  63 -> 64[label=""];
-  64 -> 65[label=""];
-  65 -> 66[label=""];
-  66 -> 75[label="jump"];
-  67 -> 68[label=""];
-  68 -> 69[label=""];
-  69 -> 70[label=""];
-  70 -> 71[label=""];
-  71 -> 72[label=""];
-  72 -> 73[label=""];
-  73 -> 74[label=""];
-  74 -> 75[label=""];
-  75 -> 76[label=""];
-  76 -> 67[label="jump"];
-  76 -> 77[label=""];
-  77 -> 78[label=""];
-  78 -> 63[label="jump"];
-  78 -> 79[label=""];
-  79 -> 80[label=""];
-  80 -> 81[label=""];
-  81 -> 82[label=""];
-  82 -> 83[label=""];
-  83 -> 84[label=""];
-  84 -> 85[label=""];
-  85 -> 92[label="jump"];
-  86 -> 87[label=""];
-  87 -> 88[label=""];
-  87 -> 89[label="jump"];
+  57 [label="57
+TFORCALL(A=r(6), C=v(2))
+TFORLOOP(A=r(8), sBx=v(-7))"];
+  59 [label="59
+GETTABUP(A=r(6), B=v(1), C=pairs:11:rk(267))
+MOVE(A=r(7), B=r(predeccessors_map:3))
+CALL(A=r(6), B=v(2), C=v(4))
+JMP(A=v(0), sBx=v(14))"];
+  30 [label="30
+TFORCALL(A=r(6), C=v(1))
+TFORLOOP(A=r(8), sBx=v(-4))"];
+  92 [label="92
+TFORCALL(A=r(op:9), C=v(1))
+TFORLOOP(A=r(11), sBx=v(-8))"];
+  94 [label="94
+RETURN(A=r(g:1), B=v(2))"];
+  67 [label="67
+GETTABUP(A=r(15), B=v(1), C=unpack:12:rk(268))
+MOVE(A=r(16), B=r(14))
+CALL(A=r(15), B=v(2), C=v(3))
+SELF(A=r(op:17), B=r(g:1):rk(1), C=edge:13:rk(269))
+MOVE(A=r(19), B=r(15))
+MOVE(A=r(20), B=r(op:9))
+MOVE(A=r(pc:21), B=r(16))
+CALL(A=r(op:17), B=v(5), C=v(1))"];
+  36 [label="36
+CLOSURE(A=r(10), Bx=v(5))
+SETTABLE(A=r(v:2), B=r(op:9):rk(9), C=r(10):rk(10))"];
+  75 [label="75
+TFORCALL(A=r(11), C=v(1))
+TFORLOOP(A=r(op:13), sBx=v(-10))"];
+  77 [label="77
+TFORCALL(A=r(6), C=v(2))
+TFORLOOP(A=r(8), sBx=v(-16))"];
+  40 [label="40
+GETTABUP(A=r(6), B=v(2), C=loop:7:rk(263))
+GETUPVAL(A=r(7), B=v(5))
+CALL(A=r(6), B=v(2), C=v(4))
+JMP(A=v(0), sBx=v(2))"];
+  44 [label="44
+CLOSURE(A=r(10), Bx=v(6))
+SETTABLE(A=r(v:2), B=r(op:9):rk(9), C=r(10):rk(10))"];
+  89 [label="89
+SELF(A=r(op:13), B=r(g:1):rk(1), C=remove_vertex:15:rk(271))
+MOVE(A=r(15), B=r(12))
+CALL(A=r(op:13), B=v(3), C=v(1))"];
+  46 [label="46
+TFORCALL(A=r(6), C=v(1))
+TFORLOOP(A=r(8), sBx=v(-4))"];
+  48 [label="48
+GETTABUP(A=r(6), B=v(1), C=ipairs:8:rk(264))
+GETTABLE(A=r(7), B=r(closure:0), C=code:9:rk(265))
+CALL(A=r(6), B=v(2), C=v(4))
+JMP(A=v(0), sBx=v(5))"];
+  38 [label="38
+TFORCALL(A=r(6), C=v(1))
+TFORLOOP(A=r(8), sBx=v(-4))"];
+  88 [label="88
+JMP(A=v(0), sBx=v(3))"];
+  0 [label="0
+START
+GETUPVAL(A=r(g:1), B=v(0))
+CALL(A=r(g:1), B=v(1), C=v(2))
+SELF(A=r(v:2), B=r(g:1):rk(1), C=vertex:0:rk(256))
+LOADK(A=r(get_predecessors:4), Bx=0:1)
+LOADK(A=r(set_successors:5), Bx=START:2)
+CALL(A=r(v:2), B=v(4), C=v(1))
+SELF(A=r(v:2), B=r(g:1):rk(1), C=set_root:3:rk(259))
+LOADK(A=r(get_predecessors:4), Bx=0:1)
+CALL(A=r(v:2), B=v(3), C=v(1))
+NEWTABLE(A=r(v:2), B=v(0), C=v(0))
+NEWTABLE(A=r(predeccessors_map:3), B=v(0), C=v(1))
+NEWTABLE(A=r(get_predecessors:4), B=v(1), C=v(0))
+NEWTABLE(A=r(set_successors:5), B=v(1), C=v(0))
+LOADK(A=r(6), Bx=0:1)
+SETLIST(A=r(set_successors:5), B=v(1), C=v(1))
+SETLIST(A=r(get_predecessors:4), B=v(1), C=v(1))
+SETTABLE(A=r(predeccessors_map:3), B=1:4:rk(260), C=r(get_predecessors:4):rk(4))
+CLOSURE(A=r(get_predecessors:4), Bx=v(0))
+CLOSURE(A=r(set_successors:5), Bx=v(1))
+CLOSURE(A=r(6), Bx=v(2))
+SETTABLE(A=r(v:2), B=RETURN:5:rk(261), C=r(6):rk(6))
+CLOSURE(A=r(6), Bx=v(3))
+SETTABLE(A=r(v:2), B=JMP:6:rk(262), C=r(6):rk(6))
+GETTABUP(A=r(6), B=v(2), C=loop:7:rk(263))
+GETUPVAL(A=r(7), B=v(3))
+CALL(A=r(6), B=v(2), C=v(4))
+JMP(A=v(0), sBx=v(2))"];
+  52 [label="52
+GETTABLE(A=r(11), B=r(10), C=op:10:rk(266))
+GETTABLE(A=r(11), B=r(v:2), C=r(11):rk(11))
+MOVE(A=r(12), B=r(op:9))
+MOVE(A=r(op:13), B=r(10))
+CALL(A=r(11), B=v(3), C=v(1))"];
+  32 [label="32
+GETTABUP(A=r(6), B=v(2), C=loop:7:rk(263))
+GETUPVAL(A=r(7), B=v(4))
+CALL(A=r(6), B=v(2), C=v(4))
+JMP(A=v(0), sBx=v(2))"];
+  79 [label="79
+CLOSURE(A=r(6), Bx=v(7))
+MOVE(A=r(7), B=r(6))
+CALL(A=r(7), B=v(1), C=v(2))
+NEWTABLE(A=r(8), B=v(0), C=v(0))
+SELF(A=r(op:9), B=r(g:1):rk(1), C=vertices:14:rk(270))
+CALL(A=r(op:9), B=v(2), C=v(4))
+JMP(A=v(0), sBx=v(6))"];
+  86 [label="86
+GETTABLE(A=r(op:13), B=r(7), C=r(12):rk(12))
+TEST(A=r(op:13), C=v(1))"];
+  28 [label="28
+CLOSURE(A=r(10), Bx=v(4))
+SETTABLE(A=r(v:2), B=r(op:9):rk(9), C=r(10):rk(10))"];
+  63 [label="63
+GETTABUP(A=r(11), B=v(2), C=loop:7:rk(263))
+MOVE(A=r(12), B=r(10))
+CALL(A=r(11), B=v(2), C=v(4))
+JMP(A=v(0), sBx=v(8))"];
+  57 -> 52[label="jump"];
+  57 -> 59[label="fallthrough"];
+  59 -> 77[label="jump"];
+  30 -> 28[label="jump"];
+  30 -> 32[label="fallthrough"];
+  92 -> 86[label="jump"];
+  92 -> 94[label="fallthrough"];
+  63 -> 75[label="jump"];
+  67 -> 75[label="fallthrough"];
+  36 -> 38[label="fallthrough"];
+  75 -> 67[label="jump"];
+  75 -> 77[label="fallthrough"];
+  77 -> 63[label="jump"];
+  77 -> 79[label="fallthrough"];
+  40 -> 46[label="jump"];
+  44 -> 46[label="fallthrough"];
+  89 -> 92[label="fallthrough"];
+  46 -> 44[label="jump"];
+  46 -> 48[label="fallthrough"];
+  48 -> 57[label="jump"];
   88 -> 92[label="jump"];
-  89 -> 90[label=""];
-  90 -> 91[label=""];
-  91 -> 92[label=""];
-  92 -> 93[label=""];
-  93 -> 86[label="jump"];
-  93 -> 94[label=""];
-  0 -> 1[label=""];
+  86 -> 88[label="fallthrough"];
+  86 -> 89[label="jump"];
+  52 -> 57[label="fallthrough"];
+  79 -> 92[label="jump"];
+  32 -> 38[label="jump"];
+  0 -> 30[label="jump"];
+  28 -> 30[label="fallthrough"];
+  38 -> 36[label="jump"];
+  38 -> 40[label="fallthrough"];
 }
