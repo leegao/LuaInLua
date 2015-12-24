@@ -204,9 +204,10 @@ end
 local epsilon_closure = worklist {
   -- what is the domain? Sets of nodes
   initialize = function(self, node, _)
-    return {[node] = true}
+    return node and {[node] = true} or {}
   end,
   transfer = function(self, node, input, graph, pred)
+    if not pred then return {[node] = true} end
     -- if the incoming is epsilon, then add, otherwise pass
     local tag = graph.reverse[pred][node]
     if tag == '' then

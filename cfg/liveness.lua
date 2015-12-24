@@ -7,9 +7,11 @@ local worklist = require 'common.worklist'
 
 local liveness = {}
 
-local A = function(instr) return {instr.A} end
-local B = function(instr) return {instr.B} end
-local C = function(instr) return {instr.C} end
+local woot = function(n) n = unpack(n) return n > 255 and {} or {n} end
+
+local A = function(instr) return woot {instr.A.raw} end
+local B = function(instr) return woot {instr.B.raw} end
+local C = function(instr) return woot {instr.C.raw} end
 local function range(from, number)
   return function(instr)
     local left = unpack(from(instr))
@@ -29,7 +31,7 @@ local function offset(start, amount, invert)
   end
 end
 local function constant(n)
-  return function() return n end
+  return function() return {n} end
 end
 
 
@@ -37,7 +39,34 @@ local function dataflow()
   local solutions = {
     pc_to_before = {},
     pc_to_after = {},
+    first = {},
   }
+
+  local function kill(...)
+    local actions = {...}
+    return function(self, pc, instr, current, graph, node)
+      local new = utils.copy(current)
+      for action in utils.loop(actions) do
+        for register in utils.loop(action(instr)) do
+          new[register] = nil
+        end
+      end
+      return new
+    end
+  end
+
+  local function use(...)
+    local actions = {...}
+    return function(self, pc, instr, current, graph, node)
+      local new = utils.copy(current)
+      for action in utils.loop(actions) do
+        for register in utils.loop(action(instr)) do
+          new[register] = true
+        end
+      end
+      return new
+    end
+  end
 
   local actions = {
     {"MOVE", kill(A), use(B)},                                          --R(A) := R(B)
@@ -75,9 +104,12 @@ local function dataflow()
     {"TAILCALL", kill(), use(range(A, offset(B, constant(-1))))},       --return R(A)(R(A+1), ... ,R(A+B-1))
     {"RETURN", kill(), use(range(A, offset(B, constant(-2))))},         --return R(A), ... ,R(A+B-2)(see note)
     {"FORLOOP",
+      kill(A, offset(A, constant(1)), offset(A, constant(2)), offset(A, constant(3))),
+      use()},                                                           --R(A)+=R(A+2);
+                                                                        --if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }
+    {"FORPREP",
       kill(A, offset(A, constant(3))),
-      use(A, offset(A, constant(1)), offset(A, constant(2)))},          --R(A)+=R(A+2);
-    {"FORPREP", kill(A), use(A, offset(A, constant(2)))},               --R(A)-=R(A+2); pc+=sBx
+      use(A, offset(A, constant(1)), offset(A, constant(2)))},          --R(A)-=R(A+2); pc+=sBx
     {"TFORCALL",
       kill(range(offset(A, constant(3)), offset(C, constant(-1)))),
       use(A, offset(A, constant(1)), offset(A, constant(2)))},          --R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));
@@ -88,6 +120,15 @@ local function dataflow()
     {"EXTRAARG", kill(), use()},                                        --extra (larger) argument for previous opcode
   }
 
+  local interpreter = {}
+  for bundle in utils.loop(actions) do
+    interpreter[bundle[1]] = function(self, pc, instr, current, graph, node)
+      current = bundle[2](self, pc, instr, current, graph, node)
+      current = bundle[3](self, pc, instr, current, graph, node)
+      return current
+    end
+  end
+
   local dataflow = worklist {
     -- what is the domain? Sets of registers that are still live
     initialize = function(self, node, _)
@@ -97,14 +138,23 @@ local function dataflow()
       -- if the incoming is epsilon, then add, otherwise pass
       local block = graph.nodes[node]
       local current = utils.copy(live_in)
-      for i, instr in ipairs(block) do
-        local pc = node + i - 1
-        solutions.pc_to_after[pc] = current
+      local pc = #block + node
+      local start = true
+      for instr in utils.rloop(block) do
+        pc = pc - 1
+        if not start then
+          solutions.pc_to_after[pc] = current
+        else
+          solutions.pc_to_after[pc] = self:merge(solutions.pc_to_after[pc] or self:initialize(node), current)
+        end
+        start = false
+        if not instr.op then break end
         current = utils.copy(
-          interpreter[instr.op](self, pc, instr, current, graph, node, solutions))
+          interpreter[instr.op](self, pc, instr, current, graph, node))
         solutions.pc_to_before[pc] = current
       end
-      return live_in
+      assert(node == pc)
+      return current
     end,
     changed = function(self, old, new)
       -- assuming monotone in the new direction
@@ -131,19 +181,27 @@ local function dataflow()
     end,
 
     solution = {
-      pc_to_before = {},
-      pc_to_after = {},
+      before = function(self, pc)
+        return solutions.pc_to_before[pc]
+      end,
+      after = function(self, pc)
+        return solutions.pc_to_after[pc]
+      end
     }
   }
   return dataflow
 end
 
-local closure = undump.undump(function(x, y) for i = 1,2,4 do foo() end end)
+local closure = undump.undump(function(x, y) for i = 1,2,4 do foo(i) end end)
 
 local g = cfg.make(closure)
 
 print(cfg.tostring(g))
 
-dataflow():reverse(g)
+local solution = dataflow():reverse(g)
+
+for pc, instr in ipairs(closure.code) do
+  print(pc, instr, utils.to_list(solution:before(pc)), '->', utils.to_list(solution:after(pc)))
+end
 
 return liveness
