@@ -25,11 +25,22 @@
 
 -- Translation is syntax directed, and then we can start merging based on liveness analysis
 
+local liveness = require 'cfg.liveness'
+local undump = require 'bytecode.undump'
+local cfg = require 'cfg.cfg'
+local utils = require 'common.utils'
+
 local hll = {}
 
 
 local closure = undump.undump(function(x, y) for i = 1,2,4 do foo() end end)
 
 local g = cfg.make(closure)
+
+local solution = liveness.solve(g, closure)
+
+for pc, instr in ipairs(closure.code) do
+  print(pc, instr, utils.to_list(solution:before(pc)), '->', utils.to_list(solution:after(pc)))
+end
 
 return hll

@@ -142,10 +142,25 @@ local function solve(g, closure)
     end
   end
 
+  -- find the set of escaped registers that ends up as upvalues
+  local escaped_upvalues = {}
+  for child in utils.loop(closure.constants.functions) do
+    for upvalue in utils.loop(child.upvalues) do
+      local instack, index = upvalue.instack, upvalue.index
+      if instack ~= 0 then
+        escaped_upvalues[index] = true
+      end
+    end
+  end
+
   local dataflow = worklist {
     -- what is the domain? Sets of registers that are still live
     initialize = function(self, node, _)
-      return {}
+      if not node then
+        return escaped_upvalues
+      else
+        return {}
+      end
     end,
     transfer = function(self, node, live_in, graph)
       -- if the incoming is epsilon, then add, otherwise pass
@@ -205,16 +220,18 @@ local function solve(g, closure)
   return dataflow:reverse(g)
 end
 
-local closure = undump.undump(function(x, y) for i = 1,2,4 do foo(i) end end)
+--local closure = undump.undump(function(x, y) for i = 1,2,4 do x = function() print(i) end end end)
+--
+--local g = cfg.make(closure)
+--
+--print(cfg.tostring(g))
+--
+--local solution = solve(g, closure)
+--
+--for pc, instr in ipairs(closure.code) do
+--  print(pc, instr, utils.to_list(solution:before(pc)), '->', utils.to_list(solution:after(pc)))
+--end
 
-local g = cfg.make(closure)
-
-print(cfg.tostring(g))
-
-local solution = solve(g, closure)
-
-for pc, instr in ipairs(closure.code) do
-  print(pc, instr, utils.to_list(solution:before(pc)), '->', utils.to_list(solution:after(pc)))
-end
+liveness.solve = solve
 
 return liveness

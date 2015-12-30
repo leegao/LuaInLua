@@ -9,16 +9,16 @@ LOADK(A=r(3), Bx=2:1)
 LOADK(A=r(4), Bx=4:2)
 FORPREP(A=r(2), sBx=v(3))"];
   5 [label="5
-GETTABUP(A=r(6), B=v(0), C=foo:3:rk(259))
-MOVE(A=r(7), B=r(i:5))
-CALL(A=r(6), B=v(2), C=v(1))"];
+CLOSURE(A=r(6), Bx=v(0))
+MOVE(A=r(x:0), B=r(6))
+JMP(A=v(6), sBx=v(0))"];
   8 [label="8
 FORLOOP(A=r(2), sBx=v(-4))"];
   9 [label="9
 RETURN(A=r(x:0), B=v(1))"];
   0 -> 5[label="fallthrough"];
   0 -> 8[label="jump"];
-  5 -> 8[label="fallthrough"];
+  5 -> 8[label="jump"];
   8 -> 5[label="jump"];
   8 -> 9[label="fallthrough"];
 }
