@@ -32,6 +32,9 @@ local utils = require 'common.utils'
 
 local hll = {}
 
+local function inlineable(fixedpoint, variable)
+
+end
 
 local closure = undump.undump(function(x, y) for i = 1,2,4 do foo() end end)
 
