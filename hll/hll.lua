@@ -32,8 +32,10 @@ local utils = require 'common.utils'
 
 local hll = {}
 
-local function inlineable(fixedpoint, variable)
-
+-- Compute whether a variable is inlinable at a pc
+local function inlineable(fixedpoint, variable, pc)
+  -- check if variable is killed at pc and it isn't used within its current "live-range".
+  -- A live range is (pc_start, pc_end] (exclusive, inclusive)
 end
 
 local closure = undump.undump(function(x, y) for i = 1,2,4 do foo() end end)

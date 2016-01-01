@@ -72,9 +72,14 @@ function worklist.forward(self, graph)
     local tag = graph.nodes[x]
     local old = solution[x]
     local new = nil
+    local has_pred = false
     for pred in pairs(graph.reverse[x]) do
+      has_pred = true
       local this = self:transfer(x, solution[pred], graph, pred)
       new = (new and self:merge(new, this)) or this
+    end
+    if not has_pred then
+      new = self:transfer(x, self:initialize(), graph)
     end
     if new and self:changed(old, new, x) then
       for succ in pairs(graph.forward[x]) do
