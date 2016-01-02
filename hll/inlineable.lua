@@ -1,13 +1,17 @@
--- Live variable analysis: computing whether a register is live at a program point
+-- Inlineable analysis:
+-- `a` is inlineable at P if
+--    `a` is dead after P and
+--    `a` isn't used within the prior use-range
 
 local utils = require 'common.utils'
 local cfg = require 'cfg.cfg'
 local undump = require 'bytecode.undump'
 local worklist = require 'common.worklist'
+local liveness = require 'cfg.liveness'
 
 local TOP = 'TOP'
 
-local liveness = {}
+local inlineable = {}
 
 local woot = function(n) n = unpack(n) return n > 255 and {} or {n} end
 
@@ -53,7 +57,7 @@ local function kill(...)
     local new = utils.copy(current)
     for action in utils.loop(actions) do
       for register in utils.loop(action(instr)) do
-        new[register] = nil
+        new[register] = {[pc] = "inlineable"}
       end
     end
     return new
@@ -66,7 +70,9 @@ local function use(...)
     local new = utils.copy(current)
     for action in utils.loop(actions) do
       for register in utils.loop(action(instr)) do
-        new[register] = true
+        for pc in pairs(current[register] or {}) do
+          new[register][pc] = "clobbered"
+        end
       end
     end
     return new
@@ -125,7 +131,16 @@ local actions = {
   {"EXTRAARG", kill(), use()},                                        --extra (larger) argument for previous opcode
 }
 
-local function solve(g, closure)
+local function join(left, right)
+  if not left then return right end
+  if not right then return left end
+  -- inlineable < clobber
+  if left == "inlineable" then return right end
+  if right == "inlineable" then return left end
+  return "clobber"
+end
+
+local function solve(g, closure, liveness_fixedpoint)
   local solutions = {
     pc_to_before = {},
     pc_to_after = {},
@@ -135,52 +150,38 @@ local function solve(g, closure)
   local interpreter = {}
   for bundle in utils.loop(actions) do
     interpreter[bundle[1]] = function(self, pc, instr, current, graph, node)
-      current = bundle[2](self, pc, instr, current, graph, node)
-      current = bundle[3](self, pc, instr, current, graph, node)
-      return current
-    end
-  end
-
-  -- find the set of escaped registers that ends up as upvalues
-  local escaped_upvalues = {}
-  for child in utils.loop(closure.constants.functions) do
-    for upvalue in utils.loop(child.upvalues) do
-      local instack, index = upvalue.instack, upvalue.index
-      if instack ~= 0 then
-        escaped_upvalues[index] = true
-      end
+      local def = bundle[2]
+      local use = bundle[3]
+      current = def(self, pc, instr, current, graph, node)
+      return use(self, pc, instr, current, graph, node)
     end
   end
 
   local dataflow = worklist {
     -- what is the domain? Sets of registers that are still live
     initialize = function(self, node, _)
-      if not node then
-        return escaped_upvalues
-      else
-        return {}
-      end
+      return {}
     end,
     transfer = function(self, node, live_in, graph)
       -- if the incoming is epsilon, then add, otherwise pass
       local block = graph.nodes[node]
       local current = utils.copy(live_in)
-      local pc = #block + node
+      local pc = node
       local start = true
-      for instr in utils.rloop(block) do
-        pc = pc - 1
+      for instr in utils.loop(block) do
         if not start then
-          solutions.pc_to_after[pc] = current
+          solutions.pc_to_before[pc] = current
         else
-          solutions.pc_to_after[pc] = self:merge(solutions.pc_to_after[pc] or self:initialize(node), current)
+          solutions.pc_to_before[pc] = self:merge(solutions.pc_to_before[pc] or self:initialize(node), current)
         end
         start = false
-        if not instr.op then break end
-        current = utils.copy(
-          interpreter[instr.op](self, pc, instr, current, graph, node))
-        solutions.pc_to_before[pc] = current
+        if instr.op then
+          current = utils.copy(interpreter[instr.op](self, pc, instr, current, graph, node))
+        end
+        solutions.pc_to_after[pc] = current
+
+        pc = pc + 1
       end
-      assert(node == pc)
       return current
     end,
     changed = function(self, old, new)
@@ -189,20 +190,42 @@ local function solve(g, closure)
         if not old[key] then
           return true
         end
+        for k in pairs(old) do
+          if not new[k] then
+            return true
+          end
+        end
       end
       return false
     end,
     merge = function(self, left, right)
-      local merged = utils.copy(left)
+      local keys = {}
+      for key in pairs(left) do
+        keys[key] = true
+      end
       for key in pairs(right) do
-        merged[key] = true
+        keys[key] = true
+      end
+      local merged = {}
+      for key in pairs(keys) do
+        merged[key] = {}
+        for k in pairs(left[key] or {}) do
+          local l = left[key] or {}
+          local r = right[key] or {}
+          merged[key][k] = join(l[k], r[k])
+        end
+        for k in pairs(right[key] or {}) do
+          local l = left[key] or {}
+          local r = right[key] or {}
+          merged[key][k] = join(l[k], r[k])
+        end
       end
       return merged
     end,
     tostring = function(self, _, node, state)
       local keys = {}
-      for key in pairs(state) do
-        table.insert(keys, key)
+      for key, value in pairs(state) do
+        table.insert(keys, ('%s:%s'):format(key, utils.to_list(value)))
       end
       return tostring(node) .. ' {' .. table.concat(keys, ', ') .. '}'
     end,
@@ -213,10 +236,30 @@ local function solve(g, closure)
       end,
       after = function(self, pc)
         return solutions.pc_to_after[pc]
+      end,
+      is_inlineable_at = function(self, pc, variable)
+        -- variable is dead after variable
+        -- variable is not clobbered before pc
+        -- variable has a singleton origin-set (no branching)
+        if not solutions.pc_to_before[pc] or not solutions.pc_to_before[pc][variable] then
+          return false
+        end
+        local only = function(t)
+          local val
+          for k, v in pairs(t) do
+            if val then return end
+            val = {k, v}
+          end
+          return val
+        end
+        local is_dead = not liveness_fixedpoint:after(pc)[variable]
+        local singleton = only(solutions.pc_to_before[pc][variable])
+        local is_not_clobbered = singleton and singleton[2] ~= "clobber"
+        return is_dead and is_not_clobbered
       end
     }
   }
-  return dataflow:reverse(g)
+  return dataflow:forward(g)
 end
 
 --local closure = undump.undump(function(x, y) for i = 1,2,4 do x = function() print(i) end end end)
@@ -225,28 +268,27 @@ end
 --
 --print(cfg.tostring(g))
 --
---local solution = solve(g, closure)
+--local livesol = liveness.solve(g, closure)
+--local solution = solve(g, closure, livesol)
 --
 --for pc, instr in ipairs(closure.code) do
---  print(pc, instr, utils.to_list(solution:before(pc)), '->', utils.to_list(solution:after(pc)))
+--  local function origin_print(sol)
+--    local x = {}
+--    for variable, val in pairs(sol) do
+--      local l = {}
+--      for origin, v in pairs(val) do
+--        if not livesol:after(pc)[variable] then
+--          table.insert(l, ('%s~%s'):format(origin, v:sub(1,1)))
+--        end
+--      end
+--      local str = ('%s:{%s}'):format(variable, utils.to_string(l))
+--      table.insert(x, str)
+--    end
+--    return utils.to_string(x)
+--  end
+--  print(pc, instr, origin_print(solution:before(pc)), '->', origin_print(solution:after(pc)))
 --end
 
-liveness.solve = solve
+inlineable.solve = solve
 
--- function(self, pc, instr, current, graph, node)
-local uses_semantics, defs_semantics, semantics = {}, {}, {}
-
-for bundle in utils.loop(actions) do
-  uses_semantics[bundle[1]] = bundle[3]
-  defs_semantics[bundle[1]] = bundle[2]
-  semantics[bundle[1]] = function(self, pc, instr, current, graph, node)
-    current = bundle[2](self, pc, instr, current, graph, node)
-    return bundle[3](self, pc, instr, current, graph, node)
-  end
-end
-
-liveness.uses = uses_semantics
-liveness.defs = defs_semantics
-liveness.semantics = semantics
-
-return liveness
+return inlineable

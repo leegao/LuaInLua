@@ -65,6 +65,14 @@ function utils.map(transform, list)
   return solution
 end
 
+function utils.kmap(transform, list)
+  local solution = {}
+  for k, v in pairs(list) do
+    solution[k] = transform(k, v)
+  end
+  return solution
+end
+
 function utils.contains(super, sub)
   local seen = {}
   for _, v in ipairs(super) do
