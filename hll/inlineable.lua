@@ -137,7 +137,7 @@ local function join(left, right)
   -- inlineable < clobber
   if left == "inlineable" then return right end
   if right == "inlineable" then return left end
-  return "clobber"
+  return "clobbered"
 end
 
 local function solve(g, closure, liveness_fixedpoint)
@@ -254,7 +254,7 @@ local function solve(g, closure, liveness_fixedpoint)
         end
         local is_dead = not liveness_fixedpoint:after(pc)[variable]
         local singleton = only(solutions.pc_to_before[pc][variable])
-        local is_not_clobbered = singleton and singleton[2] ~= "clobber"
+        local is_not_clobbered = singleton and singleton[2] == "inlineable"
         return is_dead and is_not_clobbered
       end
     }
@@ -262,32 +262,32 @@ local function solve(g, closure, liveness_fixedpoint)
   return dataflow:forward(g)
 end
 
---local closure = undump.undump(function(x, y) for i = 1,2,4 do x = function() print(i) end end end)
---
---local g = cfg.make(closure)
---
---print(cfg.tostring(g))
---
---local livesol = liveness.solve(g, closure)
---local solution = solve(g, closure, livesol)
---
---for pc, instr in ipairs(closure.code) do
---  local function origin_print(sol)
---    local x = {}
---    for variable, val in pairs(sol) do
---      local l = {}
---      for origin, v in pairs(val) do
---        if not livesol:after(pc)[variable] then
---          table.insert(l, ('%s~%s'):format(origin, v:sub(1,1)))
---        end
---      end
---      local str = ('%s:{%s}'):format(variable, utils.to_string(l))
---      table.insert(x, str)
---    end
---    return utils.to_string(x)
---  end
---  print(pc, instr, origin_print(solution:before(pc)), '->', origin_print(solution:after(pc)))
---end
+local closure = undump.undump(function(x, y) return {x, y} end)
+
+local g = cfg.make(closure)
+
+print(cfg.tostring(g))
+
+local livesol = liveness.solve(g, closure)
+local solution = solve(g, closure, livesol)
+
+for pc, instr in ipairs(closure.code) do
+  local function origin_print(sol)
+    local x = {}
+    for variable, val in pairs(sol or {}) do
+      local l = {}
+      for origin, v in pairs(val) do
+        if not livesol:after(pc)[variable] then
+          table.insert(l, ('%s~%s'):format(origin, v:sub(1,1)))
+        end
+      end
+      local str = ('%s:{%s}'):format(variable, utils.to_string(l))
+      table.insert(x, str)
+    end
+    return utils.to_string(x)
+  end
+  print(pc, instr, origin_print(solution:before(pc)), '->', origin_print(solution:after(pc)))
+end
 
 inlineable.solve = solve
 

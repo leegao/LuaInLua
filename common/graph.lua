@@ -107,7 +107,7 @@ function graph.vertices(self)
     local reverse = self.reverse[node]
     local value = {node, tag, forward, reverse}
     node, tag = next(self.nodes, node)
-    return table.unpack(value)
+    return value[1], value[2], value[3], value[4]
   end
 end
 
@@ -117,7 +117,7 @@ local function dfs(self, start, seen, solution)
   end
   table.insert(solution, start)
   seen[start] = true
-  for child in pairs(self.forward[start]) do
+  for child in pairs(self.forward[start] or {}) do
     dfs(self, child, seen, solution)
   end
 end
@@ -150,7 +150,7 @@ local function reverse_dfs(self, start, seen, solution)
   end
   table.insert(solution, start)
   seen[start] = true
-  for child in pairs(self.reverse[start]) do
+  for child in pairs((self.reverse or {})[start] or {}) do
     reverse_dfs(self, child, seen, solution)
   end
 end
@@ -180,7 +180,7 @@ end
 function graph.exits(self)
   local exits = {}
   for node, _, forward in self:vertices() do
-    if next(forward) == nil then
+    if next(forward or {}) == nil then
       table.insert(exits, node)
     end
   end
@@ -194,7 +194,7 @@ function graph.entrances(self)
   
   local entrances = {}
   for node, _, _, reverse in self:vertices() do
-    if next(reverse) == nil then
+    if next(reverse or {}) == nil then
       table.insert(entrances, node)
     end
   end

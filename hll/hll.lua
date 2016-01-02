@@ -33,9 +33,11 @@ local utils = require 'common.utils'
 
 local hll = {}
 
-local closure = undump.undump(function(x, y) for i = 1,2,4 do foo() end end)
+local closure = undump.undump(function(x, y) return {x, y} end)
 
 local g = cfg.make(closure)
+
+print(cfg.tostring(g))
 
 local liveness_fixedpoint = liveness.solve(g, closure)
 local solution = inlineable.solve(g, closure, liveness_fixedpoint)
