@@ -33,6 +33,30 @@ local utils = require 'common.utils'
 
 local hll = {}
 
+local function used_variables(closure, pc)
+  local instr = closure.code[pc]
+  return liveness.uses[instr.op](nil, pc, instr, {})
+end
+
+-- target language: hll
+function hll.assign(left, right) end
+
+function hll.jcond() end
+
+function hll.jmp() end
+
+function hll.ret() end
+
+function hll.foreach() end
+
+function hll.fori() end
+
+-- target language: expr
+
+local function translate(g, closure)
+  -- simple syntax directed translation into hll
+end
+
 local closure = undump.undump(function(x, y) return {x, y} end)
 
 local g = cfg.make(closure)
@@ -41,11 +65,6 @@ print(cfg.tostring(g))
 
 local liveness_fixedpoint = liveness.solve(g, closure)
 local solution = inlineable.solve(g, closure, liveness_fixedpoint)
-
-local function used_variables(closure, pc)
-  local instr = closure.code[pc]
-  return liveness.uses[instr.op](nil, pc, instr, {})
-end
 
 for pc, instr in ipairs(closure.code) do
   local uses = used_variables(closure, pc)

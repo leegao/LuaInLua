@@ -261,33 +261,33 @@ local function solve(g, closure, liveness_fixedpoint)
   }
   return dataflow:forward(g)
 end
-
-local closure = undump.undump(function(x, y) return {x, y} end)
-
-local g = cfg.make(closure)
-
-print(cfg.tostring(g))
-
-local livesol = liveness.solve(g, closure)
-local solution = solve(g, closure, livesol)
-
-for pc, instr in ipairs(closure.code) do
-  local function origin_print(sol)
-    local x = {}
-    for variable, val in pairs(sol or {}) do
-      local l = {}
-      for origin, v in pairs(val) do
-        if not livesol:after(pc)[variable] then
-          table.insert(l, ('%s~%s'):format(origin, v:sub(1,1)))
-        end
-      end
-      local str = ('%s:{%s}'):format(variable, utils.to_string(l))
-      table.insert(x, str)
-    end
-    return utils.to_string(x)
-  end
-  print(pc, instr, origin_print(solution:before(pc)), '->', origin_print(solution:after(pc)))
-end
+--
+--local closure = undump.undump(function(x, y) return {x, y} end)
+--
+--local g = cfg.make(closure)
+--
+--print(cfg.tostring(g))
+--
+--local livesol = liveness.solve(g, closure)
+--local solution = solve(g, closure, livesol)
+--
+--for pc, instr in ipairs(closure.code) do
+--  local function origin_print(sol)
+--    local x = {}
+--    for variable, val in pairs(sol or {}) do
+--      local l = {}
+--      for origin, v in pairs(val) do
+--        if not livesol:after(pc)[variable] then
+--          table.insert(l, ('%s~%s'):format(origin, v:sub(1,1)))
+--        end
+--      end
+--      local str = ('%s:{%s}'):format(variable, utils.to_string(l))
+--      table.insert(x, str)
+--    end
+--    return utils.to_string(x)
+--  end
+--  print(pc, instr, origin_print(solution:before(pc)), '->', origin_print(solution:after(pc)))
+--end
 
 inlineable.solve = solve
 
