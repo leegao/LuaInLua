@@ -83,6 +83,8 @@ local follow_algorithm = worklist {
     return {}
   end,
   transfer = function(self, node, follow_pred, graph, pred)
+    if node == 'root' then return {[EOF] = true} end
+
     local follow_set = self:initialize(node)
     local configuration = graph.configuration
     for suffix in pairs(graph.forward[pred][node]) do
@@ -299,7 +301,6 @@ end
 function ll1.yacc(actions)
   -- Associate the correct set of metatables to the nonterminals
   local configuration = ll1.configure(actions)
-  
   local first_sets = configuration:firsts()
   local follow_sets = configuration:follows()
   local terminals = get_terminals_from(configuration)
@@ -500,8 +501,8 @@ function ll1.create(actions)
     return ll1.yacc(actions)
   end
   
-  local bundle = require(file)
-  if not bundle then
+  local status, bundle = pcall(require, file:gsub('/', '.'):gsub('.lua$', ''))
+  if not status then
     local transitions = ll1.yacc(actions)
     return transitions:save(file)
   end

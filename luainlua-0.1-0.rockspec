@@ -47,6 +47,7 @@ build = {
      ['luainlua.luac'] = 'luainlua/luac.lua',
      ['luainlua.parsing.lex'] = 'luainlua/parsing/lex.lua',
      ['luainlua.parsing.ll1_grammar'] = 'luainlua/parsing/ll1_grammar.lua',
+     ['luainlua.parsing.ll1_parsing_table'] = 'luainlua/parsing/ll1_parsing_table.lua',
      ['luainlua.parsing.ll1_tokenizer'] = 'luainlua/parsing/ll1_tokenizer.lua',
      ['luainlua.parsing.re'] = 'luainlua/parsing/re.lua',
    },

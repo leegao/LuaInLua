@@ -75,7 +75,7 @@ end
     print("Warning", "Are you sure you want to disable caching of this grammar? Specify %FILE otherwise.")
   end
   if not self.requires then
-    self.requires = {'ll1.ll1'}
+    self.requires = {'luainlua.ll1.ll1'}
   end
   if not self.default_action then
     self.default_action = 'function(...) return {...} end'
@@ -298,8 +298,8 @@ local grammar = ll1 {
       end},
     {'REQUIRE', 'STRING', '$configuration_', 
       action = function(_, namespace, last)
-        if not last.requires then last.requires = {'ll1.ll1'} end
-        if namespace[2] ~= 'll1.ll1' then
+        if not last.requires then last.requires = {'luainlua.ll1.ll1'} end
+        if namespace[2] ~= 'luainlua.ll1.ll1' then
           table.insert(last.requires, 1, namespace[2])
         end
         return last
@@ -649,6 +649,7 @@ local function parse(str)
 end
 
 local code, configuration = parse(io.open('luainlua/lua/grammar.ylua'):read("*all"))
+
 os.remove(configuration.file .. '_table.lua')
 local func, status = loadstring(code)
 if not func then
