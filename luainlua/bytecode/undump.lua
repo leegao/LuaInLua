@@ -38,10 +38,10 @@ local function constant(ctx)
 end
 
 function undump.load_header(ctx)
-  assert(ctx:int() == 0x61754c1b) -- ESC. Lua
-  assert(ctx:byte() == 0x52) -- version
-  assert(ctx:byte() == 0) -- format version
-  assert(ctx:byte() == 1) -- little endian
+  assert(ctx:int() == 0x61754c1b, "Make sure you're running vanilla Lua 5.2") -- ESC. Lua
+  assert(ctx:byte() == 0x52, "Make sure you're running vanilla Lua 5.2") -- version
+  assert(ctx:byte() == 0, "Not expecting extensions.") -- format version
+  assert(ctx:byte() == 1, "Not expecting big-endianess.") -- little endian
   if not undump.sizeof_int then
     undump.sizeof_int = assert(ctx:byte()) -- sizeof(int)
     undump.sizeof_sizet = assert(ctx:byte()) -- sizeof(size_t)

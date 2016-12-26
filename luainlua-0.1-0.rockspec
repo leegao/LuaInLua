@@ -20,6 +20,9 @@ dependencies = {
 }
 build = {
    type = "builtin",
+   install = {
+     bin = {"luainlua/lua.lua"},
+   },
    modules = {
      ['luainlua.bytecode.dump'] = 'luainlua/bytecode/dump.lua',
      ['luainlua.bytecode.ir'] = 'luainlua/bytecode/ir.lua',
