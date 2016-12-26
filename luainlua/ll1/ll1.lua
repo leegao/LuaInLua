@@ -500,16 +500,16 @@ function ll1.create(actions)
     return ll1.yacc(actions)
   end
   
-  local deserialize = loadfile(file)
-  if not deserialize then
+  local bundle = require(file)
+  if not bundle then
     local transitions = ll1.yacc(actions)
     return transitions:save(file)
   end
-  
-  local status, bundle = pcall(deserialize)
-  if not status then
-    return ll1.yacc(actions):save(file)
-  end
+
+--  local status, bundle = pcall(deserialize)
+--  if not status then
+--    return ll1.yacc(actions):save(file)
+--  end
   
   local transitions, configuration = unpack(bundle)
   setmetatable(configuration, {__index = utils.copy(configurations)})

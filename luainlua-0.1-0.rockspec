@@ -41,11 +41,12 @@ build = {
      ['luainlua.lua.compiler'] = 'luainlua/lua/compiler.lua',
      ['luainlua.lua.decompiler'] = 'luainlua/lua/decompiler.lua',
      ['luainlua.lua.parser'] = 'luainlua/lua/parser.lua',
+     ['luainlua.lua.parser_table'] = 'luainlua/lua/parser_table.lua',
      ['luainlua.lua.tokenizer'] = 'luainlua/lua/tokenizer.lua',
      ['luainlua.luac'] = 'luainlua/luac.lua',
      ['luainlua.parsing.lex'] = 'luainlua/parsing/lex.lua',
      ['luainlua.parsing.ll1_grammar'] = 'luainlua/parsing/ll1_grammar.lua',
      ['luainlua.parsing.ll1_tokenizer'] = 'luainlua/parsing/ll1_tokenizer.lua',
      ['luainlua.parsing.re'] = 'luainlua/parsing/re.lua',
-   }
+   },
 }
