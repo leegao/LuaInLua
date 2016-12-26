@@ -1,8 +1,8 @@
 -- local ll1 = require 'll1.ll1'
-local parser = require 'lua.parser'
-local utils = require 'common.utils'
-local re = require 'parsing.re'
-local undump = require 'bytecode.undump'
+local parser = require 'luainlua.lua.parser'
+local utils = require 'luainlua.common.utils'
+local re = require 'luainlua.parsing.re'
+local undump = require 'luainlua.bytecode.undump'
 
 --print(config:pretty())
 --print(utils.to_list(config:follow('block')))
@@ -55,9 +55,9 @@ local undump = require 'bytecode.undump'
 --  end, 
 --  "c")
 
-local luac = require "luac"
-local dump = require "bytecode.dump"
-local undump = require "bytecode.undump"
+local luac = require "luainlua.luac"
+local dump = require "luainlua.bytecode.dump"
+local undump = require "luainlua.bytecode.undump"
 
 --local prototype = undump.undump(function(...) print(...) end)
 --for pc, op in ipairs(prototype.code) do
