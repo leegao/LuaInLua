@@ -648,19 +648,23 @@ local function parse(str)
   return epilogue(result)
 end
 
-local code, configuration = parse(io.open('luainlua/lua/grammar.ylua'):read("*all"))
+local function generate(file)
+  local code, configuration = parse(io.open(file):read("*all"))
 
-os.remove(configuration.file .. '_table.lua')
-local func, status = loadstring(code)
-if not func then
-  print("ERROR: " .. status)
+  os.remove(configuration.file .. '_table.lua')
+  local func, status = loadstring(code)
+  if not func then
+    print("ERROR: " .. status)
+  end
+  local succ, other_parser = pcall(func) -- lets just try it out and "warm the cache"
+  if not succ then
+    print("ERROR: " .. other_parser)
+  end
+  if configuration.file then
+    local file = io.open(configuration.file .. '.lua', 'w')
+    file:write(code)
+    file:close()
+  end
 end
-local succ, other_parser = pcall(func) -- lets just try it out and "warm the cache"
-if not succ then
-  print("ERROR: " .. other_parser)
-end
-if configuration.file then
-  local file = io.open(configuration.file .. '.lua', 'w')
-  file:write(code)
-  file:close()
-end
+
+return generate
