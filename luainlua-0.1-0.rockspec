@@ -15,7 +15,8 @@ description = {
 }
 dependencies = {
    "lua < 5.3",
-   "bit32"
+   "bit32",
+   "argparse",
 }
 build = {
    type = "builtin",

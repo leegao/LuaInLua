@@ -4,8 +4,8 @@ local compiler = require 'luainlua.lua.compiler'
 local dump = require 'luainlua.bytecode.dump'
 local utils = require 'luainlua.common.utils'
 
-local function main(file)
-  local tree = parser(io.open(file, 'r'):read('*all'))
+local function compile(code)
+  local tree = parser(code)
   local prototype = compiler(tree)
   local bytecode = dump.dump(prototype)
   local func, err = loadstring(tostring(bytecode))
@@ -41,4 +41,12 @@ local function main(file)
   return func, bytecode, prototype, dumper
 end
 
-return main
+local function main(file)
+  return compile(io.open(file, 'r'):read('*all'))
+end
+
+
+local luac = {}
+luac.compile = compile
+luac.luac = main
+return luac

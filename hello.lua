@@ -68,7 +68,7 @@ local undump = require "luainlua.bytecode.undump"
 --dumper()
 --foo()
 
-local compiler, bytecode, prototype, dumper = luac "luainlua/lua/compiler.lua"
+local compiler, bytecode, prototype, dumper = luac.luac "luainlua/lua/compiler.lua"
 -- dumper()
 compiler = compiler()
 local tree = parser(io.open("luainlua/lua/compiler.lua", 'r'):read('*all'))
