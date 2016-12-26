@@ -1,7 +1,7 @@
 %require "luainlua.common.utils"
 %require "luainlua.lua.tokenizer"
 
-%file "lua/parser"
+%file "luainlua/lua/parser"
 
 %quote '(' LPAREN
 %quote ',' COMMA

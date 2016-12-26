@@ -648,7 +648,7 @@ local function parse(str)
   return epilogue(result)
 end
 
-local code, configuration = parse(io.open('lua/grammar.ylua'):read("*all"))
+local code, configuration = parse(io.open('luainlua/lua/grammar.ylua'):read("*all"))
 os.remove(configuration.file .. '.table')
 local func, status = loadstring(code)
 if not func then
