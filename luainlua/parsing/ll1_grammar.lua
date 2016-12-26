@@ -251,7 +251,7 @@ local function synthesize(configuration, raw)
 end
 
 local grammar = ll1 {
-  'parsing/ll1_parsing.table',
+  'luainlua/parsing/ll1_parsing_table.lua',
   root = {{'$top', action = id}},
   conf = {
     {'CONVERT', 'CODE', '$configuration_', 
@@ -591,7 +591,7 @@ local function epilogue(result)
   
   code = code .. configuration.default .. '.grammar = ' .. utils.dump(actions, escape) .. '\n'
   if configuration.file then
-    code = code .. ('%s.grammar[1] = \'%s.table\'\n'):format(configuration.default, configuration.file)
+    code = code .. ('%s.grammar[1] = \'%s_table.lua\'\n'):format(configuration.default, configuration.file)
   end
   if configuration.top_level ~= '' then
     code = code .. trim(configuration.top_level) .. '\n'
@@ -649,7 +649,7 @@ local function parse(str)
 end
 
 local code, configuration = parse(io.open('luainlua/lua/grammar.ylua'):read("*all"))
-os.remove(configuration.file .. '.table')
+os.remove(configuration.file .. '_table.lua')
 local func, status = loadstring(code)
 if not func then
   print("ERROR: " .. status)
